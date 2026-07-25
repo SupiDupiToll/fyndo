@@ -7,10 +7,9 @@ import {
   getProductPriceLabel,
 } from "@/lib/shop";
 import Link from "next/link";
+import { getVendorHref, getVendorName } from "@/lib/vendor";
 
 export const dynamic = "force-dynamic";
-
-const VENDOR_NAME = "RundiShop";
 
 export default async function ProductPage({
   params,
@@ -46,8 +45,8 @@ export default async function ProductPage({
             <span className="text-xs font-bold text-accent uppercase tracking-wider bg-accent/10 px-3 py-1 rounded-full">
               {product.kind === "VOUCHER" ? "Gutschein" : "Produkt"}
             </span>
-            <Link href="/vendor/RundiShop" className="text-xs text-mute hover:text-accent transition-colors">
-              von <strong className="text-ink">{VENDOR_NAME}</strong>
+            <Link href={getVendorHref(product.seller)} className="text-xs text-mute hover:text-accent transition-colors">
+              von <strong className="text-ink">{getVendorName(product.seller)}</strong>
             </Link>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{product.title}</h1>

@@ -11,5 +11,6 @@
 export type * from './models/User'
 export type * from './models/Product'
 export type * from './models/Order'
+export type * from './models/GiftCard'
 export type * from './models/ThirdPartyOrder'
 export type * from './commonInputTypes'

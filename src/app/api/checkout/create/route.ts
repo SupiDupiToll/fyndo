@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { createRbankPayment } from "@/lib/rbank";
 import { formatEuro } from "@/lib/format";
 import { isDemoUser } from "@/lib/demo";
+import { formatGiftCardCode } from "@/lib/gift-card";
 import {
   getVoucherDiscountAmountForConfig,
   getVoucherDiscountType,
@@ -17,14 +18,16 @@ import {
 export async function POST(request: NextRequest) {
   let productId = "";
   let amountCents = 0;
+  let giftCardCode: string | undefined;
   const appUrl = getAppUrl();
   const configuredRedirectBase = `${appUrl}/checkout/complete`;
   const configuredCancelUrl = `${appUrl}?cancelled=1`;
 
   try {
-    const body = (await request.json()) as { productId?: string; amountCents?: number };
+    const body = (await request.json()) as { productId?: string; amountCents?: number; giftCardCode?: string };
     productId = String(body.productId ?? "");
     amountCents = Number(body.amountCents ?? 0);
+    giftCardCode = typeof body.giftCardCode === "string" ? body.giftCardCode.trim() || undefined : undefined;
   } catch {
     return NextResponse.json({ error: "Ungueltige Eingabedaten." }, { status: 400 });
   }
@@ -73,29 +76,65 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Produktpreis stimmt nicht." }, { status: 400 });
     }
 
-    const paymentAmount = product.kind === "VOUCHER"
+    let basePaymentAmount = product.kind === "VOUCHER"
       ? getVoucherPaymentAmount(resolvedAmount, product)
       : product.price;
+
+    let giftCardDeduction = 0;
+
+    if (giftCardCode) {
+      const formattedCode = formatGiftCardCode(giftCardCode);
+      const gc = await prisma.giftCard.findUnique({ where: { code: formattedCode } });
+
+      if (!gc || gc.status !== "ACTIVE" || gc.remainingBalance <= 0) {
+        return NextResponse.json({ error: "Ungültiger oder aufgebrauchter Gutscheincode." }, { status: 400 });
+      }
+
+      giftCardDeduction = Math.min(gc.remainingBalance, basePaymentAmount);
+      basePaymentAmount -= giftCardDeduction;
+    }
+
+    const orderData = {
+      userId: user.id,
+      productId: product.id,
+      amountCents: basePaymentAmount,
+      voucherFaceValueCents: product.kind === "VOUCHER" ? resolvedAmount : null,
+      buyerName: user.displayName,
+      buyerEmail: user.email,
+      giftCardCodeUsed: giftCardCode ? formatGiftCardCode(giftCardCode) : null,
+      giftCardDeduction: giftCardDeduction > 0 ? giftCardDeduction : null,
+    };
+
+    if (basePaymentAmount <= 0) {
+      const order = await prisma.order.create({
+        data: { ...orderData, status: "PAID" },
+      });
+
+      if (giftCardDeduction > 0 && order.giftCardCodeUsed) {
+        await prisma.giftCard.update({
+          where: { code: order.giftCardCodeUsed },
+          data: { remainingBalance: { decrement: giftCardDeduction } },
+        });
+      }
+
+      return NextResponse.json({
+        paid: true,
+        message: "Mit Gutschein bezahlt.",
+        orderId: order.id,
+      });
+    }
 
     const pendingOrder = await prisma.order.findFirst({
       where: {
         userId: user.id,
         productId: product.id,
         status: "PENDING",
-        amountCents: paymentAmount,
+        amountCents: basePaymentAmount,
       },
     });
 
     const order = pendingOrder ?? await prisma.order.create({
-      data: {
-        userId: user.id,
-        productId: product.id,
-        amountCents: paymentAmount,
-        voucherFaceValueCents: product.kind === "VOUCHER" ? resolvedAmount : null,
-        buyerName: user.displayName,
-        buyerEmail: user.email,
-        status: "PENDING",
-      },
+      data: { ...orderData, status: "PENDING" },
     });
 
     const redirectUrl = `${configuredRedirectBase}?orderId=${order.id}`;
@@ -115,8 +154,8 @@ export async function POST(request: NextRequest) {
 
     const session = await createRbankPayment(
       {
-        amount: paymentAmount,
-        description,
+        amount: basePaymentAmount,
+        description: giftCardDeduction > 0 ? `${description} (Gutschein: ${formatEuro(giftCardDeduction)})` : description,
         redirectUrl,
         cancelUrl,
         metadata: {

@@ -33,6 +33,7 @@ export function Nav() {
         <div className="hidden sm:flex items-center gap-4 lg:gap-6 text-sm font-semibold">
           <Link href="/products" className="hover:text-accent transition-colors">Marktplatz</Link>
           <Link href="/concierge" className="hover:text-accent transition-colors">Concierge</Link>
+          <Link href="/gift-cards" className="hover:text-accent transition-colors">Gutschein</Link>
           <Link href="/bestellungen" className="hover:text-accent transition-colors">Bestellungen</Link>
           {isAdmin && <Link href="/admin" className="text-accent hover:text-blue-700 transition-colors">Admin</Link>}
           {user ? (
@@ -63,6 +64,7 @@ export function Nav() {
           <div className="flex flex-col px-4 gap-1">
             <Link href="/products" onClick={() => setOpen(false)} className="block rounded-xl px-4 py-3 text-base font-bold hover:bg-surf transition-colors">Marktplatz</Link>
             <Link href="/concierge" onClick={() => setOpen(false)} className="block rounded-xl px-4 py-3 text-base font-bold hover:bg-surf transition-colors">Concierge</Link>
+            <Link href="/gift-cards" onClick={() => setOpen(false)} className="block rounded-xl px-4 py-3 text-base font-bold hover:bg-surf transition-colors">Gutschein</Link>
             <Link href="/bestellungen" onClick={() => setOpen(false)} className="block rounded-xl px-4 py-3 text-base font-bold hover:bg-surf transition-colors">Bestellungen</Link>
             {isAdmin && <Link href="/admin" onClick={() => setOpen(false)} className="block rounded-xl px-4 py-3 text-base font-bold text-accent hover:bg-surf transition-colors">Admin</Link>}
           </div>

@@ -19,6 +19,7 @@ type PurchaseButtonProps = {
   voucherDiscountValue?: number;
   voucherNoticeText?: string | null;
   isVoucher?: boolean;
+  giftCardCode?: string;
 };
 
 export function PurchaseButton({
@@ -32,6 +33,7 @@ export function PurchaseButton({
   voucherDiscountValue,
   voucherNoticeText,
   isVoucher = false,
+  giftCardCode,
 }: PurchaseButtonProps) {
   const [selectedAmount, setSelectedAmount] = useState(amountOptions[0] ?? fixedAmountCents ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -98,18 +100,32 @@ export function PurchaseButton({
       const response = await fetch("/api/checkout/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, amountCents: hasSelectableAmount ? selectedAmount : fixedAmountCents }),
+        body: JSON.stringify({
+          productId,
+          amountCents: hasSelectableAmount ? selectedAmount : fixedAmountCents,
+          giftCardCode: giftCardCode || undefined,
+        }),
       });
 
       const rawBody = await response.text();
-      let data: { error?: string; paymentUrl?: string } = {};
+      let data: { error?: string; paymentUrl?: string; paid?: boolean; message?: string; orderId?: string } = {};
 
       if (rawBody) {
         try { data = JSON.parse(rawBody) as typeof data; } catch { data = {}; }
       }
 
-      if (!response.ok || !data.paymentUrl) {
+      if (!response.ok) {
         setMessage(data.error ?? "Checkout konnte nicht gestartet werden.");
+        return;
+      }
+
+      if (data.paid) {
+        setMessage(data.message ?? "Bezahlt!");
+        return;
+      }
+
+      if (!data.paymentUrl) {
+        setMessage("Checkout konnte nicht gestartet werden.");
         return;
       }
 

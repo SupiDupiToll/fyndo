@@ -57,6 +57,11 @@ export type Product = Prisma.ProductModel
  */
 export type Order = Prisma.OrderModel
 /**
+ * Model GiftCard
+ * 
+ */
+export type GiftCard = Prisma.GiftCardModel
+/**
  * Model ThirdPartyOrder
  * 
  */

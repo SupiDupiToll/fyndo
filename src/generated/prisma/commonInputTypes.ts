@@ -365,6 +365,23 @@ export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
 }
 
+export type EnumGiftCardStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.GiftCardStatus | Prisma.EnumGiftCardStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.GiftCardStatus[] | Prisma.ListEnumGiftCardStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.GiftCardStatus[] | Prisma.ListEnumGiftCardStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumGiftCardStatusFilter<$PrismaModel> | $Enums.GiftCardStatus
+}
+
+export type EnumGiftCardStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.GiftCardStatus | Prisma.EnumGiftCardStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.GiftCardStatus[] | Prisma.ListEnumGiftCardStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.GiftCardStatus[] | Prisma.ListEnumGiftCardStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumGiftCardStatusWithAggregatesFilter<$PrismaModel> | $Enums.GiftCardStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumGiftCardStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumGiftCardStatusFilter<$PrismaModel>
+}
+
 export type EnumThirdPartyOrderStatusFilter<$PrismaModel = never> = {
   equals?: $Enums.ThirdPartyOrderStatus | Prisma.EnumThirdPartyOrderStatusFieldRefInput<$PrismaModel>
   in?: $Enums.ThirdPartyOrderStatus[] | Prisma.ListEnumThirdPartyOrderStatusFieldRefInput<$PrismaModel>
@@ -706,6 +723,23 @@ export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
+}
+
+export type NestedEnumGiftCardStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.GiftCardStatus | Prisma.EnumGiftCardStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.GiftCardStatus[] | Prisma.ListEnumGiftCardStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.GiftCardStatus[] | Prisma.ListEnumGiftCardStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumGiftCardStatusFilter<$PrismaModel> | $Enums.GiftCardStatus
+}
+
+export type NestedEnumGiftCardStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.GiftCardStatus | Prisma.EnumGiftCardStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.GiftCardStatus[] | Prisma.ListEnumGiftCardStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.GiftCardStatus[] | Prisma.ListEnumGiftCardStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumGiftCardStatusWithAggregatesFilter<$PrismaModel> | $Enums.GiftCardStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumGiftCardStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumGiftCardStatusFilter<$PrismaModel>
 }
 
 export type NestedEnumThirdPartyOrderStatusFilter<$PrismaModel = never> = {

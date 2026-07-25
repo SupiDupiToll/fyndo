@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { formatEuro } from "@/lib/format";
+import { getVendorHref, getVendorName } from "@/lib/vendor";
 
 export const dynamic = "force-dynamic";
-
-const VENDOR_NAME = "RundiShop";
 
 export default async function HomePage() {
   const products = await prisma.product.findMany({
@@ -41,8 +40,8 @@ export default async function HomePage() {
                 <h3 className="font-bold group-hover:text-accent transition-colors line-clamp-2">{product.title}</h3>
               </Link>
               <p className="text-xl font-black mt-2">{formatEuro(product.price)}</p>
-              <Link href="/vendor/RundiShop" className="text-xs text-mute hover:text-accent mt-1 block transition-colors">
-                {VENDOR_NAME}
+              <Link href={getVendorHref(product.seller)} className="text-xs text-mute hover:text-accent mt-1 block transition-colors">
+                {getVendorName(product.seller)}
               </Link>
               <div className="mt-4">
                 <Link

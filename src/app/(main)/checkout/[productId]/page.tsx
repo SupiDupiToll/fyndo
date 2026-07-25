@@ -4,6 +4,7 @@ import { useUser, useHexclaveApp } from "@hexclave/next";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { PurchaseButton } from "@/components/purchase-button";
+import { formatEuro } from "@/lib/format";
 import Link from "next/link";
 
 interface Product {
@@ -89,6 +90,38 @@ export default function CheckoutPage() {
     ? product.voucherAmounts
     : [];
 
+  const [giftCardCode, setGiftCardCode] = useState("");
+  const [gcValid, setGcValid] = useState(false);
+  const [gcBalance, setGcBalance] = useState(0);
+  const [gcChecking, setGcChecking] = useState(false);
+  const [gcError, setGcError] = useState("");
+
+  async function checkGiftCard() {
+    const code = giftCardCode.trim();
+    if (!code) return;
+    setGcChecking(true);
+    setGcError("");
+    setGcValid(false);
+    try {
+      const res = await fetch("/api/gift-cards/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setGcValid(true);
+        setGcBalance(data.remainingBalance);
+      } else {
+        setGcError(data.error ?? "Ungültig");
+      }
+    } catch {
+      setGcError("Fehler bei der Prüfung");
+    } finally {
+      setGcChecking(false);
+    }
+  }
+
   return (
     <div className="max-w-[600px] mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold tracking-tight">Bestellübersicht</h1>
@@ -110,6 +143,30 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      <div className="mt-6 rounded-xl border border-line bg-white p-5">
+        <label className="text-sm font-bold text-ink mb-2 block">Gutscheincode einlösen (optional)</label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={giftCardCode}
+            onChange={(e) => { setGiftCardCode(e.target.value); setGcValid(false); setGcError(""); }}
+            placeholder="FYNDO-XXXX-XXXX"
+            className="flex-1 rounded-xl border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-accent transition-colors"
+          />
+          <button
+            onClick={() => void checkGiftCard()}
+            disabled={gcChecking || !giftCardCode.trim()}
+            className="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+          >
+            {gcChecking ? "..." : "Prüfen"}
+          </button>
+        </div>
+        {gcValid && (
+          <p className="mt-2 text-sm text-green-600">Gutschein gültig – Guthaben: {formatEuro(gcBalance)}</p>
+        )}
+        {gcError && <p className="mt-2 text-sm text-red-500">{gcError}</p>}
+      </div>
+
       <div className="mt-8">
         <PurchaseButton
           productId={product.id}
@@ -120,6 +177,7 @@ export default function CheckoutPage() {
           voucherDiscountValue={product.voucherDiscountValue ?? 0}
           voucherNoticeText={product.voucherNoticeText}
           fixedAmountCents={product.kind === "PRODUCT" ? product.price : undefined}
+          giftCardCode={gcValid ? giftCardCode : undefined}
         />
       </div>
     </div>

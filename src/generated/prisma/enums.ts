@@ -61,3 +61,13 @@ export const ThirdPartyOrderStatus = {
 } as const
 
 export type ThirdPartyOrderStatus = (typeof ThirdPartyOrderStatus)[keyof typeof ThirdPartyOrderStatus]
+
+
+export const GiftCardStatus = {
+  PENDING: 'PENDING',
+  ACTIVE: 'ACTIVE',
+  REDEEMED: 'REDEEMED',
+  EXPIRED: 'EXPIRED'
+} as const
+
+export type GiftCardStatus = (typeof GiftCardStatus)[keyof typeof GiftCardStatus]

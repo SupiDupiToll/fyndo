@@ -54,6 +54,7 @@ export const ModelName = {
   User: 'User',
   Product: 'Product',
   Order: 'Order',
+  GiftCard: 'GiftCard',
   ThirdPartyOrder: 'ThirdPartyOrder'
 } as const
 
@@ -122,6 +123,8 @@ export const OrderScalarFieldEnum = {
   buyerName: 'buyerName',
   buyerEmail: 'buyerEmail',
   giftCardLink: 'giftCardLink',
+  giftCardCodeUsed: 'giftCardCodeUsed',
+  giftCardDeduction: 'giftCardDeduction',
   status: 'status',
   paymentToken: 'paymentToken',
   notificationSentAt: 'notificationSentAt',
@@ -131,6 +134,23 @@ export const OrderScalarFieldEnum = {
 } as const
 
 export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+
+
+export const GiftCardScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  amountCents: 'amountCents',
+  remainingBalance: 'remainingBalance',
+  buyerId: 'buyerId',
+  buyerEmail: 'buyerEmail',
+  message: 'message',
+  status: 'status',
+  paymentToken: 'paymentToken',
+  createdAt: 'createdAt',
+  activatedAt: 'activatedAt'
+} as const
+
+export type GiftCardScalarFieldEnum = (typeof GiftCardScalarFieldEnum)[keyof typeof GiftCardScalarFieldEnum]
 
 
 export const ThirdPartyOrderScalarFieldEnum = {

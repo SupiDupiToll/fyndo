@@ -100,6 +100,13 @@ export default async function CheckoutCompletePage({
             voucherFaceValueCents: order.voucherFaceValueCents,
             sellerName: order.product.seller.sellerName,
           }).catch((err) => console.error("NTFY failed:", err));
+
+          if (order.giftCardCodeUsed && order.giftCardDeduction) {
+            await prisma.giftCard.update({
+              where: { code: order.giftCardCodeUsed },
+              data: { remainingBalance: { decrement: order.giftCardDeduction } },
+            }).catch((err) => console.error("GiftCard deduct failed:", err));
+          }
         }
       }
 

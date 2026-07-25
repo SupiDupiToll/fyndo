@@ -400,6 +400,7 @@ export const ModelName = {
   User: 'User',
   Product: 'Product',
   Order: 'Order',
+  GiftCard: 'GiftCard',
   ThirdPartyOrder: 'ThirdPartyOrder'
 } as const
 
@@ -416,7 +417,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "product" | "order" | "thirdPartyOrder"
+    modelProps: "user" | "product" | "order" | "giftCard" | "thirdPartyOrder"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -642,6 +643,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    GiftCard: {
+      payload: Prisma.$GiftCardPayload<ExtArgs>
+      fields: Prisma.GiftCardFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GiftCardFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GiftCardFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>
+        }
+        findFirst: {
+          args: Prisma.GiftCardFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GiftCardFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>
+        }
+        findMany: {
+          args: Prisma.GiftCardFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>[]
+        }
+        create: {
+          args: Prisma.GiftCardCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>
+        }
+        createMany: {
+          args: Prisma.GiftCardCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.GiftCardCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>[]
+        }
+        delete: {
+          args: Prisma.GiftCardDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>
+        }
+        update: {
+          args: Prisma.GiftCardUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>
+        }
+        deleteMany: {
+          args: Prisma.GiftCardDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GiftCardUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.GiftCardUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>[]
+        }
+        upsert: {
+          args: Prisma.GiftCardUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GiftCardPayload>
+        }
+        aggregate: {
+          args: Prisma.GiftCardAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGiftCard>
+        }
+        groupBy: {
+          args: Prisma.GiftCardGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GiftCardGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GiftCardCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GiftCardCountAggregateOutputType> | number
+        }
+      }
+    }
     ThirdPartyOrder: {
       payload: Prisma.$ThirdPartyOrderPayload<ExtArgs>
       fields: Prisma.ThirdPartyOrderFieldRefs
@@ -804,6 +879,8 @@ export const OrderScalarFieldEnum = {
   buyerName: 'buyerName',
   buyerEmail: 'buyerEmail',
   giftCardLink: 'giftCardLink',
+  giftCardCodeUsed: 'giftCardCodeUsed',
+  giftCardDeduction: 'giftCardDeduction',
   status: 'status',
   paymentToken: 'paymentToken',
   notificationSentAt: 'notificationSentAt',
@@ -813,6 +890,23 @@ export const OrderScalarFieldEnum = {
 } as const
 
 export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+
+
+export const GiftCardScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  amountCents: 'amountCents',
+  remainingBalance: 'remainingBalance',
+  buyerId: 'buyerId',
+  buyerEmail: 'buyerEmail',
+  message: 'message',
+  status: 'status',
+  paymentToken: 'paymentToken',
+  createdAt: 'createdAt',
+  activatedAt: 'activatedAt'
+} as const
+
+export type GiftCardScalarFieldEnum = (typeof GiftCardScalarFieldEnum)[keyof typeof GiftCardScalarFieldEnum]
 
 
 export const ThirdPartyOrderScalarFieldEnum = {
@@ -1033,6 +1127,20 @@ export type ListEnumOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$
 
 
 /**
+ * Reference to a field of type 'GiftCardStatus'
+ */
+export type EnumGiftCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GiftCardStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'GiftCardStatus[]'
+ */
+export type ListEnumGiftCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GiftCardStatus[]'>
+    
+
+
+/**
  * Reference to a field of type 'ThirdPartyOrderStatus'
  */
 export type EnumThirdPartyOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ThirdPartyOrderStatus'>
@@ -1199,6 +1307,7 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   product?: Prisma.ProductOmit
   order?: Prisma.OrderOmit
+  giftCard?: Prisma.GiftCardOmit
   thirdPartyOrder?: Prisma.ThirdPartyOrderOmit
 }
 
