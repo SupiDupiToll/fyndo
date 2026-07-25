@@ -4,12 +4,10 @@ import { useUser, useHexclaveApp } from "@hexclave/next";
 import { useState } from "react";
 import { formatEuro } from "@/lib/format";
 
-const AMOUNTS = [1000, 2500, 5000, 10000, 25000, 50000];
-
 export default function GiftCardsPage() {
   const user = useUser();
   const app = useHexclaveApp();
-  const [selected, setSelected] = useState(2500);
+  const [selected, setSelected] = useState(25);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,7 +21,7 @@ export default function GiftCardsPage() {
       const res = await fetch("/api/gift-cards/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountCents: selected, message: message.trim() || undefined }),
+        body: JSON.stringify({ amountCents: selected * 100, message: message.trim() || undefined }),
       });
       const data = await res.json();
       if (data.paymentUrl) {
@@ -50,20 +48,37 @@ export default function GiftCardsPage() {
       <div className="space-y-6">
         <div>
           <label className="text-sm font-bold text-ink mb-3 block">Betrag wählen</label>
-          <div className="grid grid-cols-3 gap-3">
-            {AMOUNTS.map((amount) => (
-              <button
-                key={amount}
-                onClick={() => setSelected(amount)}
-                className={`rounded-2xl border-2 px-4 py-4 text-center font-bold transition-all ${
-                  selected === amount
-                    ? "border-accent bg-accent/5 text-accent"
-                    : "border-line bg-white text-ink hover:border-accent/30"
-                }`}
-              >
-                <span className="text-lg">{formatEuro(amount)}</span>
-              </button>
-            ))}
+          <div className="space-y-4 rounded-2xl border border-line bg-white p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-mute">1 € bis 100 €</p>
+              <p className="text-xl font-black text-accent">{formatEuro(selected * 100)}</p>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={100}
+              step={1}
+              value={selected}
+              onChange={(e) => setSelected(Number(e.target.value))}
+              className="w-full accent-accent"
+            />
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-mute">Euro</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                value={selected}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  if (Number.isInteger(next)) {
+                    setSelected(Math.min(100, Math.max(1, next)));
+                  }
+                }}
+                className="w-24 rounded-xl border border-line bg-surf px-3 py-2 text-sm font-bold outline-none focus:border-accent"
+              />
+            </div>
           </div>
         </div>
 
@@ -85,7 +100,7 @@ export default function GiftCardsPage() {
           disabled={loading}
           className="w-full rounded-xl bg-accent py-4 text-base font-bold text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
         >
-          {loading ? "Wird weitergeleitet..." : `${formatEuro(selected)} – Gutschein kaufen`}
+          {loading ? "Wird weitergeleitet..." : `${formatEuro(selected * 100)} – Gutschein kaufen`}
         </button>
 
         <div className="rounded-xl bg-surf border border-line p-6 text-sm text-mute space-y-2">

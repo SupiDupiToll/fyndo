@@ -5,8 +5,6 @@ import { prisma } from "@/lib/db";
 import { createRbankPayment } from "@/lib/rbank";
 import { isDemoUser } from "@/lib/demo";
 
-const FIXED_AMOUNTS = [1000, 2500, 5000, 10000, 25000, 50000];
-
 export async function POST(request: NextRequest) {
   const appUrl = getAppUrl();
 
@@ -21,7 +19,7 @@ export async function POST(request: NextRequest) {
     const amountCents = Number(body.amountCents ?? 0);
     const message = typeof body.message === "string" ? body.message.trim() || null : null;
 
-    if (!FIXED_AMOUNTS.includes(amountCents)) {
+    if (!Number.isInteger(amountCents) || amountCents < 100 || amountCents > 10000) {
       return NextResponse.json({ error: "Ungültiger Betrag." }, { status: 400 });
     }
 

@@ -1,6 +1,8 @@
 import { requireSellerOrSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/format";
+import { VendorPayoutRequestButton } from "@/components/vendor-payout-request-button";
+import type { Prisma, OrderStatus } from "@/generated/prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -9,25 +11,35 @@ export default async function AdminDashboardPage() {
   const isSuperAdmin = user.role === "SUPER_ADMIN";
 
   const productFilter = isSuperAdmin ? {} : { sellerId: user.id };
+  const paidStatuses: OrderStatus[] = ["PAID", "DONE"];
+  const paidOrderFilter = {
+    status: { in: paidStatuses },
+    ...(isSuperAdmin ? {} : { product: { sellerId: user.id } }),
+  };
+  type RecentPaidOrder = Prisma.OrderGetPayload<{
+    include: {
+      product: { select: { title: true } };
+      user: { select: { displayName: true } };
+    };
+  }>;
 
-  const [productCount, orderCount, totalRevenue, recentOrders] = await Promise.all([
+  const [productCount, orderCount, paidOrderCount, paidOrderTotals, recentPaidOrders] = await Promise.all([
     prisma.product.count({ where: { ...productFilter } }),
     prisma.order.count({ where: isSuperAdmin ? {} : { product: { sellerId: user.id } } }),
-    prisma.order.aggregate({
-      where: { status: "PAID", ...(isSuperAdmin ? {} : { product: { sellerId: user.id } }) },
-      _sum: { amountCents: true },
-    }),
+    prisma.order.count({ where: paidOrderFilter }),
+    prisma.order.aggregate({ where: paidOrderFilter, _sum: { amountCents: true, giftCardDeduction: true } }),
     prisma.order.findMany({
-      where: isSuperAdmin ? {} : { product: { sellerId: user.id } },
+      where: paidOrderFilter,
       include: { product: { select: { title: true } }, user: { select: { displayName: true } } },
       orderBy: { createdAt: "desc" },
       take: 10,
-    }),
+    }) as Promise<RecentPaidOrder[]>,
   ]);
 
-  const tpoCount = isSuperAdmin
-    ? await prisma.thirdPartyOrder.count()
-    : null;
+  const cashRevenue = paidOrderTotals._sum?.amountCents ?? 0;
+  const giftCardRevenue = paidOrderTotals._sum?.giftCardDeduction ?? 0;
+  const grossRevenue = cashRevenue + giftCardRevenue;
+  const tpoCount = isSuperAdmin ? await prisma.thirdPartyOrder.count() : null;
 
   return (
     <div className="space-y-8">
@@ -46,8 +58,13 @@ export default async function AdminDashboardPage() {
           <p className="text-3xl font-bold mt-1">{orderCount}</p>
         </div>
         <div className="rounded-2xl border border-line bg-white p-5">
+          <p className="text-sm text-mute font-medium">Bezahlte Bestellungen</p>
+          <p className="text-3xl font-bold mt-1">{paidOrderCount}</p>
+        </div>
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-sm text-mute font-medium">Umsatz</p>
-          <p className="text-3xl font-bold mt-1">{formatEuro(totalRevenue._sum.amountCents ?? 0)}</p>
+          <p className="text-3xl font-bold mt-1">{formatEuro(grossRevenue)}</p>
+          <p className="mt-1 text-xs text-mute">Cash {formatEuro(cashRevenue)} · Gutschein {formatEuro(giftCardRevenue)}</p>
         </div>
         {tpoCount !== null && (
           <div className="rounded-2xl border border-line bg-white p-5">
@@ -57,22 +74,42 @@ export default async function AdminDashboardPage() {
         )}
       </div>
 
+      {!isSuperAdmin && (
+        <section className="rounded-3xl border border-line bg-white p-6 sm:p-7">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <h2 className="text-xl font-bold">Auszahlung beantragen</h2>
+              <p className="mt-2 text-sm text-mute">
+                Die Anfrage geht per Hexclave-Mail an den Admin und enthält deinen Brutto-Umsatz inklusive Gutscheinanteil.
+              </p>
+            </div>
+            <VendorPayoutRequestButton />
+          </div>
+        </section>
+      )}
+
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">Letzte Bestellungen</h2>
+          <h2 className="text-lg font-bold">Letzte bezahlte Bestellungen</h2>
           <a href="/admin/products" className="text-sm text-accent hover:underline font-medium">Alle Produkte</a>
         </div>
-        {recentOrders.length === 0 ? (
+        {recentPaidOrders.length === 0 ? (
           <p className="text-mute text-sm">Noch keine Bestellungen.</p>
         ) : (
           <div className="space-y-2">
-            {recentOrders.map((o) => (
+            {recentPaidOrders.map((o) => (
               <div key={o.id} className="flex items-center justify-between rounded-xl border border-line bg-white px-5 py-3">
                 <div>
                   <p className="font-medium text-sm">{o.product.title}</p>
-                  <p className="text-xs text-mute">{o.user.displayName} &middot; {new Date(o.createdAt).toLocaleDateString("de-DE")}</p>
+                  <p className="text-xs text-mute">
+                    {o.user.displayName} &middot; {new Date(o.createdAt).toLocaleDateString("de-DE")}
+                    {o.giftCardDeduction ? ` · Gutschein ${formatEuro(o.giftCardDeduction)}` : ""}
+                  </p>
                 </div>
-                <span className="text-sm font-bold">{formatEuro(o.amountCents)}</span>
+                <div className="text-right">
+                  <span className="text-sm font-bold">{formatEuro(o.amountCents + (o.giftCardDeduction ?? 0))}</span>
+                  {o.giftCardDeduction ? <p className="text-[11px] text-mute">Mit Gutschein bezahlt</p> : <p className="text-[11px] text-mute">Direkt bezahlt</p>}
+                </div>
               </div>
             ))}
           </div>

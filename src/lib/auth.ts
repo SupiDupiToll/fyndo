@@ -29,6 +29,10 @@ function getAdminEmails(): Set<string> {
   );
 }
 
+export function getAdminEmailList(): string[] {
+  return Array.from(getAdminEmails());
+}
+
 async function upsertUserFromStackUser(user: StackUser): Promise<User | null> {
   if (!user) return null;
 
