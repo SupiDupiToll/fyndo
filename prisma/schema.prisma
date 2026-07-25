@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  SELLER
+  USER
+}
+
+enum ProductKind {
+  PRODUCT
+  VOUCHER
+}
+
+enum VoucherMode {
+  RANGE
+  FIXED
+}
+
+enum VoucherDiscountType {
+  FIXED
+  PERCENT
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  DONE
+  CANCELLED
+}
+
+enum ThirdPartyOrderStatus {
+  REQUESTED
+  QUOTED
+  ORDERED
+  DONE
+  CANCELLED
+}
+
+model User {
+  id               String             @id @default(cuid())
+  stackUserId      String             @unique
+  email            String             @unique
+  displayName      String
+  role             UserRole           @default(USER)
+  sellerName       String?
+  rbankMerchantId  String?
+  rbankMerchantSecret String?
+  rbankApiUrl      String?
+  createdAt        DateTime           @default(now())
+  orders           Order[]
+  thirdPartyOrders ThirdPartyOrder[]
+  products         Product[]
+}
+
+model Product {
+  id                  String               @id @default(cuid())
+  sellerId            String
+  seller              User                 @relation(fields: [sellerId], references: [id])
+  title               String
+  description         String
+  imageUrl            String?
+  price               Int
+  kind                ProductKind          @default(PRODUCT)
+  voucherMode         VoucherMode?
+  voucherMinCents     Int?
+  voucherMaxCents     Int?
+  voucherStepCents    Int?                 @default(100)
+  voucherAmounts      Json?
+  voucherDiscountType VoucherDiscountType? @default(FIXED)
+  voucherDiscountValue Float?              @default(10)
+  voucherNoticeText   String?
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  orders              Order[]
+}
+
+model Order {
+  id                   String       @id @default(cuid())
+  userId               String
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId            String
+  product              Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  amountCents          Int
+  voucherFaceValueCents Int?
+  buyerName            String
+  buyerEmail           String
+  giftCardLink         String?
+  status               OrderStatus  @default(PENDING)
+  paymentToken         String?      @unique
+  notificationSentAt   DateTime?
+  fulfilledAt          DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+}
+
+model ThirdPartyOrder {
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productUrl          String
+  shopName            String
+  shopHost            String
+  shopFaviconUrl      String?
+  customerNote        String?
+  amountCents         Int?
+  paymentToken        String?              @unique
+  adminNote           String?
+  status              ThirdPartyOrderStatus @default(REQUESTED)
+  notificationSentAt  DateTime?
+  quotedAt            DateTime?
+  orderedAt           DateTime?
+  fulfilledAt         DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}

@@ -1,0 +1,10 @@
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+  sharp: true
+minimumReleaseAgeExclude:
+  - '@hexclave/next@1.0.64'
+  - '@hexclave/sc@1.0.64'
+  - '@hexclave/shared@1.0.64'
+  - '@hexclave/ui@1.0.64'
+  - postcss@8.5.23

@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: oklch(0.145 0.014 265);
+  --color-mute: oklch(0.45 0.016 265);
+  --color-line: oklch(0.88 0.008 265);
+  --color-surf: oklch(0.985 0.003 265);
+  --color-tile: oklch(0.96 0.006 265);
+  --color-accent: oklch(0.55 0.22 265);
+  --color-accent-hover: oklch(0.48 0.22 265);
+  --color-primary: oklch(0.55 0.22 265);
+  --color-primary-hover: oklch(0.48 0.22 265);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--color-surf);
+}
+
+::selection {
+  background: oklch(0.55 0.22 265 / 0.15);
+}
+
+input, textarea, select, button { font-family: inherit; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+:focus-visible { outline: 2px solid oklch(0.55 0.22 265 / 0.5); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
+.rabatt-section { padding: 0 0 3rem; }
+.rabatt-controls { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
+.rabatt-search { flex: 1; border: 1px solid var(--color-line); border-radius: 9999px; padding: 0.75rem 1.25rem; font-size: 0.875rem; outline: none; background: white; transition: border-color 0.2s; }
+.rabatt-search:focus { border-color: var(--color-accent); }
+.rabatt-sort { border: 1px solid var(--color-line); border-radius: 9999px; padding: 0.75rem 1.25rem; font-size: 0.875rem; outline: none; background: white; cursor: pointer; }
+.rabatt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+.rabatt-card { display: flex; flex-direction: column; border: 1px solid var(--color-line); border-radius: 1.25rem; background: white; padding: 1.25rem; cursor: pointer; text-align: left; transition: box-shadow 0.2s, border-color 0.2s; width: 100%; }
+.rabatt-card:hover { box-shadow: 0 8px 24px oklch(0 0 0 / 0.06); border-color: oklch(0.55 0.22 265 / 0.2); }
+.rabatt-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+.rabatt-card-logo { width: 64px; height: 64px; object-fit: contain; border-radius: 0.75rem; }
+.rabatt-card-body { display: flex; flex-direction: column; gap: 0.125rem; }
+.rabatt-card-name { font-size: 1rem; font-weight: 700; line-height: 1.3; color: var(--color-ink); }
+.rabatt-card-domain { font-size: 0.75rem; color: var(--color-mute); text-decoration: none; }
+.rabatt-card-domain:hover { color: var(--color-accent); }
+.rabatt-pill { display: inline-flex; align-items: center; gap: 0.125rem; background: var(--color-tile); border-radius: 9999px; padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: var(--color-accent); white-space: nowrap; }
+.rabatt-pill-bis { font-weight: 400; color: var(--color-mute); margin-right: 0.125rem; }
+.rabatt-split-badge { display: inline-flex; align-items: baseline; }
+.rabatt-split-value { font-size: 0.85rem; }
+.rabatt-split-unit { font-size: 0.6rem; margin-left: 0.05rem; }
+.rabatt-loading { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 3rem 0; color: var(--color-mute); font-size: 0.875rem; }
+.rabatt-spinner { width: 24px; height: 24px; border: 2px solid var(--color-line); border-top-color: var(--color-accent); border-radius: 50%; animation: rabatt-spin 0.7s linear infinite; }
+@keyframes rabatt-spin { to { transform: rotate(360deg); } }
+.rabatt-sentinel { height: 1px; }
+.rabatt-end { text-align: center; padding: 1rem 0; font-size: 0.875rem; color: var(--color-mute); }
+.rabatt-modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: oklch(0 0 0 / 0.35); padding: 1rem; }
+.rabatt-modal { width: 100%; max-width: 520px; max-height: 80vh; overflow-y: auto; background: white; border-radius: 1.5rem; padding: 1.5rem; }
+.rabatt-modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+.rabatt-modal-headline h3 { font-size: 1.25rem; font-weight: 700; margin: 0; }
+.rabatt-modal-headline .muted { font-size: 0.75rem; color: var(--color-mute); margin: 0 0 0.25rem; }
+.rabatt-modal-close { background: none; border: none; font-size: 1.5rem; color: var(--color-mute); cursor: pointer; padding: 0.25rem; line-height: 1; }
+.rabatt-modal-close:hover { color: var(--color-ink); }
+.rabatt-modal-summary { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--color-surf); border-radius: 1rem; margin-bottom: 1.5rem; }
+.rabatt-modal-logo { width: 48px; height: 48px; object-fit: contain; border-radius: 0.5rem; }
+.rabatt-modal-summary strong { font-size: 1rem; display: block; }
+.rabatt-modal-domain { font-size: 0.8rem; color: var(--color-mute); text-decoration: none; display: block; }
+.rabatt-modal-rate { display: inline-block; margin-top: 0.25rem; }
+.rabatt-modal-section { margin-bottom: 1.5rem; }
+.rabatt-modal-section h4 { font-size: 0.8rem; font-weight: 700; color: var(--color-mute); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem; }
+.rabatt-modal-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.rabatt-modal-item { padding: 0.75rem; border: 1px solid var(--color-line); border-radius: 0.75rem; }
+.rabatt-modal-item-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.rabatt-modal-offer-title { font-size: 0.85rem; font-weight: 500; }
+.rabatt-modal-item-meta { font-size: 0.75rem; color: var(--color-mute); margin: 0.25rem 0 0; }
+.rabatt-modal-text { font-size: 0.85rem; color: var(--color-ink); margin: 0; line-height: 1.5; opacity: 0.75; }
+.rabatt-code { font-size: 0.8rem; font-family: monospace; background: var(--color-tile); padding: 0.2rem 0.5rem; border-radius: 0.4rem; white-space: nowrap; }
+.status-danger { color: oklch(0.55 0.2 25); font-size: 0.875rem; }
+.empty-state { text-align: center; padding: 3rem; color: var(--color-mute); }
+
+@media (max-width: 768px) {
+  .rabatt-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .rabatt-grid { grid-template-columns: 1fr; }
+  .rabatt-modal { max-height: 90vh; border-radius: 1rem; padding: 1rem; }
+}
