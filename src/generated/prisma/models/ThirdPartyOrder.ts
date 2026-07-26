@@ -28,10 +28,12 @@ export type AggregateThirdPartyOrder = {
 
 export type ThirdPartyOrderAvgAggregateOutputType = {
   amountCents: number | null
+  giftCardDeduction: number | null
 }
 
 export type ThirdPartyOrderSumAggregateOutputType = {
   amountCents: number | null
+  giftCardDeduction: number | null
 }
 
 export type ThirdPartyOrderMinAggregateOutputType = {
@@ -45,6 +47,8 @@ export type ThirdPartyOrderMinAggregateOutputType = {
   amountCents: number | null
   paymentToken: string | null
   adminNote: string | null
+  giftCardCodeUsed: string | null
+  giftCardDeduction: number | null
   status: $Enums.ThirdPartyOrderStatus | null
   notificationSentAt: Date | null
   quotedAt: Date | null
@@ -65,6 +69,8 @@ export type ThirdPartyOrderMaxAggregateOutputType = {
   amountCents: number | null
   paymentToken: string | null
   adminNote: string | null
+  giftCardCodeUsed: string | null
+  giftCardDeduction: number | null
   status: $Enums.ThirdPartyOrderStatus | null
   notificationSentAt: Date | null
   quotedAt: Date | null
@@ -85,6 +91,8 @@ export type ThirdPartyOrderCountAggregateOutputType = {
   amountCents: number
   paymentToken: number
   adminNote: number
+  giftCardCodeUsed: number
+  giftCardDeduction: number
   status: number
   notificationSentAt: number
   quotedAt: number
@@ -98,10 +106,12 @@ export type ThirdPartyOrderCountAggregateOutputType = {
 
 export type ThirdPartyOrderAvgAggregateInputType = {
   amountCents?: true
+  giftCardDeduction?: true
 }
 
 export type ThirdPartyOrderSumAggregateInputType = {
   amountCents?: true
+  giftCardDeduction?: true
 }
 
 export type ThirdPartyOrderMinAggregateInputType = {
@@ -115,6 +125,8 @@ export type ThirdPartyOrderMinAggregateInputType = {
   amountCents?: true
   paymentToken?: true
   adminNote?: true
+  giftCardCodeUsed?: true
+  giftCardDeduction?: true
   status?: true
   notificationSentAt?: true
   quotedAt?: true
@@ -135,6 +147,8 @@ export type ThirdPartyOrderMaxAggregateInputType = {
   amountCents?: true
   paymentToken?: true
   adminNote?: true
+  giftCardCodeUsed?: true
+  giftCardDeduction?: true
   status?: true
   notificationSentAt?: true
   quotedAt?: true
@@ -155,6 +169,8 @@ export type ThirdPartyOrderCountAggregateInputType = {
   amountCents?: true
   paymentToken?: true
   adminNote?: true
+  giftCardCodeUsed?: true
+  giftCardDeduction?: true
   status?: true
   notificationSentAt?: true
   quotedAt?: true
@@ -262,6 +278,8 @@ export type ThirdPartyOrderGroupByOutputType = {
   amountCents: number | null
   paymentToken: string | null
   adminNote: string | null
+  giftCardCodeUsed: string | null
+  giftCardDeduction: number | null
   status: $Enums.ThirdPartyOrderStatus
   notificationSentAt: Date | null
   quotedAt: Date | null
@@ -305,6 +323,8 @@ export type ThirdPartyOrderWhereInput = {
   amountCents?: Prisma.IntNullableFilter<"ThirdPartyOrder"> | number | null
   paymentToken?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
   adminNote?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
+  giftCardCodeUsed?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
+  giftCardDeduction?: Prisma.IntNullableFilter<"ThirdPartyOrder"> | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFilter<"ThirdPartyOrder"> | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.DateTimeNullableFilter<"ThirdPartyOrder"> | Date | string | null
   quotedAt?: Prisma.DateTimeNullableFilter<"ThirdPartyOrder"> | Date | string | null
@@ -326,6 +346,8 @@ export type ThirdPartyOrderOrderByWithRelationInput = {
   amountCents?: Prisma.SortOrderInput | Prisma.SortOrder
   paymentToken?: Prisma.SortOrderInput | Prisma.SortOrder
   adminNote?: Prisma.SortOrderInput | Prisma.SortOrder
+  giftCardCodeUsed?: Prisma.SortOrderInput | Prisma.SortOrder
+  giftCardDeduction?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   quotedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -350,6 +372,8 @@ export type ThirdPartyOrderWhereUniqueInput = Prisma.AtLeast<{
   customerNote?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
   amountCents?: Prisma.IntNullableFilter<"ThirdPartyOrder"> | number | null
   adminNote?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
+  giftCardCodeUsed?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
+  giftCardDeduction?: Prisma.IntNullableFilter<"ThirdPartyOrder"> | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFilter<"ThirdPartyOrder"> | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.DateTimeNullableFilter<"ThirdPartyOrder"> | Date | string | null
   quotedAt?: Prisma.DateTimeNullableFilter<"ThirdPartyOrder"> | Date | string | null
@@ -371,6 +395,8 @@ export type ThirdPartyOrderOrderByWithAggregationInput = {
   amountCents?: Prisma.SortOrderInput | Prisma.SortOrder
   paymentToken?: Prisma.SortOrderInput | Prisma.SortOrder
   adminNote?: Prisma.SortOrderInput | Prisma.SortOrder
+  giftCardCodeUsed?: Prisma.SortOrderInput | Prisma.SortOrder
+  giftCardDeduction?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   quotedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -399,6 +425,8 @@ export type ThirdPartyOrderScalarWhereWithAggregatesInput = {
   amountCents?: Prisma.IntNullableWithAggregatesFilter<"ThirdPartyOrder"> | number | null
   paymentToken?: Prisma.StringNullableWithAggregatesFilter<"ThirdPartyOrder"> | string | null
   adminNote?: Prisma.StringNullableWithAggregatesFilter<"ThirdPartyOrder"> | string | null
+  giftCardCodeUsed?: Prisma.StringNullableWithAggregatesFilter<"ThirdPartyOrder"> | string | null
+  giftCardDeduction?: Prisma.IntNullableWithAggregatesFilter<"ThirdPartyOrder"> | number | null
   status?: Prisma.EnumThirdPartyOrderStatusWithAggregatesFilter<"ThirdPartyOrder"> | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ThirdPartyOrder"> | Date | string | null
   quotedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ThirdPartyOrder"> | Date | string | null
@@ -418,6 +446,8 @@ export type ThirdPartyOrderCreateInput = {
   amountCents?: number | null
   paymentToken?: string | null
   adminNote?: string | null
+  giftCardCodeUsed?: string | null
+  giftCardDeduction?: number | null
   status?: $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Date | string | null
   quotedAt?: Date | string | null
@@ -439,6 +469,8 @@ export type ThirdPartyOrderUncheckedCreateInput = {
   amountCents?: number | null
   paymentToken?: string | null
   adminNote?: string | null
+  giftCardCodeUsed?: string | null
+  giftCardDeduction?: number | null
   status?: $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Date | string | null
   quotedAt?: Date | string | null
@@ -458,6 +490,8 @@ export type ThirdPartyOrderUpdateInput = {
   amountCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardCodeUsed?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFieldUpdateOperationsInput | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   quotedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -479,6 +513,8 @@ export type ThirdPartyOrderUncheckedUpdateInput = {
   amountCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardCodeUsed?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFieldUpdateOperationsInput | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   quotedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -499,6 +535,8 @@ export type ThirdPartyOrderCreateManyInput = {
   amountCents?: number | null
   paymentToken?: string | null
   adminNote?: string | null
+  giftCardCodeUsed?: string | null
+  giftCardDeduction?: number | null
   status?: $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Date | string | null
   quotedAt?: Date | string | null
@@ -518,6 +556,8 @@ export type ThirdPartyOrderUpdateManyMutationInput = {
   amountCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardCodeUsed?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFieldUpdateOperationsInput | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   quotedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -538,6 +578,8 @@ export type ThirdPartyOrderUncheckedUpdateManyInput = {
   amountCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardCodeUsed?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFieldUpdateOperationsInput | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   quotedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -568,6 +610,8 @@ export type ThirdPartyOrderCountOrderByAggregateInput = {
   amountCents?: Prisma.SortOrder
   paymentToken?: Prisma.SortOrder
   adminNote?: Prisma.SortOrder
+  giftCardCodeUsed?: Prisma.SortOrder
+  giftCardDeduction?: Prisma.SortOrder
   status?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   quotedAt?: Prisma.SortOrder
@@ -579,6 +623,7 @@ export type ThirdPartyOrderCountOrderByAggregateInput = {
 
 export type ThirdPartyOrderAvgOrderByAggregateInput = {
   amountCents?: Prisma.SortOrder
+  giftCardDeduction?: Prisma.SortOrder
 }
 
 export type ThirdPartyOrderMaxOrderByAggregateInput = {
@@ -592,6 +637,8 @@ export type ThirdPartyOrderMaxOrderByAggregateInput = {
   amountCents?: Prisma.SortOrder
   paymentToken?: Prisma.SortOrder
   adminNote?: Prisma.SortOrder
+  giftCardCodeUsed?: Prisma.SortOrder
+  giftCardDeduction?: Prisma.SortOrder
   status?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   quotedAt?: Prisma.SortOrder
@@ -612,6 +659,8 @@ export type ThirdPartyOrderMinOrderByAggregateInput = {
   amountCents?: Prisma.SortOrder
   paymentToken?: Prisma.SortOrder
   adminNote?: Prisma.SortOrder
+  giftCardCodeUsed?: Prisma.SortOrder
+  giftCardDeduction?: Prisma.SortOrder
   status?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   quotedAt?: Prisma.SortOrder
@@ -623,6 +672,7 @@ export type ThirdPartyOrderMinOrderByAggregateInput = {
 
 export type ThirdPartyOrderSumOrderByAggregateInput = {
   amountCents?: Prisma.SortOrder
+  giftCardDeduction?: Prisma.SortOrder
 }
 
 export type ThirdPartyOrderCreateNestedManyWithoutUserInput = {
@@ -681,6 +731,8 @@ export type ThirdPartyOrderCreateWithoutUserInput = {
   amountCents?: number | null
   paymentToken?: string | null
   adminNote?: string | null
+  giftCardCodeUsed?: string | null
+  giftCardDeduction?: number | null
   status?: $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Date | string | null
   quotedAt?: Date | string | null
@@ -700,6 +752,8 @@ export type ThirdPartyOrderUncheckedCreateWithoutUserInput = {
   amountCents?: number | null
   paymentToken?: string | null
   adminNote?: string | null
+  giftCardCodeUsed?: string | null
+  giftCardDeduction?: number | null
   status?: $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Date | string | null
   quotedAt?: Date | string | null
@@ -749,6 +803,8 @@ export type ThirdPartyOrderScalarWhereInput = {
   amountCents?: Prisma.IntNullableFilter<"ThirdPartyOrder"> | number | null
   paymentToken?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
   adminNote?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
+  giftCardCodeUsed?: Prisma.StringNullableFilter<"ThirdPartyOrder"> | string | null
+  giftCardDeduction?: Prisma.IntNullableFilter<"ThirdPartyOrder"> | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFilter<"ThirdPartyOrder"> | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.DateTimeNullableFilter<"ThirdPartyOrder"> | Date | string | null
   quotedAt?: Prisma.DateTimeNullableFilter<"ThirdPartyOrder"> | Date | string | null
@@ -768,6 +824,8 @@ export type ThirdPartyOrderCreateManyUserInput = {
   amountCents?: number | null
   paymentToken?: string | null
   adminNote?: string | null
+  giftCardCodeUsed?: string | null
+  giftCardDeduction?: number | null
   status?: $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Date | string | null
   quotedAt?: Date | string | null
@@ -787,6 +845,8 @@ export type ThirdPartyOrderUpdateWithoutUserInput = {
   amountCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardCodeUsed?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFieldUpdateOperationsInput | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   quotedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -806,6 +866,8 @@ export type ThirdPartyOrderUncheckedUpdateWithoutUserInput = {
   amountCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardCodeUsed?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFieldUpdateOperationsInput | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   quotedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -825,6 +887,8 @@ export type ThirdPartyOrderUncheckedUpdateManyWithoutUserInput = {
   amountCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardCodeUsed?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumThirdPartyOrderStatusFieldUpdateOperationsInput | $Enums.ThirdPartyOrderStatus
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   quotedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -847,6 +911,8 @@ export type ThirdPartyOrderSelect<ExtArgs extends runtime.Types.Extensions.Inter
   amountCents?: boolean
   paymentToken?: boolean
   adminNote?: boolean
+  giftCardCodeUsed?: boolean
+  giftCardDeduction?: boolean
   status?: boolean
   notificationSentAt?: boolean
   quotedAt?: boolean
@@ -868,6 +934,8 @@ export type ThirdPartyOrderSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   amountCents?: boolean
   paymentToken?: boolean
   adminNote?: boolean
+  giftCardCodeUsed?: boolean
+  giftCardDeduction?: boolean
   status?: boolean
   notificationSentAt?: boolean
   quotedAt?: boolean
@@ -889,6 +957,8 @@ export type ThirdPartyOrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   amountCents?: boolean
   paymentToken?: boolean
   adminNote?: boolean
+  giftCardCodeUsed?: boolean
+  giftCardDeduction?: boolean
   status?: boolean
   notificationSentAt?: boolean
   quotedAt?: boolean
@@ -910,6 +980,8 @@ export type ThirdPartyOrderSelectScalar = {
   amountCents?: boolean
   paymentToken?: boolean
   adminNote?: boolean
+  giftCardCodeUsed?: boolean
+  giftCardDeduction?: boolean
   status?: boolean
   notificationSentAt?: boolean
   quotedAt?: boolean
@@ -919,7 +991,7 @@ export type ThirdPartyOrderSelectScalar = {
   updatedAt?: boolean
 }
 
-export type ThirdPartyOrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "productUrl" | "shopName" | "shopHost" | "shopFaviconUrl" | "customerNote" | "amountCents" | "paymentToken" | "adminNote" | "status" | "notificationSentAt" | "quotedAt" | "orderedAt" | "fulfilledAt" | "createdAt" | "updatedAt", ExtArgs["result"]["thirdPartyOrder"]>
+export type ThirdPartyOrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "productUrl" | "shopName" | "shopHost" | "shopFaviconUrl" | "customerNote" | "amountCents" | "paymentToken" | "adminNote" | "giftCardCodeUsed" | "giftCardDeduction" | "status" | "notificationSentAt" | "quotedAt" | "orderedAt" | "fulfilledAt" | "createdAt" | "updatedAt", ExtArgs["result"]["thirdPartyOrder"]>
 export type ThirdPartyOrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -946,6 +1018,8 @@ export type $ThirdPartyOrderPayload<ExtArgs extends runtime.Types.Extensions.Int
     amountCents: number | null
     paymentToken: string | null
     adminNote: string | null
+    giftCardCodeUsed: string | null
+    giftCardDeduction: number | null
     status: $Enums.ThirdPartyOrderStatus
     notificationSentAt: Date | null
     quotedAt: Date | null
@@ -1387,6 +1461,8 @@ export interface ThirdPartyOrderFieldRefs {
   readonly amountCents: Prisma.FieldRef<"ThirdPartyOrder", 'Int'>
   readonly paymentToken: Prisma.FieldRef<"ThirdPartyOrder", 'String'>
   readonly adminNote: Prisma.FieldRef<"ThirdPartyOrder", 'String'>
+  readonly giftCardCodeUsed: Prisma.FieldRef<"ThirdPartyOrder", 'String'>
+  readonly giftCardDeduction: Prisma.FieldRef<"ThirdPartyOrder", 'Int'>
   readonly status: Prisma.FieldRef<"ThirdPartyOrder", 'ThirdPartyOrderStatus'>
   readonly notificationSentAt: Prisma.FieldRef<"ThirdPartyOrder", 'DateTime'>
   readonly quotedAt: Prisma.FieldRef<"ThirdPartyOrder", 'DateTime'>

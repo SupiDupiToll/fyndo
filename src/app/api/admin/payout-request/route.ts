@@ -27,6 +27,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Dein Guthaben beträgt 0 €." }, { status: 400 });
     }
 
+    const feeCents = Math.round(balanceCents * 0.03) + 15;
+    const netCents = Math.max(balanceCents - feeCents, 0);
+
     const adminEmails = getAdminEmailList();
     const admins = adminEmails.length > 0
       ? await prisma.user.findMany({
@@ -67,7 +70,9 @@ export async function POST(request: NextRequest) {
         <p style="color:#475569;line-height:1.6">
           Verkäufer: <strong>${sellerName}</strong><br/>
           E-Mail: <strong>${user.email}</strong><br/>
-          Auszahlungsbetrag: <strong>${formatEuro(balanceCents)}</strong>
+          Brutto: <strong>${formatEuro(balanceCents)}</strong><br/>
+          Gebühr (3%+15ct): <strong>${formatEuro(feeCents)}</strong><br/>
+          Auszahlungsbetrag: <strong>${formatEuro(netCents)}</strong>
         </p>
         ${note ? `<p style="color:#475569;line-height:1.6"><strong>Notiz:</strong> ${note}</p>` : ""}
         <div style="margin-top:20px;padding:16px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc">
@@ -82,7 +87,7 @@ export async function POST(request: NextRequest) {
       data: { sellerBalanceCents: 0 },
     });
 
-    return NextResponse.json({ message: `Auszahlung von ${formatEuro(balanceCents)} wurde beantragt.` });
+    return NextResponse.json({ message: `Auszahlung von ${formatEuro(netCents)} (netto nach Gebühr) wurde beantragt.` });
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
       return NextResponse.json({ error: "Bitte zuerst einloggen." }, { status: 401 });

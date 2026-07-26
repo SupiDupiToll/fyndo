@@ -122,9 +122,7 @@ export async function POST(request: NextRequest) {
       }).catch(() => {});
 
       return NextResponse.json({
-        paid: true,
-        message: "Mit Gutschein bezahlt.",
-        orderId: order.id,
+        redirectUrl: `${configuredRedirectBase}?orderId=${order.id}`,
       });
     }
 

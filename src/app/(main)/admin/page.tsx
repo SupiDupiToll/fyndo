@@ -88,6 +88,7 @@ export default async function AdminDashboardPage() {
               <h2 className="text-xl font-bold">Auszahlung beantragen</h2>
               <p className="mt-2 text-sm text-mute">
                 Dein Guthaben beträgt <strong>{formatEuro(user.sellerBalanceCents)}</strong>.
+                Bei einer Auszahlung wird eine Gebühr von 3% + 15&nbsp;Cent erhoben.
                 Nach der Anfrage wird der Betrag zurückgesetzt und der Admin per E-Mail benachrichtigt.
               </p>
             </div>

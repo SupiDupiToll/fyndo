@@ -108,7 +108,7 @@ export function PurchaseButton({
       });
 
       const rawBody = await response.text();
-      let data: { error?: string; paymentUrl?: string; paid?: boolean; message?: string; orderId?: string } = {};
+      let data: { error?: string; paymentUrl?: string; redirectUrl?: string } = {};
 
       if (rawBody) {
         try { data = JSON.parse(rawBody) as typeof data; } catch { data = {}; }
@@ -119,17 +119,13 @@ export function PurchaseButton({
         return;
       }
 
-      if (data.paid) {
-        setMessage(data.message ?? "Bezahlt!");
-        return;
-      }
-
-      if (!data.paymentUrl) {
+      const url = data.redirectUrl || data.paymentUrl;
+      if (!url) {
         setMessage("Checkout konnte nicht gestartet werden.");
         return;
       }
 
-      window.location.href = data.paymentUrl;
+      window.location.href = url;
     } finally {
       setLoading(false);
     }

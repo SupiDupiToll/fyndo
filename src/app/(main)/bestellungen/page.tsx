@@ -122,9 +122,14 @@ export default async function BestellungenPage() {
                   <p className="mt-1 text-sm text-mute">Admin: {tpo.adminNote}</p>
                 )}
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="text-sm font-semibold">
-                    {typeof tpo.amountCents === "number" ? formatEuro(tpo.amountCents) : "Preis offen"}
-                  </span>
+                  <div>
+                    <span className="text-sm font-semibold">
+                      {typeof tpo.amountCents === "number" ? formatEuro(tpo.amountCents) : "Preis offen"}
+                    </span>
+                    {tpo.giftCardDeduction ? (
+                      <p className="text-xs text-green-600">davon {formatEuro(tpo.giftCardDeduction)} mit Gutschein bezahlt</p>
+                    ) : null}
+                  </div>
                   {tpo.status === "QUOTED" && tpo.amountCents ? (
                     <ThirdPartyOrderPayButton thirdPartyOrderId={tpo.id} />
                   ) : null}

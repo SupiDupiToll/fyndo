@@ -11,6 +11,7 @@ type CameraUploadProps = {
 
 export function CameraUpload({ onUrl, currentUrl }: CameraUploadProps) {
   const [mode, setMode] = useState<"idle" | "camera" | "uploading">("idle");
+  const [error, setError] = useState("");
   const [previewUrl, setPreviewUrl] = useState(currentUrl ?? "");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -31,7 +32,14 @@ export function CameraUpload({ onUrl, currentUrl }: CameraUploadProps) {
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch {
-      setMode("idle");
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        streamRef.current = stream;
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch {
+        setError("Kamera nicht verfügbar oder Zugriff verweigert.");
+        setMode("idle");
+      }
     }
   }
 
@@ -52,6 +60,7 @@ export function CameraUpload({ onUrl, currentUrl }: CameraUploadProps) {
 
   async function uploadToStreamshare(blob: Blob) {
     setMode("uploading");
+    setError("");
     try {
       const file = new File([blob], `produkt-${Date.now()}.jpg`, { type: "image/jpeg" });
 
@@ -60,7 +69,7 @@ export function CameraUpload({ onUrl, currentUrl }: CameraUploadProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: file.name }),
       });
-      if (!createRes.ok) throw new Error("Upload failed");
+      if (!createRes.ok) throw new Error("Upload-Fehler");
       const { fileIdentifier } = await createRes.json();
 
       const ws = new WebSocket(`${STREAMSHARE_URL.replace("https", "wss")}/api/upload/${fileIdentifier}`);
@@ -70,7 +79,7 @@ export function CameraUpload({ onUrl, currentUrl }: CameraUploadProps) {
           reader.onload = () => {
             ws.send(reader.result as ArrayBuffer);
           };
-          reader.onerror = () => reject(new Error("File read failed"));
+          reader.onerror = () => reject(new Error("Datei lesen fehlgeschlagen"));
           reader.readAsArrayBuffer(file);
 
           ws.onmessage = (msg) => {
@@ -79,14 +88,16 @@ export function CameraUpload({ onUrl, currentUrl }: CameraUploadProps) {
               resolve();
             }
           };
-          ws.onerror = () => reject(new Error("WebSocket error"));
+          ws.onerror = () => reject(new Error("WebSocket-Fehler"));
         };
       });
 
       const url = `${STREAMSHARE_URL}/download/${fileIdentifier}`;
       setPreviewUrl(url);
       onUrl(url);
-    } catch {
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setError("Foto konnte nicht hochgeladen werden. Bitte URL manuell eingeben.");
       setMode("idle");
     }
   }
@@ -119,7 +130,7 @@ export function CameraUpload({ onUrl, currentUrl }: CameraUploadProps) {
         <input
           type="url"
           value={previewUrl}
-          onChange={(e) => { setPreviewUrl(e.target.value); onUrl(e.target.value); }}
+          onChange={(e) => { setPreviewUrl(e.target.value); setError(""); onUrl(e.target.value); }}
           placeholder="https://..."
           className="flex-1 rounded-xl border border-line bg-white px-5 py-3 outline-none focus:border-accent transition-colors text-sm"
         />
@@ -133,6 +144,7 @@ export function CameraUpload({ onUrl, currentUrl }: CameraUploadProps) {
           Kamera
         </button>
       </div>
+      {error && <p className="text-sm text-red-500">{error}</p>}
     </div>
   );
 }

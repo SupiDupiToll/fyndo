@@ -918,6 +918,8 @@ export const ThirdPartyOrderScalarFieldEnum = {
   amountCents: 'amountCents',
   paymentToken: 'paymentToken',
   adminNote: 'adminNote',
+  giftCardCodeUsed: 'giftCardCodeUsed',
+  giftCardDeduction: 'giftCardDeduction',
   status: 'status',
   notificationSentAt: 'notificationSentAt',
   quotedAt: 'quotedAt',

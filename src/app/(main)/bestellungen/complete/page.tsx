@@ -68,7 +68,7 @@ export default async function ThirdPartyOrderCompletePage({
 
     if (
       verification.status === "COMPLETED" &&
-      verification.amount === order.amountCents &&
+      verification.amount === (order.amountCents ?? 0) - (order.giftCardDeduction ?? 0) &&
       verification.metadata.thirdPartyOrderId === order.id
     ) {
       const updated = await prisma.thirdPartyOrder.updateMany({
@@ -84,6 +84,13 @@ export default async function ThirdPartyOrderCompletePage({
           shopHost: order.shopHost,
           amountCents: order.amountCents ?? verification.amount,
         }).catch((err) => console.error("NTFY failed:", err));
+
+        if (order.giftCardCodeUsed && order.giftCardDeduction) {
+          await prisma.giftCard.update({
+            where: { code: order.giftCardCodeUsed },
+            data: { remainingBalance: { decrement: order.giftCardDeduction } },
+          }).catch((err) => console.error("GiftCard deduct failed:", err));
+        }
       }
 
       message = "Zahlung bestätigt. Vielen Dank!";
@@ -101,6 +108,9 @@ export default async function ThirdPartyOrderCompletePage({
         <p className={success ? "mt-3 text-3xl font-black text-green-600" : "mt-3 text-3xl font-black text-red-600"}>
           {typeof order.amountCents === "number" ? formatEuro(order.amountCents) : "Preis offen"}
         </p>
+        {order.giftCardDeduction ? (
+          <p className="mt-1 text-sm text-green-600">{formatEuro(order.giftCardDeduction)} mit Gutschein bezahlt</p>
+        ) : null}
       </div>
       <div className="mt-8 flex gap-4">
         <Link href="/bestellungen" className="rounded-full bg-accent px-8 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all">
