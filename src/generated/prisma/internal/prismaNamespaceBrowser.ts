@@ -81,9 +81,7 @@ export const UserScalarFieldEnum = {
   displayName: 'displayName',
   role: 'role',
   sellerName: 'sellerName',
-  rbankMerchantId: 'rbankMerchantId',
-  rbankMerchantSecret: 'rbankMerchantSecret',
-  rbankApiUrl: 'rbankApiUrl',
+  sellerBalanceCents: 'sellerBalanceCents',
   createdAt: 'createdAt'
 } as const
 

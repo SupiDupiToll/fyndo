@@ -719,14 +719,6 @@ export type ProductUncheckedUpdateManyWithoutSellerNestedInput = {
   deleteMany?: Prisma.ProductScalarWhereInput | Prisma.ProductScalarWhereInput[]
 }
 
-export type IntFieldUpdateOperationsInput = {
-  set?: number
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
-}
-
 export type EnumProductKindFieldUpdateOperationsInput = {
   set?: $Enums.ProductKind
 }

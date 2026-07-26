@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { getAppUrl, getRbankConfig } from "@/lib/env";
+import { getAppUrl } from "@/lib/env";
 import { prisma } from "@/lib/db";
 import { createRbankPayment } from "@/lib/rbank";
 import { isDemoUser } from "@/lib/demo";

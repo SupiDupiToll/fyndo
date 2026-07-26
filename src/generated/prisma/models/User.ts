@@ -20,8 +20,18 @@ export type UserModel = runtime.Types.Result.DefaultSelection<Prisma.$UserPayloa
 
 export type AggregateUser = {
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
+}
+
+export type UserAvgAggregateOutputType = {
+  sellerBalanceCents: number | null
+}
+
+export type UserSumAggregateOutputType = {
+  sellerBalanceCents: number | null
 }
 
 export type UserMinAggregateOutputType = {
@@ -31,9 +41,7 @@ export type UserMinAggregateOutputType = {
   displayName: string | null
   role: $Enums.UserRole | null
   sellerName: string | null
-  rbankMerchantId: string | null
-  rbankMerchantSecret: string | null
-  rbankApiUrl: string | null
+  sellerBalanceCents: number | null
   createdAt: Date | null
 }
 
@@ -44,9 +52,7 @@ export type UserMaxAggregateOutputType = {
   displayName: string | null
   role: $Enums.UserRole | null
   sellerName: string | null
-  rbankMerchantId: string | null
-  rbankMerchantSecret: string | null
-  rbankApiUrl: string | null
+  sellerBalanceCents: number | null
   createdAt: Date | null
 }
 
@@ -57,13 +63,19 @@ export type UserCountAggregateOutputType = {
   displayName: number
   role: number
   sellerName: number
-  rbankMerchantId: number
-  rbankMerchantSecret: number
-  rbankApiUrl: number
+  sellerBalanceCents: number
   createdAt: number
   _all: number
 }
 
+
+export type UserAvgAggregateInputType = {
+  sellerBalanceCents?: true
+}
+
+export type UserSumAggregateInputType = {
+  sellerBalanceCents?: true
+}
 
 export type UserMinAggregateInputType = {
   id?: true
@@ -72,9 +84,7 @@ export type UserMinAggregateInputType = {
   displayName?: true
   role?: true
   sellerName?: true
-  rbankMerchantId?: true
-  rbankMerchantSecret?: true
-  rbankApiUrl?: true
+  sellerBalanceCents?: true
   createdAt?: true
 }
 
@@ -85,9 +95,7 @@ export type UserMaxAggregateInputType = {
   displayName?: true
   role?: true
   sellerName?: true
-  rbankMerchantId?: true
-  rbankMerchantSecret?: true
-  rbankApiUrl?: true
+  sellerBalanceCents?: true
   createdAt?: true
 }
 
@@ -98,9 +106,7 @@ export type UserCountAggregateInputType = {
   displayName?: true
   role?: true
   sellerName?: true
-  rbankMerchantId?: true
-  rbankMerchantSecret?: true
-  rbankApiUrl?: true
+  sellerBalanceCents?: true
   createdAt?: true
   _all?: true
 }
@@ -143,6 +149,18 @@ export type UserAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: UserAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: UserSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: UserMinAggregateInputType
@@ -173,6 +191,8 @@ export type UserGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
   take?: number
   skip?: number
   _count?: UserCountAggregateInputType | true
+  _avg?: UserAvgAggregateInputType
+  _sum?: UserSumAggregateInputType
   _min?: UserMinAggregateInputType
   _max?: UserMaxAggregateInputType
 }
@@ -184,11 +204,11 @@ export type UserGroupByOutputType = {
   displayName: string
   role: $Enums.UserRole
   sellerName: string | null
-  rbankMerchantId: string | null
-  rbankMerchantSecret: string | null
-  rbankApiUrl: string | null
+  sellerBalanceCents: number
   createdAt: Date
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
 }
@@ -218,9 +238,7 @@ export type UserWhereInput = {
   displayName?: Prisma.StringFilter<"User"> | string
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   sellerName?: Prisma.StringNullableFilter<"User"> | string | null
-  rbankMerchantId?: Prisma.StringNullableFilter<"User"> | string | null
-  rbankMerchantSecret?: Prisma.StringNullableFilter<"User"> | string | null
-  rbankApiUrl?: Prisma.StringNullableFilter<"User"> | string | null
+  sellerBalanceCents?: Prisma.IntFilter<"User"> | number
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   orders?: Prisma.OrderListRelationFilter
   thirdPartyOrders?: Prisma.ThirdPartyOrderListRelationFilter
@@ -235,9 +253,7 @@ export type UserOrderByWithRelationInput = {
   displayName?: Prisma.SortOrder
   role?: Prisma.SortOrder
   sellerName?: Prisma.SortOrderInput | Prisma.SortOrder
-  rbankMerchantId?: Prisma.SortOrderInput | Prisma.SortOrder
-  rbankMerchantSecret?: Prisma.SortOrderInput | Prisma.SortOrder
-  rbankApiUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  sellerBalanceCents?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   orders?: Prisma.OrderOrderByRelationAggregateInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderOrderByRelationAggregateInput
@@ -255,9 +271,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   displayName?: Prisma.StringFilter<"User"> | string
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   sellerName?: Prisma.StringNullableFilter<"User"> | string | null
-  rbankMerchantId?: Prisma.StringNullableFilter<"User"> | string | null
-  rbankMerchantSecret?: Prisma.StringNullableFilter<"User"> | string | null
-  rbankApiUrl?: Prisma.StringNullableFilter<"User"> | string | null
+  sellerBalanceCents?: Prisma.IntFilter<"User"> | number
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   orders?: Prisma.OrderListRelationFilter
   thirdPartyOrders?: Prisma.ThirdPartyOrderListRelationFilter
@@ -272,13 +286,13 @@ export type UserOrderByWithAggregationInput = {
   displayName?: Prisma.SortOrder
   role?: Prisma.SortOrder
   sellerName?: Prisma.SortOrderInput | Prisma.SortOrder
-  rbankMerchantId?: Prisma.SortOrderInput | Prisma.SortOrder
-  rbankMerchantSecret?: Prisma.SortOrderInput | Prisma.SortOrder
-  rbankApiUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  sellerBalanceCents?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
+  _avg?: Prisma.UserAvgOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
+  _sum?: Prisma.UserSumOrderByAggregateInput
 }
 
 export type UserScalarWhereWithAggregatesInput = {
@@ -291,9 +305,7 @@ export type UserScalarWhereWithAggregatesInput = {
   displayName?: Prisma.StringWithAggregatesFilter<"User"> | string
   role?: Prisma.EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
   sellerName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
-  rbankMerchantId?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
-  rbankMerchantSecret?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
-  rbankApiUrl?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  sellerBalanceCents?: Prisma.IntWithAggregatesFilter<"User"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
 
@@ -304,9 +316,7 @@ export type UserCreateInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderCreateNestedManyWithoutUserInput
@@ -321,9 +331,7 @@ export type UserUncheckedCreateInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedCreateNestedManyWithoutUserInput
@@ -338,9 +346,7 @@ export type UserUpdateInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUpdateManyWithoutUserNestedInput
@@ -355,9 +361,7 @@ export type UserUncheckedUpdateInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedUpdateManyWithoutUserNestedInput
@@ -372,9 +376,7 @@ export type UserCreateManyInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
 }
 
@@ -385,9 +387,7 @@ export type UserUpdateManyMutationInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -398,9 +398,7 @@ export type UserUncheckedUpdateManyInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -411,10 +409,12 @@ export type UserCountOrderByAggregateInput = {
   displayName?: Prisma.SortOrder
   role?: Prisma.SortOrder
   sellerName?: Prisma.SortOrder
-  rbankMerchantId?: Prisma.SortOrder
-  rbankMerchantSecret?: Prisma.SortOrder
-  rbankApiUrl?: Prisma.SortOrder
+  sellerBalanceCents?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+}
+
+export type UserAvgOrderByAggregateInput = {
+  sellerBalanceCents?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -424,9 +424,7 @@ export type UserMaxOrderByAggregateInput = {
   displayName?: Prisma.SortOrder
   role?: Prisma.SortOrder
   sellerName?: Prisma.SortOrder
-  rbankMerchantId?: Prisma.SortOrder
-  rbankMerchantSecret?: Prisma.SortOrder
-  rbankApiUrl?: Prisma.SortOrder
+  sellerBalanceCents?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -437,10 +435,12 @@ export type UserMinOrderByAggregateInput = {
   displayName?: Prisma.SortOrder
   role?: Prisma.SortOrder
   sellerName?: Prisma.SortOrder
-  rbankMerchantId?: Prisma.SortOrder
-  rbankMerchantSecret?: Prisma.SortOrder
-  rbankApiUrl?: Prisma.SortOrder
+  sellerBalanceCents?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+}
+
+export type UserSumOrderByAggregateInput = {
+  sellerBalanceCents?: Prisma.SortOrder
 }
 
 export type UserScalarRelationFilter = {
@@ -458,6 +458,14 @@ export type EnumUserRoleFieldUpdateOperationsInput = {
 
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
+}
+
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
 }
 
 export type DateTimeFieldUpdateOperationsInput = {
@@ -527,9 +535,7 @@ export type UserCreateWithoutProductsInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderCreateNestedManyWithoutUserInput
@@ -543,9 +549,7 @@ export type UserUncheckedCreateWithoutProductsInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedCreateNestedManyWithoutUserInput
@@ -575,9 +579,7 @@ export type UserUpdateWithoutProductsInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUpdateManyWithoutUserNestedInput
@@ -591,9 +593,7 @@ export type UserUncheckedUpdateWithoutProductsInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedUpdateManyWithoutUserNestedInput
@@ -607,9 +607,7 @@ export type UserCreateWithoutOrdersInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   thirdPartyOrders?: Prisma.ThirdPartyOrderCreateNestedManyWithoutUserInput
   products?: Prisma.ProductCreateNestedManyWithoutSellerInput
@@ -623,9 +621,7 @@ export type UserUncheckedCreateWithoutOrdersInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedCreateNestedManyWithoutUserInput
   products?: Prisma.ProductUncheckedCreateNestedManyWithoutSellerInput
@@ -655,9 +651,7 @@ export type UserUpdateWithoutOrdersInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   thirdPartyOrders?: Prisma.ThirdPartyOrderUpdateManyWithoutUserNestedInput
   products?: Prisma.ProductUpdateManyWithoutSellerNestedInput
@@ -671,9 +665,7 @@ export type UserUncheckedUpdateWithoutOrdersInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedUpdateManyWithoutUserNestedInput
   products?: Prisma.ProductUncheckedUpdateManyWithoutSellerNestedInput
@@ -687,9 +679,7 @@ export type UserCreateWithoutGiftCardsInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderCreateNestedManyWithoutUserInput
@@ -703,9 +693,7 @@ export type UserUncheckedCreateWithoutGiftCardsInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedCreateNestedManyWithoutUserInput
@@ -735,9 +723,7 @@ export type UserUpdateWithoutGiftCardsInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUpdateManyWithoutUserNestedInput
@@ -751,9 +737,7 @@ export type UserUncheckedUpdateWithoutGiftCardsInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedUpdateManyWithoutUserNestedInput
@@ -767,9 +751,7 @@ export type UserCreateWithoutThirdPartyOrdersInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutUserInput
   products?: Prisma.ProductCreateNestedManyWithoutSellerInput
@@ -783,9 +765,7 @@ export type UserUncheckedCreateWithoutThirdPartyOrdersInput = {
   displayName: string
   role?: $Enums.UserRole
   sellerName?: string | null
-  rbankMerchantId?: string | null
-  rbankMerchantSecret?: string | null
-  rbankApiUrl?: string | null
+  sellerBalanceCents?: number
   createdAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
   products?: Prisma.ProductUncheckedCreateNestedManyWithoutSellerInput
@@ -815,9 +795,7 @@ export type UserUpdateWithoutThirdPartyOrdersInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
   products?: Prisma.ProductUpdateManyWithoutSellerNestedInput
@@ -831,9 +809,7 @@ export type UserUncheckedUpdateWithoutThirdPartyOrdersInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankMerchantSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  rbankApiUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
   products?: Prisma.ProductUncheckedUpdateManyWithoutSellerNestedInput
@@ -905,9 +881,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   displayName?: boolean
   role?: boolean
   sellerName?: boolean
-  rbankMerchantId?: boolean
-  rbankMerchantSecret?: boolean
-  rbankApiUrl?: boolean
+  sellerBalanceCents?: boolean
   createdAt?: boolean
   orders?: boolean | Prisma.User$ordersArgs<ExtArgs>
   thirdPartyOrders?: boolean | Prisma.User$thirdPartyOrdersArgs<ExtArgs>
@@ -923,9 +897,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   displayName?: boolean
   role?: boolean
   sellerName?: boolean
-  rbankMerchantId?: boolean
-  rbankMerchantSecret?: boolean
-  rbankApiUrl?: boolean
+  sellerBalanceCents?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["user"]>
 
@@ -936,9 +908,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   displayName?: boolean
   role?: boolean
   sellerName?: boolean
-  rbankMerchantId?: boolean
-  rbankMerchantSecret?: boolean
-  rbankApiUrl?: boolean
+  sellerBalanceCents?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["user"]>
 
@@ -949,13 +919,11 @@ export type UserSelectScalar = {
   displayName?: boolean
   role?: boolean
   sellerName?: boolean
-  rbankMerchantId?: boolean
-  rbankMerchantSecret?: boolean
-  rbankApiUrl?: boolean
+  sellerBalanceCents?: boolean
   createdAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "stackUserId" | "email" | "displayName" | "role" | "sellerName" | "rbankMerchantId" | "rbankMerchantSecret" | "rbankApiUrl" | "createdAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "stackUserId" | "email" | "displayName" | "role" | "sellerName" | "sellerBalanceCents" | "createdAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   orders?: boolean | Prisma.User$ordersArgs<ExtArgs>
   thirdPartyOrders?: boolean | Prisma.User$thirdPartyOrdersArgs<ExtArgs>
@@ -981,9 +949,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     displayName: string
     role: $Enums.UserRole
     sellerName: string | null
-    rbankMerchantId: string | null
-    rbankMerchantSecret: string | null
-    rbankApiUrl: string | null
+    sellerBalanceCents: number
     createdAt: Date
   }, ExtArgs["result"]["user"]>
   composites: {}
@@ -1418,9 +1384,7 @@ export interface UserFieldRefs {
   readonly displayName: Prisma.FieldRef<"User", 'String'>
   readonly role: Prisma.FieldRef<"User", 'UserRole'>
   readonly sellerName: Prisma.FieldRef<"User", 'String'>
-  readonly rbankMerchantId: Prisma.FieldRef<"User", 'String'>
-  readonly rbankMerchantSecret: Prisma.FieldRef<"User", 'String'>
-  readonly rbankApiUrl: Prisma.FieldRef<"User", 'String'>
+  readonly sellerBalanceCents: Prisma.FieldRef<"User", 'Int'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
 }
     

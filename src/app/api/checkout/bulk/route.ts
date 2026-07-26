@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { getAppUrl, getRbankConfig } from "@/lib/env";
+import { getAppUrl } from "@/lib/env";
 import { prisma } from "@/lib/db";
 import { createRbankPayment } from "@/lib/rbank";
 import { isDemoUser } from "@/lib/demo";
@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
 
     const products = await prisma.product.findMany({
       where: { id: { in: items.map((i) => i.productId) } },
-      include: { seller: true },
     });
 
     if (products.length !== items.length) {
@@ -39,15 +38,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const sellerIds = new Set(products.map((p) => p.sellerId));
-    if (sellerIds.size > 1) {
-      return NextResponse.json(
-        { error: "Artikel von verschiedenen Verkäufern müssen separat bezahlt werden." },
-        { status: 400 },
-      );
-    }
-
-    const seller = products[0].seller;
     const description = products.map((p) => p.title).join(", ");
 
     const orders = await prisma.$transaction(
@@ -72,27 +62,16 @@ export async function POST(request: NextRequest) {
     const redirectUrl = `${configuredRedirectBase}?orderIds=${encodeURIComponent(orderIds)}`;
     const cancelUrl = configuredCancelUrl;
 
-    const sellerConfig = seller.rbankMerchantId && seller.rbankMerchantSecret
-      ? {
-          apiUrl: seller.rbankApiUrl ?? getRbankConfig().apiUrl,
-          merchantId: seller.rbankMerchantId,
-          merchantSecret: seller.rbankMerchantSecret,
-        }
-      : undefined;
-
-    const session = await createRbankPayment(
-      {
-        amount: totalCents,
-        description: `${description} - ${user.displayName}`,
-        redirectUrl,
-        cancelUrl,
-        metadata: {
-          bulkOrderIds: orderIds,
-          userId: user.id,
-        },
+    const session = await createRbankPayment({
+      amount: totalCents,
+      description: `${description} - ${user.displayName}`,
+      redirectUrl,
+      cancelUrl,
+      metadata: {
+        bulkOrderIds: orderIds,
+        userId: user.id,
       },
-      sellerConfig,
-    );
+    });
 
     for (const order of orders) {
       await prisma.order.update({

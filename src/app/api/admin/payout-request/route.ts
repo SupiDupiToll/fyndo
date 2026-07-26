@@ -3,7 +3,7 @@ import { hexclaveServerApp } from "@/hexclave/server";
 import { getAdminEmailList, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/format";
-import type { Prisma, OrderStatus } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 export async function POST(request: NextRequest) {
   let note = "";
@@ -22,6 +22,11 @@ export async function POST(request: NextRequest) {
       note = "";
     }
 
+    const balanceCents = user.sellerBalanceCents;
+    if (balanceCents <= 0) {
+      return NextResponse.json({ error: "Dein Guthaben beträgt 0 €." }, { status: 400 });
+    }
+
     const adminEmails = getAdminEmailList();
     const admins = adminEmails.length > 0
       ? await prisma.user.findMany({
@@ -34,36 +39,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Kein Admin für die Auszahlung gefunden." }, { status: 500 });
     }
 
-    const payoutStatuses: OrderStatus[] = ["PAID", "DONE"];
-    const payoutWhere = {
-      status: { in: payoutStatuses },
-      product: { sellerId: user.id },
-    };
-    type PayoutOrder = Prisma.OrderGetPayload<{
-      include: { product: { select: { title: true } } };
-    }>;
-
-    const [paidOrderCount, summary, recentOrders] = await Promise.all([
-      prisma.order.count({ where: payoutWhere }),
-      prisma.order.aggregate({
-        where: payoutWhere,
-        _sum: { amountCents: true, giftCardDeduction: true },
-      }),
-      prisma.order.findMany({
-        where: payoutWhere,
-        include: { product: { select: { title: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }) as Promise<PayoutOrder[]>,
-    ]);
-
-    const cashCents = summary._sum?.amountCents ?? 0;
-    const giftCardCents = summary._sum?.giftCardDeduction ?? 0;
-    const grossCents = cashCents + giftCardCents;
-
-    if (grossCents <= 0 || paidOrderCount === 0) {
-      return NextResponse.json({ error: "Es gibt noch keine bezahlten Bestellungen für eine Auszahlung." }, { status: 400 });
-    }
+    const recentOrders = await prisma.order.findMany({
+      where: {
+        status: { in: ["PAID", "DONE"] as const },
+        product: { sellerId: user.id },
+      },
+      include: { product: { select: { title: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }) as Prisma.OrderGetPayload<{ include: { product: { select: { title: true } } } }>[];
 
     const sellerName = user.sellerName?.trim() || user.displayName;
     const subject = `Auszahlungsanfrage von ${sellerName}`;
@@ -83,10 +67,7 @@ export async function POST(request: NextRequest) {
         <p style="color:#475569;line-height:1.6">
           Verkäufer: <strong>${sellerName}</strong><br/>
           E-Mail: <strong>${user.email}</strong><br/>
-          Bezahlte Bestellungen: <strong>${paidOrderCount}</strong><br/>
-          Brutto-Umsatz: <strong>${formatEuro(grossCents)}</strong><br/>
-          Cash-Anteil: <strong>${formatEuro(cashCents)}</strong><br/>
-          Gutschein-Anteil: <strong>${formatEuro(giftCardCents)}</strong>
+          Auszahlungsbetrag: <strong>${formatEuro(balanceCents)}</strong>
         </p>
         ${note ? `<p style="color:#475569;line-height:1.6"><strong>Notiz:</strong> ${note}</p>` : ""}
         <div style="margin-top:20px;padding:16px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc">
@@ -96,7 +77,12 @@ export async function POST(request: NextRequest) {
       </div>`,
     });
 
-    return NextResponse.json({ message: "Auszahlungsanfrage wurde an den Admin gesendet." });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { sellerBalanceCents: 0 },
+    });
+
+    return NextResponse.json({ message: `Auszahlung von ${formatEuro(balanceCents)} wurde beantragt.` });
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
       return NextResponse.json({ error: "Bitte zuerst einloggen." }, { status: 401 });

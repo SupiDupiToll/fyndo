@@ -4,7 +4,6 @@ import { formatEuro } from "@/lib/format";
 import { prisma } from "@/lib/db";
 import { sendOrderNotification } from "@/lib/ntfy";
 import { verifyRbankPayment } from "@/lib/rbank";
-import { getRbankConfig } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +44,7 @@ export default async function CheckoutCompletePage({
   const orderIdList = orderIdsParam.split(",").filter(Boolean);
   const orders = await prisma.order.findMany({
     where: { id: { in: orderIdList } },
-    include: { product: { include: { seller: { select: { sellerName: true, rbankMerchantId: true, rbankMerchantSecret: true, rbankApiUrl: true } } } } },
+    include: { product: { include: { seller: { select: { sellerName: true } } } } },
   });
 
   if (orders.length === 0 || orders.some((o) => o.userId !== user.id)) {
@@ -70,15 +69,7 @@ export default async function CheckoutCompletePage({
     message = orders.length > 1 ? "Alle Zahlungen bestätigt." : "Zahlung ist bestätigt.";
     success = true;
   } else if (token && allPending && orders.some((o) => o.paymentToken === token)) {
-    const seller = firstOrder.product.seller;
-    const sellerConfig = seller.rbankMerchantId && seller.rbankMerchantSecret
-      ? {
-          apiUrl: seller.rbankApiUrl ?? getRbankConfig().apiUrl,
-          merchantId: seller.rbankMerchantId,
-          merchantSecret: seller.rbankMerchantSecret,
-        }
-      : undefined;
-    const verification = await verifyRbankPayment(token, sellerConfig);
+    const verification = await verifyRbankPayment(token);
 
     const totalCents = orders.reduce((s, o) => s + o.amountCents, 0);
 
@@ -107,6 +98,11 @@ export default async function CheckoutCompletePage({
               data: { remainingBalance: { decrement: order.giftCardDeduction } },
             }).catch((err) => console.error("GiftCard deduct failed:", err));
           }
+
+          await prisma.user.update({
+            where: { id: order.product.sellerId },
+            data: { sellerBalanceCents: { increment: order.amountCents + (order.giftCardDeduction ?? 0) } },
+          }).catch((err) => console.error("Seller balance update failed:", err));
         }
       }
 

@@ -31,6 +31,11 @@ export default function CheckoutPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [giftCardCode, setGiftCardCode] = useState("");
+  const [gcValid, setGcValid] = useState(false);
+  const [gcBalance, setGcBalance] = useState(0);
+  const [gcChecking, setGcChecking] = useState(false);
+  const [gcError, setGcError] = useState("");
 
   const productId = params?.productId;
 
@@ -89,12 +94,6 @@ export default function CheckoutPage() {
   const voucherAmounts = product.kind === "VOUCHER" && Array.isArray(product.voucherAmounts)
     ? product.voucherAmounts
     : [];
-
-  const [giftCardCode, setGiftCardCode] = useState("");
-  const [gcValid, setGcValid] = useState(false);
-  const [gcBalance, setGcBalance] = useState(0);
-  const [gcChecking, setGcChecking] = useState(false);
-  const [gcError, setGcError] = useState("");
 
   async function checkGiftCard() {
     const code = giftCardCode.trim();

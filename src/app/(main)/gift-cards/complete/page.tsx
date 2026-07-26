@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatEuro } from "@/lib/format";
 import { prisma } from "@/lib/db";
 import { verifyRbankPayment } from "@/lib/rbank";
-import { getRbankConfig } from "@/lib/env";
 import { generateGiftCardCode } from "@/lib/gift-card";
 
 export const dynamic = "force-dynamic";
@@ -61,8 +60,8 @@ export default async function GiftCardCompletePage({
     if (verification.status === "COMPLETED" && verification.amount === giftCard.amountCents) {
       const generatedCode = generateGiftCardCode();
 
-      await prisma.giftCard.update({
-        where: { id },
+      const { count: activated } = await prisma.giftCard.updateMany({
+        where: { id, status: "PENDING" },
         data: {
           status: "ACTIVE",
           code: generatedCode,
@@ -70,23 +69,42 @@ export default async function GiftCardCompletePage({
         },
       });
 
-      const webhookUrl = process.env.NTFY_WEBHOOK_URL;
-      if (webhookUrl) {
-        fetch(webhookUrl, {
-          method: "POST",
-          headers: {
-            Title: "Geschenkgutschein gekauft",
-            Priority: "default",
-            Tags: "gift",
-          },
-          body: [
-            `${user.displayName} (${user.email}) hat einen Geschenkgutschein gekauft:`,
-            `Betrag: ${formatEuro(giftCard.amountCents)}`,
-            `Code: ${generatedCode}`,
-            giftCard.message ? `Nachricht: ${giftCard.message}` : null,
-          ].filter(Boolean).join("\n"),
-          cache: "no-store",
-        }).catch(() => {});
+      if (activated > 0) {
+        const webhookUrl = process.env.NTFY_WEBHOOK_URL;
+        if (webhookUrl) {
+          fetch(webhookUrl, {
+            method: "POST",
+            headers: {
+              Title: "Geschenkgutschein gekauft",
+              Priority: "default",
+              Tags: "gift",
+            },
+            body: [
+              `${user.displayName} (${user.email}) hat einen Geschenkgutschein gekauft:`,
+              `Betrag: ${formatEuro(giftCard.amountCents)}`,
+              `Code: ${generatedCode}`,
+              giftCard.message ? `Nachricht: ${giftCard.message}` : null,
+            ].filter(Boolean).join("\n"),
+            cache: "no-store",
+          }).catch(() => {});
+        }
+
+        const { hexclaveServerApp } = await import("@/hexclave/server");
+        await hexclaveServerApp().sendEmail({
+          userIds: [user.stackUserId],
+          subject: "Dein Geschenkgutschein",
+          notificationCategoryName: "Transactional",
+          html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+            <h2 style="margin:0 0 8px">Dein Geschenkgutschein</h2>
+            <p style="color:#475569;line-height:1.6">
+              Hallo ${user.displayName},<br/><br/>
+              hier ist dein Gutschein-Code:<br/><br/>
+              <strong style="font-size:24px;letter-spacing:4px;color:#0066FF">${generatedCode}</strong><br/><br/>
+              ${giftCard.message ? `Nachricht: ${giftCard.message}<br/><br/>` : ""}
+              Du kannst den Code beim Checkout eingeben, um ihn einzulösen.
+            </p>
+          </div>`,
+        }).catch((err) => console.error("Email failed:", err));
       }
 
       code = generatedCode;

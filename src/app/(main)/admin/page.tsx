@@ -66,6 +66,13 @@ export default async function AdminDashboardPage() {
           <p className="text-3xl font-bold mt-1">{formatEuro(grossRevenue)}</p>
           <p className="mt-1 text-xs text-mute">Cash {formatEuro(cashRevenue)} · Gutschein {formatEuro(giftCardRevenue)}</p>
         </div>
+        {!isSuperAdmin && (
+          <div className="rounded-2xl border-2 border-accent bg-accent/5 p-5">
+            <p className="text-sm text-accent font-semibold">Geldbeutel</p>
+            <p className="text-3xl font-black mt-1 text-accent">{formatEuro(user.sellerBalanceCents)}</p>
+            <p className="mt-1 text-xs text-mute">Verfügbar für Auszahlung</p>
+          </div>
+        )}
         {tpoCount !== null && (
           <div className="rounded-2xl border border-line bg-white p-5">
             <p className="text-sm text-mute font-medium">Concierge-Anfragen</p>
@@ -80,7 +87,8 @@ export default async function AdminDashboardPage() {
             <div className="max-w-2xl">
               <h2 className="text-xl font-bold">Auszahlung beantragen</h2>
               <p className="mt-2 text-sm text-mute">
-                Die Anfrage geht per Hexclave-Mail an den Admin und enthält deinen Brutto-Umsatz inklusive Gutscheinanteil.
+                Dein Guthaben beträgt <strong>{formatEuro(user.sellerBalanceCents)}</strong>.
+                Nach der Anfrage wird der Betrag zurückgesetzt und der Admin per E-Mail benachrichtigt.
               </p>
             </div>
             <VendorPayoutRequestButton />

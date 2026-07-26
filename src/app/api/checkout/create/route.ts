@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { getAppUrl, getRbankConfig } from "@/lib/env";
+import { getAppUrl } from "@/lib/env";
 import { prisma } from "@/lib/db";
 import { createRbankPayment } from "@/lib/rbank";
 import { formatEuro } from "@/lib/format";
@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
-      include: { seller: true },
     });
 
     if (!product || !product.isActive) {
@@ -117,6 +116,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      await prisma.user.update({
+        where: { id: product.sellerId },
+        data: { sellerBalanceCents: { increment: basePaymentAmount + giftCardDeduction } },
+      }).catch(() => {});
+
       return NextResponse.json({
         paid: true,
         message: "Mit Gutschein bezahlt.",
@@ -144,28 +148,17 @@ export async function POST(request: NextRequest) {
       ? `${product.title} ${formatEuro(resolvedAmount)} (${getVoucherSavingsLabel(resolvedAmount, product) ?? "kein Rabatt"}) - ${user.displayName}`
       : `${product.title} - ${user.displayName}`;
 
-    const sellerConfig = product.seller.rbankMerchantId && product.seller.rbankMerchantSecret
-      ? {
-          apiUrl: product.seller.rbankApiUrl ?? getRbankConfig().apiUrl,
-          merchantId: product.seller.rbankMerchantId,
-          merchantSecret: product.seller.rbankMerchantSecret,
-        }
-      : undefined;
-
-    const session = await createRbankPayment(
-      {
-        amount: basePaymentAmount,
-        description: giftCardDeduction > 0 ? `${description} (Gutschein: ${formatEuro(giftCardDeduction)})` : description,
-        redirectUrl,
-        cancelUrl,
-        metadata: {
-          orderId: order.id,
-          productId: product.id,
-          userId: user.id,
-        },
+    const session = await createRbankPayment({
+      amount: basePaymentAmount,
+      description: giftCardDeduction > 0 ? `${description} (Gutschein: ${formatEuro(giftCardDeduction)})` : description,
+      redirectUrl,
+      cancelUrl,
+      metadata: {
+        orderId: order.id,
+        productId: product.id,
+        userId: user.id,
       },
-      sellerConfig,
-    );
+    });
 
     await prisma.order.update({
       where: { id: order.id },
