@@ -5,7 +5,7 @@ import { parseVariants } from "@/lib/product-variants";
 
 export async function GET() {
   const products = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, posOnly: false },
     include: { seller: { select: { sellerName: true, displayName: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       price: priceInCents,
       kind: finalKind,
       variants,
+      posOnly: Boolean(body.posOnly),
       voucherMode: finalKind === "VOUCHER" ? voucherMode : null,
       voucherMinCents: finalKind === "VOUCHER" ? (voucherMinCents ? parseInt(voucherMinCents) : null) : null,
       voucherMaxCents: finalKind === "VOUCHER" ? (voucherMaxCents ? parseInt(voucherMaxCents) : null) : null,

@@ -53,6 +53,7 @@ export async function PUT(
   if (price !== undefined) updateData.price = Math.round(parseFloat(price) * 100);
   if (isActive !== undefined) updateData.isActive = isActive;
   if (body.posVisible !== undefined) updateData.posVisible = Boolean(body.posVisible);
+  if (body.posOnly !== undefined) updateData.posOnly = Boolean(body.posOnly);
   if (body.variants !== undefined) {
     updateData.variants =
       finalKind === "PRODUCT" ? (parseVariants(body.variants) ?? null) : null;

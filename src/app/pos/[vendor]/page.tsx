@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PosKiosk } from "@/components/pos/pos-kiosk";
 import { getVendorName } from "@/lib/vendor";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,16 +14,36 @@ export default async function PosPage({
   const { vendor } = await params;
   const vendorName = decodeURIComponent(vendor).trim();
 
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect(`/handler/sign-in?after_auth_return_to=${encodeURIComponent(`/pos/${encodeURIComponent(vendorName)}`)}`);
+  }
+
+  const isSuperAdmin = user.role === "SUPER_ADMIN";
+  const isOwnVendor =
+    user.sellerName?.trim().toLowerCase() === vendorName.toLowerCase() ||
+    user.displayName?.trim().toLowerCase() === vendorName.toLowerCase();
+  if (!isSuperAdmin && !isOwnVendor) notFound();
+
+  const seller = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { sellerName: { equals: vendorName, mode: "insensitive" } },
+        { displayName: { equals: vendorName, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, sellerName: true, displayName: true },
+  });
+
+  if (!seller) notFound();
+
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
       kind: "PRODUCT",
       posVisible: true,
-      seller: {
-        is: {
-          OR: [{ sellerName: vendorName }, { displayName: vendorName }],
-        },
-      },
+      sellerId: seller.id,
     },
     include: {
       seller: { select: { sellerName: true, displayName: true } },

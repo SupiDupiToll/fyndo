@@ -45,6 +45,7 @@ export default async function AdminProductsPage() {
             imageUrl: p.imageUrl,
             isActive: p.isActive,
             posVisible: p.posVisible,
+            posOnly: p.posOnly,
             ordersCount: p._count.orders,
             sellerLabel: p.seller.sellerName ?? p.seller.displayName,
           }))}

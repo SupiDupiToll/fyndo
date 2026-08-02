@@ -12,6 +12,7 @@ export default async function ProductsPage(props: { searchParams?: Promise<{ q?:
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
+      posOnly: false,
       ...(query ? { title: { contains: query, mode: "insensitive" as const } } : {}),
     },
     include: {

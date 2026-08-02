@@ -59,7 +59,9 @@ export async function GET(request: Request) {
         ? "PENDING"
         : sorted.some((o) => o.status === "CANCELLED")
           ? "CANCELLED"
-          : "PAID";
+          : sorted.some((o) => o.status === "DONE")
+            ? "DONE"
+            : "PAID";
 
       return {
         posGroupId,

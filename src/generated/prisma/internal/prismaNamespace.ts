@@ -862,6 +862,7 @@ export const ProductScalarFieldEnum = {
   voucherNoticeText: 'voucherNoticeText',
   isActive: 'isActive',
   posVisible: 'posVisible',
+  posOnly: 'posOnly',
   variants: 'variants',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

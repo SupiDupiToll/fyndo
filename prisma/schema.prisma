@@ -84,6 +84,7 @@ model Product {
   voucherNoticeText   String?
   isActive            Boolean              @default(true)
   posVisible          Boolean              @default(true)
+  posOnly             Boolean              @default(false)
   variants            Json?                 @default("[]")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt

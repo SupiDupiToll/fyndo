@@ -11,6 +11,7 @@ type ProductRow = {
   imageUrl: string | null;
   isActive: boolean;
   posVisible: boolean;
+  posOnly: boolean;
   ordersCount: number;
   sellerLabel?: string;
   showSeller?: boolean;
@@ -19,17 +20,18 @@ type ProductRow = {
 export function ProductListAdmin({ products, showSeller }: { products: ProductRow[]; showSeller: boolean }) {
   const [rows, setRows] = useState(products);
 
-  async function togglePosVisible(id: string, current: boolean) {
-    setRows((prev) => prev.map((p) => (p.id === id ? { ...p, posVisible: !current } : p)));
+  async function patch(id: string, patch: Partial<ProductRow>) {
+    const prev = rows.find((r) => r.id === id)!;
+    setRows((prevRows) => prevRows.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     try {
       const res = await fetch(`/api/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ posVisible: !current }),
+        body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error("Fehler");
     } catch {
-      setRows((prev) => prev.map((p) => (p.id === id ? { ...p, posVisible: current } : p)));
+      setRows((prevRows) => prevRows.map((p) => (p.id === id ? { ...p, ...prev } : p)));
     }
   }
 
@@ -49,16 +51,27 @@ export function ProductListAdmin({ products, showSeller }: { products: ProductRo
             <input
               type="checkbox"
               checked={p.posVisible}
-              onChange={() => void togglePosVisible(p.id, p.posVisible)}
+              onChange={() => void patch(p.id, { posVisible: !p.posVisible })}
               className="accent-accent"
             />
             <span className={`text-xs font-bold whitespace-nowrap ${p.posVisible ? "text-green-600" : "text-mute"}`}>
               POS
             </span>
           </label>
-          <span className={`text-xs font-bold rounded-full px-3 py-1 ${p.isActive ? "bg-green-50 text-green-700" : "bg-gray-50 text-mute"}`}>
-            {p.isActive ? "Aktiv" : "Inaktiv"}
+          <span className={`text-xs font-bold rounded-full px-3 py-1 whitespace-nowrap ${p.posOnly ? "bg-purple-50 text-purple-700" : "bg-gray-50 text-mute"}`}>
+            {p.posOnly ? "Nur POS" : "Shop"}
           </span>
+          <label className="flex items-center gap-2 cursor-pointer select-none" title="Kurzfristig ausblenden">
+            <input
+              type="checkbox"
+              checked={p.isActive}
+              onChange={() => void patch(p.id, { isActive: !p.isActive })}
+              className="accent-accent"
+            />
+            <span className={`text-xs font-bold whitespace-nowrap ${p.isActive ? "text-green-600" : "text-red-500"}`}>
+              {p.isActive ? "Aktiv" : "Ausgeblendet"}
+            </span>
+          </label>
           <Link href={`/admin/products/${p.id}/edit`} className="rounded-lg border border-line px-4 py-2 text-sm font-bold hover:bg-surf transition-colors">
             Bearbeiten
           </Link>

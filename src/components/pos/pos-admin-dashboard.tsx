@@ -8,7 +8,7 @@ type PosGroup = {
   posConfirmToken: string;
   posOrderNumber: number | null;
   method: string | null;
-  status: "PENDING" | "PAID" | "CANCELLED";
+  status: "PENDING" | "PAID" | "DONE" | "CANCELLED";
   totalCents: number;
   itemCount: number;
   quantity: number;
@@ -26,12 +26,14 @@ const METHOD_LABELS: Record<string, string> = {
 const statusStyles: Record<string, string> = {
   PENDING: "bg-yellow-50 text-yellow-700 border-yellow-200",
   PAID: "bg-green-50 text-green-700 border-green-200",
+  DONE: "bg-blue-50 text-blue-700 border-blue-200",
   CANCELLED: "bg-gray-50 text-gray-500 border-gray-200",
 };
 
 const statusLabels: Record<string, string> = {
   PENDING: "Ausstehend",
   PAID: "Bezahlt",
+  DONE: "Ausgeführt",
   CANCELLED: "Storniert",
 };
 
@@ -83,6 +85,29 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
       }
     } catch {
       setError("Bestätigung fehlgeschlagen.");
+    } finally {
+      setBusyId(null);
+      void load();
+    }
+  }
+
+  async function fulfill(group: PosGroup) {
+    setBusyId(group.posGroupId);
+    try {
+      const res = await fetch("/api/pos/orders/fulfill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          posGroupId: group.posGroupId,
+          posConfirmToken: group.posConfirmToken,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Markieren fehlgeschlagen.");
+      }
+    } catch {
+      setError("Markieren fehlgeschlagen.");
     } finally {
       setBusyId(null);
       void load();
@@ -235,6 +260,17 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
                           className="rounded-xl border border-line px-4 py-2 text-sm font-bold text-mute hover:bg-gray-50 disabled:opacity-50 transition-colors"
                         >
                           Stornieren
+                        </button>
+                      </div>
+                    )}
+                    {group.status === "PAID" && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => void fulfill(group)}
+                          disabled={busyId === group.posGroupId}
+                          className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                        >
+                          Ausgeführt ✓
                         </button>
                       </div>
                     )}

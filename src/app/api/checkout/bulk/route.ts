@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     for (const p of products) {
-      if (!p.isActive) {
+      if (!p.isActive || p.posOnly) {
         return NextResponse.json({ error: `"${p.title}" ist nicht mehr verfuegbar.` }, { status: 400 });
       }
     }

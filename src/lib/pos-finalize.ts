@@ -28,11 +28,13 @@ export async function finalizePosGroup(
     return { alreadyPaid: true as const, totalCents, itemCount: orders.length };
   }
 
-  for (const order of orders) {
-    await prisma.user.update({
-      where: { id: order.product.sellerId },
-      data: { sellerBalanceCents: { increment: order.amountCents } },
-    }).catch(() => {});
+  if (method !== "CASH") {
+    for (const order of orders) {
+      await prisma.user.update({
+        where: { id: order.product.sellerId },
+        data: { sellerBalanceCents: { increment: order.amountCents } },
+      }).catch(() => {});
+    }
   }
 
   const seller = orders[0].product.seller;

@@ -15,6 +15,8 @@ export default function CreateProductPage() {
     imageUrl: "",
     price: "",
     kind: "PRODUCT" as "PRODUCT" | "VOUCHER",
+    posVisible: true,
+    posOnly: false,
   });
   const [variants, setVariants] = useState<VariantRow[]>([]);
 
@@ -67,6 +69,16 @@ export default function CreateProductPage() {
           <p className="text-xs text-mute mt-2">Basispreis. Wird im Kiosk angezeigt, wenn es keine Varianten gibt.</p>
         </div>
         <VariantEditor initial={[]} onChange={setVariants} />
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <input type="checkbox" id="posVisible" checked={form.posVisible} onChange={(e) => setForm({ ...form, posVisible: e.target.checked })} className="h-5 w-5 rounded border-line accent-accent" />
+            <label htmlFor="posVisible" className="text-sm font-bold">Im POS-Kiosk anzeigen</label>
+          </div>
+          <div className="flex items-center gap-3">
+            <input type="checkbox" id="posOnly" checked={form.posOnly} onChange={(e) => setForm({ ...form, posOnly: e.target.checked })} className="h-5 w-5 rounded border-line accent-accent" />
+            <label htmlFor="posOnly" className="text-sm font-bold">Nur im POS anzeigen (nicht im Shop)</label>
+          </div>
+        </div>
         <div className="flex gap-4 pt-4">
           <button type="submit" disabled={loading} className="rounded-xl bg-accent px-8 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50">
             {loading ? "Erstelle..." : "Produkt erstellen"}

@@ -11,6 +11,8 @@ interface ProductForm {
   imageUrl: string;
   price: string;
   isActive: boolean;
+  posVisible: boolean;
+  posOnly: boolean;
 }
 
 export default function EditProductPage() {
@@ -21,7 +23,7 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
-  const [form, setForm] = useState<ProductForm>({ title: "", description: "", imageUrl: "", price: "", isActive: true });
+  const [form, setForm] = useState<ProductForm>({ title: "", description: "", imageUrl: "", price: "", isActive: true, posVisible: true, posOnly: false });
   const [variants, setVariants] = useState<VariantRow[]>([]);
 
   useEffect(() => {
@@ -35,6 +37,8 @@ export default function EditProductPage() {
           imageUrl: data.imageUrl ?? "",
           price: data.price ? (data.price / 100).toFixed(2) : "",
           isActive: data.isActive ?? true,
+          posVisible: data.posVisible ?? true,
+          posOnly: data.posOnly ?? false,
         });
         setVariants(
           Array.isArray(data.variants)
@@ -116,7 +120,15 @@ export default function EditProductPage() {
         <VariantEditor initial={variants} onChange={setVariants} />
         <div className="flex items-center gap-3">
           <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="h-5 w-5 rounded border-line accent-accent" />
-          <label htmlFor="isActive" className="text-sm font-bold">Produkt ist aktiv</label>
+          <label htmlFor="isActive" className="text-sm font-bold">Produkt ist aktiv (überall sichtbar)</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" id="posVisible" checked={form.posVisible} onChange={(e) => setForm({ ...form, posVisible: e.target.checked })} className="h-5 w-5 rounded border-line accent-accent" />
+          <label htmlFor="posVisible" className="text-sm font-bold">Im POS-Kiosk anzeigen</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" id="posOnly" checked={form.posOnly} onChange={(e) => setForm({ ...form, posOnly: e.target.checked })} className="h-5 w-5 rounded border-line accent-accent" />
+          <label htmlFor="posOnly" className="text-sm font-bold">Nur im POS anzeigen (nicht im Shop)</label>
         </div>
 
         <div className="flex gap-4 pt-4">

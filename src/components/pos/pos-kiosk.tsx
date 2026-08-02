@@ -131,52 +131,52 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
   async function startCheckout() {
     if (cart.size === 0) return;
     setError("");
-    setBusy(true);
     setCartOpen(false);
+    setCheckoutOpen(true);
     announce("checkout", "Zur Kasse.");
-    try {
-      const res = await fetch("/api/pos/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendor: vendorName,
-          items: Array.from(cart.values()).map((i) => ({
-            productId: i.product.id,
-            qty: i.qty,
-            variantId: i.variant?.id ?? null,
-          })),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Bestellung konnte nicht gestartet werden.");
-        setBusy(false);
-        return;
-      }
-      setOrder(data);
-      setCheckoutOpen(true);
-      announce("select-payment", `Bitte wählen Sie Ihre Zahlungsart.`);
-    } catch {
-      setError("Bestellung konnte nicht gestartet werden.");
-    } finally {
-      setBusy(false);
-    }
+    announce("select-payment", `Bitte wählen Sie Ihre Zahlungsart.`);
   }
 
   async function selectMethod(m: PosPaymentMethod) {
-    if (!order) return;
+    if (cart.size === 0) return;
     setError("");
     setBusy(true);
     setMethod(m);
     setPaymentUrl(null);
     setRbankStatus(null);
     try {
+      let orderInfo = order;
+      if (!orderInfo) {
+        const orderRes = await fetch("/api/pos/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vendor: vendorName,
+            items: Array.from(cart.values()).map((i) => ({
+              productId: i.product.id,
+              qty: i.qty,
+              variantId: i.variant?.id ?? null,
+            })),
+          }),
+        });
+        const orderData = await orderRes.json();
+        if (!orderRes.ok) {
+          setError(orderData.error ?? "Bestellung konnte nicht gestartet werden.");
+          setMethod(null);
+          setBusy(false);
+          return;
+        }
+        orderInfo = orderData;
+        setOrder(orderData);
+      }
+
+      const currentOrder = orderInfo!;
       const res = await fetch("/api/pos/orders/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          posGroupId: order.posGroupId,
-          posConfirmToken: order.posConfirmToken,
+          posGroupId: currentOrder.posGroupId,
+          posConfirmToken: currentOrder.posConfirmToken,
           method: m,
         }),
       });
@@ -188,7 +188,7 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
         return;
       }
       setPaymentUrl(data.paymentUrl ?? null);
-      announceByMethod(m, order.totalCents);
+      announceByMethod(m, currentOrder.totalCents, currentOrder.posOrderNumber);
     } catch {
       setError("Zahlungsstart fehlgeschlagen.");
       setMethod(null);
@@ -197,12 +197,12 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
     }
   }
 
-  function announceByMethod(m: PosPaymentMethod, totalCents: number) {
+  function announceByMethod(m: PosPaymentMethod, totalCents: number, orderNumber: number) {
     const total = formatSpokenEuro(totalCents);
     if (m === "RBANK") announce("rbank-qr", `Bitte scannen Sie den QR-Code mit Ihrem Handy und zahlen Sie ${total}.`);
     else if (m === "TIPPIE") announce("tippie-qr", `Bitte scannen Sie den QR-Code und zahlen Sie ${total} mit PayPal, Apple Pay oder Karte.`);
     else if (m === "TERMINAL") announce("terminal-call", `Kartenzahlung. Das Terminal wird aufgerufen. Bitte halten Sie Ihre Karte an das Terminal.`);
-    else if (m === "CASH") announce("cash", `Bitte zahlen Sie ${total} in bar an der Kasse.`);
+    else if (m === "CASH") announce("cash", `Bitte zahlen Sie ${total} in bar an der Kasse. Ihre Nummer ist ${orderNumber}.`);
   }
 
   function onConfirmed(totalCents: number, orderNumber: number) {
@@ -368,10 +368,11 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
         />
       )}
 
-      {checkoutOpen && order && done === null && (
+      {checkoutOpen && done === null && (
         <CheckoutOverlay
           vendorName={vendorName}
           order={order}
+          totalCents={cartTotal}
           method={method}
           paymentUrl={paymentUrl}
           busy={busy}
@@ -604,6 +605,7 @@ function CartDrawer({
 function CheckoutOverlay({
   vendorName,
   order,
+  totalCents,
   method,
   paymentUrl,
   busy,
@@ -613,7 +615,8 @@ function CheckoutOverlay({
   onBack,
 }: {
   vendorName: string;
-  order: OrderInfo;
+  order: OrderInfo | null;
+  totalCents: number;
   method: PosPaymentMethod | null;
   paymentUrl: string | null;
   busy: boolean;
@@ -627,7 +630,9 @@ function CheckoutOverlay({
       <div className="w-full max-w-3xl max-h-full overflow-y-auto rounded-3xl border border-line bg-white shadow-xl flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div>
-            <p className="text-xs text-mute uppercase tracking-widest">{vendorName} · POS · Bestellnummer #{order.posOrderNumber}</p>
+            <p className="text-xs text-mute uppercase tracking-widest">
+              {vendorName} · POS{order ? ` · Bestellnummer #${order.posOrderNumber}` : ""}
+            </p>
             <h2 className="text-xl font-bold">Bezahlung</h2>
           </div>
           <button onClick={onBack} className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors" aria-label="Zurück">
@@ -637,7 +642,7 @@ function CheckoutOverlay({
 
         <div className="flex-1 p-6">
           <div className="text-right mb-6">
-            <p className="text-4xl font-black tabular-nums">{formatEuro(order.totalCents)}</p>
+            <p className="text-4xl font-black tabular-nums">{formatEuro(totalCents)}</p>
           </div>
 
           {error && (
@@ -651,7 +656,7 @@ function CheckoutOverlay({
               {POS_PAYMENT_METHODS.map((m) => {
                 const meta = METHOD_LABELS[m];
                 const belowMin =
-                  (m === "TIPPIE" || m === "TERMINAL") && order.totalCents < POS_MIN_DIGITAL_PAYMENT_CENTS;
+                  (m === "TIPPIE" || m === "TERMINAL") && totalCents < POS_MIN_DIGITAL_PAYMENT_CENTS;
                 if (belowMin) return null;
                 return (
                   <button
@@ -676,7 +681,7 @@ function CheckoutOverlay({
           ) : method === "TERMINAL" ? (
             <TerminalView />
           ) : (
-            <CashView totalCents={order.totalCents} />
+            <CashView totalCents={totalCents} orderNumber={order?.posOrderNumber ?? null} />
           )}
         </div>
       </div>
@@ -763,14 +768,20 @@ function TerminalView() {
   );
 }
 
-function CashView({ totalCents }: { totalCents: number }) {
+function CashView({ totalCents, orderNumber }: { totalCents: number; orderNumber: number | null }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div className="mt-2 w-48 h-48 rounded-3xl border border-line bg-surf flex flex-col items-center justify-center">
         <i className="fa-solid fa-money-bill-wave text-6xl text-accent" />
         <span className="mt-3 text-3xl font-black tabular-nums">{formatEuro(totalCents)}</span>
       </div>
-      <p className="mt-5 text-sm text-mute max-w-sm">Bitte den Betrag an der Kasse bezahlen.</p>
+      {orderNumber != null && (
+        <div className="mt-6 rounded-2xl border-2 border-accent bg-accent/5 px-10 py-6">
+          <p className="text-sm font-bold text-accent uppercase tracking-widest">Ihre Nummer</p>
+          <p className="mt-1 text-7xl sm:text-8xl font-black text-accent tabular-nums leading-none">{orderNumber}</p>
+        </div>
+      )}
+      <p className="mt-5 text-sm text-mute max-w-sm">Bitte den Betrag an der Kasse bezahlen und Ihre Nummer nennen.</p>
       <div className="mt-6 flex items-center gap-3 text-mute">
         <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
         <span className="text-sm font-medium">Warte auf Bezahlung und Bestätigung…</span>

@@ -17,6 +17,7 @@ export default async function VendorPage({
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
+      posOnly: false,
       seller: {
         is: {
           OR: [{ sellerName: vendorName }, { displayName: vendorName }],

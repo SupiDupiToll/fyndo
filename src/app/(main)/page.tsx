@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const products = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, posOnly: false },
     include: {
       seller: { select: { sellerName: true, displayName: true } },
     },

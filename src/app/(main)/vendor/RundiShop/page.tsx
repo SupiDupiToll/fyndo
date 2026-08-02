@@ -8,7 +8,7 @@ const VENDOR_NAME = "RundiShop";
 
 export default async function RundiShopPage() {
   const products = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, posOnly: false },
     orderBy: { createdAt: "desc" },
   });
 

@@ -23,7 +23,7 @@ export default async function ProductPage({
     where: { id },
     include: { seller: { select: { sellerName: true, displayName: true } } },
   });
-  if (!product || !product.isActive) notFound();
+  if (!product || !product.isActive || product.posOnly) notFound();
 
   const priceLabel = getProductPriceLabel(product);
 

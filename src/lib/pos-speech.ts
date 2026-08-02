@@ -1,23 +1,8 @@
 "use client";
 
-export type AnnouncementKey =
-  | "welcome"
-  | "product-added"
-  | "product-removed"
-  | "cart"
-  | "checkout"
-  | "select-payment"
-  | "rbank-qr"
-  | "tippie-qr"
-  | "terminal-call"
-  | "cash"
-  | "processing"
-  | "payment-confirmed"
-  | "payment-error"
-  | "new-order"
-  | "order-sent";
+import type { AnnouncementKey } from "@/lib/pos-announcement-keys";
 
-const AUDIO_BASE = "/audio/pos";
+const AUDIO_BASE = "/api/pos/audio";
 
 type QueueItem = { key: AnnouncementKey; text: string };
 let queue: QueueItem[] = [];
@@ -54,7 +39,7 @@ function speak(text: string) {
 
 function playAudioOrSpeech(key: AnnouncementKey, text: string, done: () => void) {
   if (typeof window === "undefined") return done();
-  const audio = new Audio(`${AUDIO_BASE}/${key}.mp3`);
+  const audio = new Audio(`${AUDIO_BASE}/${key}`);
 
   let settled = false;
   const finish = (usedSpeech: boolean) => {

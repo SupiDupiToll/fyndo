@@ -22,7 +22,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Bestellung nicht gefunden." }, { status: 404 });
   }
 
-  const status = orders.some((o) => o.status === "PENDING") ? "PENDING" : "PAID";
+  const status = orders.some((o) => o.status === "PENDING")
+    ? "PENDING"
+    : orders.some((o) => o.status === "CANCELLED")
+      ? "CANCELLED"
+      : orders.some((o) => o.status === "DONE")
+        ? "DONE"
+        : "PAID";
   const method = orders[0].paymentMethod ?? null;
   const totalCents = orders.reduce((s, o) => s + o.amountCents, 0);
   const posOrderNumber = orders[0].posOrderNumber ?? null;
