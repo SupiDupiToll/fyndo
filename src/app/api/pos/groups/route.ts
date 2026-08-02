@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       posGroupId: { not: null },
       ...(isSuperAdmin ? {} : { product: { sellerId: user.id } }),
       ...(scope === "open"
-        ? { status: "PENDING" }
+        ? { status: { in: ["PENDING", "DONE"] } }
         : scope === "paid"
           ? { status: { in: ["PAID", "DONE"] } }
           : {}),

@@ -133,7 +133,7 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
     }
   }
 
-  const openCount = groups.filter((g) => g.status === "PENDING").length;
+  const openCount = groups.filter((g) => g.status === "PENDING" || g.status === "DONE").length;
   const paidTotal = groups
     .filter((g) => g.status === "PAID")
     .reduce((s, g) => s + g.totalCents, 0);
