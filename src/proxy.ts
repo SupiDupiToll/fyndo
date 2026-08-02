@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 const GATE_PASSWORD = "123";
 const GATE_COOKIE = "gate_pass";
-const EXCLUDED_PATHS = ["/gate", "/_next", "/api", "/favicon.ico", "/robots.txt"];
+const EXCLUDED_PATHS = ["/gate", "/_next", "/api", "/pos", "/favicon.ico", "/robots.txt"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

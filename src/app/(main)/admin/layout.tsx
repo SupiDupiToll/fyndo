@@ -14,6 +14,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <aside className="flex md:flex-col gap-1 overflow-x-auto hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:w-56 md:shrink-0 pb-2 md:pb-0">
           <Link href="/admin" className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surf transition-colors">Dashboard</Link>
           <Link href="/admin/products" className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surf transition-colors">Produkte</Link>
+          <Link href="/admin/pos" className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surf transition-colors">POS-Kasse</Link>
+          <a href={`/pos/${encodeURIComponent(user.sellerName ?? user.displayName)}`} target="_blank" className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surf transition-colors">POS-Kiosk ↗</a>
           {isSuperAdmin && <Link href="/admin/concierge" className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surf transition-colors">Concierge</Link>}
           <Link href="/admin/settings" className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surf transition-colors">Zahlungen</Link>
           {isSuperAdmin && <Link href="/admin/sellers" className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surf transition-colors">Verkäufer</Link>}

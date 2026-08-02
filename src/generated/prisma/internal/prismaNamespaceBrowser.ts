@@ -105,6 +105,7 @@ export const ProductScalarFieldEnum = {
   voucherDiscountValue: 'voucherDiscountValue',
   voucherNoticeText: 'voucherNoticeText',
   isActive: 'isActive',
+  posVisible: 'posVisible',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -125,6 +126,10 @@ export const OrderScalarFieldEnum = {
   giftCardDeduction: 'giftCardDeduction',
   status: 'status',
   paymentToken: 'paymentToken',
+  paymentMethod: 'paymentMethod',
+  posGroupId: 'posGroupId',
+  posConfirmToken: 'posConfirmToken',
+  posOrderNumber: 'posOrderNumber',
   notificationSentAt: 'notificationSentAt',
   fulfilledAt: 'fulfilledAt',
   createdAt: 'createdAt',

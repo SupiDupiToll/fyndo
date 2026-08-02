@@ -1,7 +1,7 @@
 import { requireSellerOrSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatEuro } from "@/lib/format";
 import Link from "next/link";
+import { ProductListAdmin } from "@/components/pos/admin-product-list";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,16 @@ export default async function AdminProductsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Produkte</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Produkte</h1>
+          <p className="text-sm text-mute mt-1">
+            Mit dem POS-Schalter legst du fest, welche Produkte im Kiosk auf{" "}
+            <a href={`/pos/${encodeURIComponent(user.sellerName ?? user.displayName)}`} target="_blank" className="text-accent hover:underline">
+              /pos/{user.sellerName ?? user.displayName}
+            </a>{" "}
+            angezeigt werden.
+          </p>
+        </div>
         <Link href="/admin/products/create" className="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-colors">
           + Neu
         </Link>
@@ -27,27 +36,19 @@ export default async function AdminProductsPage() {
       {products.length === 0 ? (
         <p className="text-mute">Noch keine Produkte.</p>
       ) : (
-        <div className="space-y-2">
-          {products.map((p) => (
-            <div key={p.id} className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4">
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-tile">
-                {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-full w-full object-contain p-2" /> : <div className="flex h-full items-center justify-center text-xs text-mute">Bild</div>}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold truncate">{p.title}</p>
-                <p className="text-sm text-mute">{formatEuro(p.price)} &middot; {p._count.orders} Bestellungen</p>
-                {!isSuperAdmin && <p className="text-xs text-mute">Status: {p.isActive ? "Aktiv" : "Inaktiv"}</p>}
-              </div>
-              {isSuperAdmin && <span className="text-xs text-mute">{p.seller.sellerName ?? p.seller.displayName}</span>}
-              <span className={`text-xs font-bold rounded-full px-3 py-1 ${p.isActive ? "bg-green-50 text-green-700" : "bg-gray-50 text-mute"}`}>
-                {p.isActive ? "Aktiv" : "Inaktiv"}
-              </span>
-              <Link href={`/admin/products/${p.id}/edit`} className="rounded-lg border border-line px-4 py-2 text-sm font-bold hover:bg-surf transition-colors">
-                Bearbeiten
-              </Link>
-            </div>
-          ))}
-        </div>
+        <ProductListAdmin
+          showSeller={isSuperAdmin}
+          products={products.map((p) => ({
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            imageUrl: p.imageUrl,
+            isActive: p.isActive,
+            posVisible: p.posVisible,
+            ordersCount: p._count.orders,
+            sellerLabel: p.seller.sellerName ?? p.seller.displayName,
+          }))}
+        />
       )}
     </div>
   );

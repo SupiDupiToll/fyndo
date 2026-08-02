@@ -58,6 +58,7 @@ export type ProductMinAggregateOutputType = {
   voucherDiscountValue: number | null
   voucherNoticeText: string | null
   isActive: boolean | null
+  posVisible: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -78,6 +79,7 @@ export type ProductMaxAggregateOutputType = {
   voucherDiscountValue: number | null
   voucherNoticeText: string | null
   isActive: boolean | null
+  posVisible: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -99,6 +101,7 @@ export type ProductCountAggregateOutputType = {
   voucherDiscountValue: number
   voucherNoticeText: number
   isActive: number
+  posVisible: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -137,6 +140,7 @@ export type ProductMinAggregateInputType = {
   voucherDiscountValue?: true
   voucherNoticeText?: true
   isActive?: true
+  posVisible?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -157,6 +161,7 @@ export type ProductMaxAggregateInputType = {
   voucherDiscountValue?: true
   voucherNoticeText?: true
   isActive?: true
+  posVisible?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -178,6 +183,7 @@ export type ProductCountAggregateInputType = {
   voucherDiscountValue?: true
   voucherNoticeText?: true
   isActive?: true
+  posVisible?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -286,6 +292,7 @@ export type ProductGroupByOutputType = {
   voucherDiscountValue: number | null
   voucherNoticeText: string | null
   isActive: boolean
+  posVisible: boolean
   createdAt: Date
   updatedAt: Date
   _count: ProductCountAggregateOutputType | null
@@ -330,6 +337,7 @@ export type ProductWhereInput = {
   voucherDiscountValue?: Prisma.FloatNullableFilter<"Product"> | number | null
   voucherNoticeText?: Prisma.StringNullableFilter<"Product"> | string | null
   isActive?: Prisma.BoolFilter<"Product"> | boolean
+  posVisible?: Prisma.BoolFilter<"Product"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   seller?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -353,6 +361,7 @@ export type ProductOrderByWithRelationInput = {
   voucherDiscountValue?: Prisma.SortOrderInput | Prisma.SortOrder
   voucherNoticeText?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  posVisible?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   seller?: Prisma.UserOrderByWithRelationInput
@@ -379,6 +388,7 @@ export type ProductWhereUniqueInput = Prisma.AtLeast<{
   voucherDiscountValue?: Prisma.FloatNullableFilter<"Product"> | number | null
   voucherNoticeText?: Prisma.StringNullableFilter<"Product"> | string | null
   isActive?: Prisma.BoolFilter<"Product"> | boolean
+  posVisible?: Prisma.BoolFilter<"Product"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   seller?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -402,6 +412,7 @@ export type ProductOrderByWithAggregationInput = {
   voucherDiscountValue?: Prisma.SortOrderInput | Prisma.SortOrder
   voucherNoticeText?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  posVisible?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ProductCountOrderByAggregateInput
@@ -431,6 +442,7 @@ export type ProductScalarWhereWithAggregatesInput = {
   voucherDiscountValue?: Prisma.FloatNullableWithAggregatesFilter<"Product"> | number | null
   voucherNoticeText?: Prisma.StringNullableWithAggregatesFilter<"Product"> | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"Product"> | boolean
+  posVisible?: Prisma.BoolWithAggregatesFilter<"Product"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Product"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Product"> | Date | string
 }
@@ -451,6 +463,7 @@ export type ProductCreateInput = {
   voucherDiscountValue?: number | null
   voucherNoticeText?: string | null
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   seller: Prisma.UserCreateNestedOneWithoutProductsInput
@@ -474,6 +487,7 @@ export type ProductUncheckedCreateInput = {
   voucherDiscountValue?: number | null
   voucherNoticeText?: string | null
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutProductInput
@@ -495,6 +509,7 @@ export type ProductUpdateInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   seller?: Prisma.UserUpdateOneRequiredWithoutProductsNestedInput
@@ -518,6 +533,7 @@ export type ProductUncheckedUpdateInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutProductNestedInput
@@ -540,6 +556,7 @@ export type ProductCreateManyInput = {
   voucherDiscountValue?: number | null
   voucherNoticeText?: string | null
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -560,6 +577,7 @@ export type ProductUpdateManyMutationInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -581,6 +599,7 @@ export type ProductUncheckedUpdateManyInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -612,6 +631,7 @@ export type ProductCountOrderByAggregateInput = {
   voucherDiscountValue?: Prisma.SortOrder
   voucherNoticeText?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  posVisible?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -640,6 +660,7 @@ export type ProductMaxOrderByAggregateInput = {
   voucherDiscountValue?: Prisma.SortOrder
   voucherNoticeText?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  posVisible?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -660,6 +681,7 @@ export type ProductMinOrderByAggregateInput = {
   voucherDiscountValue?: Prisma.SortOrder
   voucherNoticeText?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  posVisible?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -781,6 +803,7 @@ export type ProductCreateWithoutSellerInput = {
   voucherDiscountValue?: number | null
   voucherNoticeText?: string | null
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutProductInput
@@ -802,6 +825,7 @@ export type ProductUncheckedCreateWithoutSellerInput = {
   voucherDiscountValue?: number | null
   voucherNoticeText?: string | null
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutProductInput
@@ -853,6 +877,7 @@ export type ProductScalarWhereInput = {
   voucherDiscountValue?: Prisma.FloatNullableFilter<"Product"> | number | null
   voucherNoticeText?: Prisma.StringNullableFilter<"Product"> | string | null
   isActive?: Prisma.BoolFilter<"Product"> | boolean
+  posVisible?: Prisma.BoolFilter<"Product"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Product"> | Date | string
 }
@@ -873,6 +898,7 @@ export type ProductCreateWithoutOrdersInput = {
   voucherDiscountValue?: number | null
   voucherNoticeText?: string | null
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   seller: Prisma.UserCreateNestedOneWithoutProductsInput
@@ -895,6 +921,7 @@ export type ProductUncheckedCreateWithoutOrdersInput = {
   voucherDiscountValue?: number | null
   voucherNoticeText?: string | null
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -931,6 +958,7 @@ export type ProductUpdateWithoutOrdersInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   seller?: Prisma.UserUpdateOneRequiredWithoutProductsNestedInput
@@ -953,6 +981,7 @@ export type ProductUncheckedUpdateWithoutOrdersInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -973,6 +1002,7 @@ export type ProductCreateManySellerInput = {
   voucherDiscountValue?: number | null
   voucherNoticeText?: string | null
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -993,6 +1023,7 @@ export type ProductUpdateWithoutSellerInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutProductNestedInput
@@ -1014,6 +1045,7 @@ export type ProductUncheckedUpdateWithoutSellerInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutProductNestedInput
@@ -1035,6 +1067,7 @@ export type ProductUncheckedUpdateManyWithoutSellerInput = {
   voucherDiscountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   voucherNoticeText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  posVisible?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1087,6 +1120,7 @@ export type ProductSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   voucherDiscountValue?: boolean
   voucherNoticeText?: boolean
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   seller?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1111,6 +1145,7 @@ export type ProductSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   voucherDiscountValue?: boolean
   voucherNoticeText?: boolean
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   seller?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1133,6 +1168,7 @@ export type ProductSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   voucherDiscountValue?: boolean
   voucherNoticeText?: boolean
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   seller?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1155,11 +1191,12 @@ export type ProductSelectScalar = {
   voucherDiscountValue?: boolean
   voucherNoticeText?: boolean
   isActive?: boolean
+  posVisible?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ProductOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "sellerId" | "title" | "description" | "imageUrl" | "price" | "kind" | "voucherMode" | "voucherMinCents" | "voucherMaxCents" | "voucherStepCents" | "voucherAmounts" | "voucherDiscountType" | "voucherDiscountValue" | "voucherNoticeText" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["product"]>
+export type ProductOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "sellerId" | "title" | "description" | "imageUrl" | "price" | "kind" | "voucherMode" | "voucherMinCents" | "voucherMaxCents" | "voucherStepCents" | "voucherAmounts" | "voucherDiscountType" | "voucherDiscountValue" | "voucherNoticeText" | "isActive" | "posVisible" | "createdAt" | "updatedAt", ExtArgs["result"]["product"]>
 export type ProductInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   seller?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   orders?: boolean | Prisma.Product$ordersArgs<ExtArgs>
@@ -1195,6 +1232,7 @@ export type $ProductPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     voucherDiscountValue: number | null
     voucherNoticeText: string | null
     isActive: boolean
+    posVisible: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["product"]>
@@ -1638,6 +1676,7 @@ export interface ProductFieldRefs {
   readonly voucherDiscountValue: Prisma.FieldRef<"Product", 'Float'>
   readonly voucherNoticeText: Prisma.FieldRef<"Product", 'String'>
   readonly isActive: Prisma.FieldRef<"Product", 'Boolean'>
+  readonly posVisible: Prisma.FieldRef<"Product", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Product", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Product", 'DateTime'>
 }

@@ -30,12 +30,14 @@ export type OrderAvgAggregateOutputType = {
   amountCents: number | null
   voucherFaceValueCents: number | null
   giftCardDeduction: number | null
+  posOrderNumber: number | null
 }
 
 export type OrderSumAggregateOutputType = {
   amountCents: number | null
   voucherFaceValueCents: number | null
   giftCardDeduction: number | null
+  posOrderNumber: number | null
 }
 
 export type OrderMinAggregateOutputType = {
@@ -51,6 +53,10 @@ export type OrderMinAggregateOutputType = {
   giftCardDeduction: number | null
   status: $Enums.OrderStatus | null
   paymentToken: string | null
+  paymentMethod: string | null
+  posGroupId: string | null
+  posConfirmToken: string | null
+  posOrderNumber: number | null
   notificationSentAt: Date | null
   fulfilledAt: Date | null
   createdAt: Date | null
@@ -70,6 +76,10 @@ export type OrderMaxAggregateOutputType = {
   giftCardDeduction: number | null
   status: $Enums.OrderStatus | null
   paymentToken: string | null
+  paymentMethod: string | null
+  posGroupId: string | null
+  posConfirmToken: string | null
+  posOrderNumber: number | null
   notificationSentAt: Date | null
   fulfilledAt: Date | null
   createdAt: Date | null
@@ -89,6 +99,10 @@ export type OrderCountAggregateOutputType = {
   giftCardDeduction: number
   status: number
   paymentToken: number
+  paymentMethod: number
+  posGroupId: number
+  posConfirmToken: number
+  posOrderNumber: number
   notificationSentAt: number
   fulfilledAt: number
   createdAt: number
@@ -101,12 +115,14 @@ export type OrderAvgAggregateInputType = {
   amountCents?: true
   voucherFaceValueCents?: true
   giftCardDeduction?: true
+  posOrderNumber?: true
 }
 
 export type OrderSumAggregateInputType = {
   amountCents?: true
   voucherFaceValueCents?: true
   giftCardDeduction?: true
+  posOrderNumber?: true
 }
 
 export type OrderMinAggregateInputType = {
@@ -122,6 +138,10 @@ export type OrderMinAggregateInputType = {
   giftCardDeduction?: true
   status?: true
   paymentToken?: true
+  paymentMethod?: true
+  posGroupId?: true
+  posConfirmToken?: true
+  posOrderNumber?: true
   notificationSentAt?: true
   fulfilledAt?: true
   createdAt?: true
@@ -141,6 +161,10 @@ export type OrderMaxAggregateInputType = {
   giftCardDeduction?: true
   status?: true
   paymentToken?: true
+  paymentMethod?: true
+  posGroupId?: true
+  posConfirmToken?: true
+  posOrderNumber?: true
   notificationSentAt?: true
   fulfilledAt?: true
   createdAt?: true
@@ -160,6 +184,10 @@ export type OrderCountAggregateInputType = {
   giftCardDeduction?: true
   status?: true
   paymentToken?: true
+  paymentMethod?: true
+  posGroupId?: true
+  posConfirmToken?: true
+  posOrderNumber?: true
   notificationSentAt?: true
   fulfilledAt?: true
   createdAt?: true
@@ -255,7 +283,7 @@ export type OrderGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
 
 export type OrderGroupByOutputType = {
   id: string
-  userId: string
+  userId: string | null
   productId: string
   amountCents: number
   voucherFaceValueCents: number | null
@@ -266,6 +294,10 @@ export type OrderGroupByOutputType = {
   giftCardDeduction: number | null
   status: $Enums.OrderStatus
   paymentToken: string | null
+  paymentMethod: string | null
+  posGroupId: string | null
+  posConfirmToken: string | null
+  posOrderNumber: number | null
   notificationSentAt: Date | null
   fulfilledAt: Date | null
   createdAt: Date
@@ -297,7 +329,7 @@ export type OrderWhereInput = {
   OR?: Prisma.OrderWhereInput[]
   NOT?: Prisma.OrderWhereInput | Prisma.OrderWhereInput[]
   id?: Prisma.StringFilter<"Order"> | string
-  userId?: Prisma.StringFilter<"Order"> | string
+  userId?: Prisma.StringNullableFilter<"Order"> | string | null
   productId?: Prisma.StringFilter<"Order"> | string
   amountCents?: Prisma.IntFilter<"Order"> | number
   voucherFaceValueCents?: Prisma.IntNullableFilter<"Order"> | number | null
@@ -308,17 +340,21 @@ export type OrderWhereInput = {
   giftCardDeduction?: Prisma.IntNullableFilter<"Order"> | number | null
   status?: Prisma.EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
   paymentToken?: Prisma.StringNullableFilter<"Order"> | string | null
+  paymentMethod?: Prisma.StringNullableFilter<"Order"> | string | null
+  posGroupId?: Prisma.StringNullableFilter<"Order"> | string | null
+  posConfirmToken?: Prisma.StringNullableFilter<"Order"> | string | null
+  posOrderNumber?: Prisma.IntNullableFilter<"Order"> | number | null
   notificationSentAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   fulfilledAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Order"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Order"> | Date | string
-  user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
 }
 
 export type OrderOrderByWithRelationInput = {
   id?: Prisma.SortOrder
-  userId?: Prisma.SortOrder
+  userId?: Prisma.SortOrderInput | Prisma.SortOrder
   productId?: Prisma.SortOrder
   amountCents?: Prisma.SortOrder
   voucherFaceValueCents?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -329,6 +365,10 @@ export type OrderOrderByWithRelationInput = {
   giftCardDeduction?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   paymentToken?: Prisma.SortOrderInput | Prisma.SortOrder
+  paymentMethod?: Prisma.SortOrderInput | Prisma.SortOrder
+  posGroupId?: Prisma.SortOrderInput | Prisma.SortOrder
+  posConfirmToken?: Prisma.SortOrderInput | Prisma.SortOrder
+  posOrderNumber?: Prisma.SortOrderInput | Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -343,7 +383,7 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.OrderWhereInput | Prisma.OrderWhereInput[]
   OR?: Prisma.OrderWhereInput[]
   NOT?: Prisma.OrderWhereInput | Prisma.OrderWhereInput[]
-  userId?: Prisma.StringFilter<"Order"> | string
+  userId?: Prisma.StringNullableFilter<"Order"> | string | null
   productId?: Prisma.StringFilter<"Order"> | string
   amountCents?: Prisma.IntFilter<"Order"> | number
   voucherFaceValueCents?: Prisma.IntNullableFilter<"Order"> | number | null
@@ -353,17 +393,21 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   giftCardCodeUsed?: Prisma.StringNullableFilter<"Order"> | string | null
   giftCardDeduction?: Prisma.IntNullableFilter<"Order"> | number | null
   status?: Prisma.EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
+  paymentMethod?: Prisma.StringNullableFilter<"Order"> | string | null
+  posGroupId?: Prisma.StringNullableFilter<"Order"> | string | null
+  posConfirmToken?: Prisma.StringNullableFilter<"Order"> | string | null
+  posOrderNumber?: Prisma.IntNullableFilter<"Order"> | number | null
   notificationSentAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   fulfilledAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Order"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Order"> | Date | string
-  user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
 }, "id" | "paymentToken">
 
 export type OrderOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
-  userId?: Prisma.SortOrder
+  userId?: Prisma.SortOrderInput | Prisma.SortOrder
   productId?: Prisma.SortOrder
   amountCents?: Prisma.SortOrder
   voucherFaceValueCents?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -374,6 +418,10 @@ export type OrderOrderByWithAggregationInput = {
   giftCardDeduction?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   paymentToken?: Prisma.SortOrderInput | Prisma.SortOrder
+  paymentMethod?: Prisma.SortOrderInput | Prisma.SortOrder
+  posGroupId?: Prisma.SortOrderInput | Prisma.SortOrder
+  posConfirmToken?: Prisma.SortOrderInput | Prisma.SortOrder
+  posOrderNumber?: Prisma.SortOrderInput | Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -390,7 +438,7 @@ export type OrderScalarWhereWithAggregatesInput = {
   OR?: Prisma.OrderScalarWhereWithAggregatesInput[]
   NOT?: Prisma.OrderScalarWhereWithAggregatesInput | Prisma.OrderScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Order"> | string
-  userId?: Prisma.StringWithAggregatesFilter<"Order"> | string
+  userId?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
   productId?: Prisma.StringWithAggregatesFilter<"Order"> | string
   amountCents?: Prisma.IntWithAggregatesFilter<"Order"> | number
   voucherFaceValueCents?: Prisma.IntNullableWithAggregatesFilter<"Order"> | number | null
@@ -401,6 +449,10 @@ export type OrderScalarWhereWithAggregatesInput = {
   giftCardDeduction?: Prisma.IntNullableWithAggregatesFilter<"Order"> | number | null
   status?: Prisma.EnumOrderStatusWithAggregatesFilter<"Order"> | $Enums.OrderStatus
   paymentToken?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
+  paymentMethod?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
+  posGroupId?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
+  posConfirmToken?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
+  posOrderNumber?: Prisma.IntNullableWithAggregatesFilter<"Order"> | number | null
   notificationSentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
   fulfilledAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Order"> | Date | string
@@ -418,17 +470,21 @@ export type OrderCreateInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  user?: Prisma.UserCreateNestedOneWithoutOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutOrdersInput
 }
 
 export type OrderUncheckedCreateInput = {
   id?: string
-  userId: string
+  userId?: string | null
   productId: string
   amountCents: number
   voucherFaceValueCents?: number | null
@@ -439,6 +495,10 @@ export type OrderUncheckedCreateInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
@@ -456,17 +516,21 @@ export type OrderUpdateInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  user?: Prisma.UserUpdateOneWithoutOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutOrdersNestedInput
 }
 
 export type OrderUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productId?: Prisma.StringFieldUpdateOperationsInput | string
   amountCents?: Prisma.IntFieldUpdateOperationsInput | number
   voucherFaceValueCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -477,6 +541,10 @@ export type OrderUncheckedUpdateInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -485,7 +553,7 @@ export type OrderUncheckedUpdateInput = {
 
 export type OrderCreateManyInput = {
   id?: string
-  userId: string
+  userId?: string | null
   productId: string
   amountCents: number
   voucherFaceValueCents?: number | null
@@ -496,6 +564,10 @@ export type OrderCreateManyInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
@@ -513,6 +585,10 @@ export type OrderUpdateManyMutationInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -521,7 +597,7 @@ export type OrderUpdateManyMutationInput = {
 
 export type OrderUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   productId?: Prisma.StringFieldUpdateOperationsInput | string
   amountCents?: Prisma.IntFieldUpdateOperationsInput | number
   voucherFaceValueCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -532,6 +608,10 @@ export type OrderUncheckedUpdateManyInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -561,6 +641,10 @@ export type OrderCountOrderByAggregateInput = {
   giftCardDeduction?: Prisma.SortOrder
   status?: Prisma.SortOrder
   paymentToken?: Prisma.SortOrder
+  paymentMethod?: Prisma.SortOrder
+  posGroupId?: Prisma.SortOrder
+  posConfirmToken?: Prisma.SortOrder
+  posOrderNumber?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -571,6 +655,7 @@ export type OrderAvgOrderByAggregateInput = {
   amountCents?: Prisma.SortOrder
   voucherFaceValueCents?: Prisma.SortOrder
   giftCardDeduction?: Prisma.SortOrder
+  posOrderNumber?: Prisma.SortOrder
 }
 
 export type OrderMaxOrderByAggregateInput = {
@@ -586,6 +671,10 @@ export type OrderMaxOrderByAggregateInput = {
   giftCardDeduction?: Prisma.SortOrder
   status?: Prisma.SortOrder
   paymentToken?: Prisma.SortOrder
+  paymentMethod?: Prisma.SortOrder
+  posGroupId?: Prisma.SortOrder
+  posConfirmToken?: Prisma.SortOrder
+  posOrderNumber?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -605,6 +694,10 @@ export type OrderMinOrderByAggregateInput = {
   giftCardDeduction?: Prisma.SortOrder
   status?: Prisma.SortOrder
   paymentToken?: Prisma.SortOrder
+  paymentMethod?: Prisma.SortOrder
+  posGroupId?: Prisma.SortOrder
+  posConfirmToken?: Prisma.SortOrder
+  posOrderNumber?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -615,6 +708,7 @@ export type OrderSumOrderByAggregateInput = {
   amountCents?: Prisma.SortOrder
   voucherFaceValueCents?: Prisma.SortOrder
   giftCardDeduction?: Prisma.SortOrder
+  posOrderNumber?: Prisma.SortOrder
 }
 
 export type OrderCreateNestedManyWithoutUserInput = {
@@ -720,6 +814,10 @@ export type OrderCreateWithoutUserInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
@@ -739,6 +837,10 @@ export type OrderUncheckedCreateWithoutUserInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
@@ -776,7 +878,7 @@ export type OrderScalarWhereInput = {
   OR?: Prisma.OrderScalarWhereInput[]
   NOT?: Prisma.OrderScalarWhereInput | Prisma.OrderScalarWhereInput[]
   id?: Prisma.StringFilter<"Order"> | string
-  userId?: Prisma.StringFilter<"Order"> | string
+  userId?: Prisma.StringNullableFilter<"Order"> | string | null
   productId?: Prisma.StringFilter<"Order"> | string
   amountCents?: Prisma.IntFilter<"Order"> | number
   voucherFaceValueCents?: Prisma.IntNullableFilter<"Order"> | number | null
@@ -787,6 +889,10 @@ export type OrderScalarWhereInput = {
   giftCardDeduction?: Prisma.IntNullableFilter<"Order"> | number | null
   status?: Prisma.EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
   paymentToken?: Prisma.StringNullableFilter<"Order"> | string | null
+  paymentMethod?: Prisma.StringNullableFilter<"Order"> | string | null
+  posGroupId?: Prisma.StringNullableFilter<"Order"> | string | null
+  posConfirmToken?: Prisma.StringNullableFilter<"Order"> | string | null
+  posOrderNumber?: Prisma.IntNullableFilter<"Order"> | number | null
   notificationSentAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   fulfilledAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Order"> | Date | string
@@ -804,16 +910,20 @@ export type OrderCreateWithoutProductInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  user?: Prisma.UserCreateNestedOneWithoutOrdersInput
 }
 
 export type OrderUncheckedCreateWithoutProductInput = {
   id?: string
-  userId: string
+  userId?: string | null
   amountCents: number
   voucherFaceValueCents?: number | null
   buyerName: string
@@ -823,6 +933,10 @@ export type OrderUncheckedCreateWithoutProductInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
@@ -867,6 +981,10 @@ export type OrderCreateManyUserInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
@@ -884,6 +1002,10 @@ export type OrderUpdateWithoutUserInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -903,6 +1025,10 @@ export type OrderUncheckedUpdateWithoutUserInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -921,6 +1047,10 @@ export type OrderUncheckedUpdateManyWithoutUserInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -929,7 +1059,7 @@ export type OrderUncheckedUpdateManyWithoutUserInput = {
 
 export type OrderCreateManyProductInput = {
   id?: string
-  userId: string
+  userId?: string | null
   amountCents: number
   voucherFaceValueCents?: number | null
   buyerName: string
@@ -939,6 +1069,10 @@ export type OrderCreateManyProductInput = {
   giftCardDeduction?: number | null
   status?: $Enums.OrderStatus
   paymentToken?: string | null
+  paymentMethod?: string | null
+  posGroupId?: string | null
+  posConfirmToken?: string | null
+  posOrderNumber?: number | null
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
   createdAt?: Date | string
@@ -956,16 +1090,20 @@ export type OrderUpdateWithoutProductInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  user?: Prisma.UserUpdateOneWithoutOrdersNestedInput
 }
 
 export type OrderUncheckedUpdateWithoutProductInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   amountCents?: Prisma.IntFieldUpdateOperationsInput | number
   voucherFaceValueCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   buyerName?: Prisma.StringFieldUpdateOperationsInput | string
@@ -975,6 +1113,10 @@ export type OrderUncheckedUpdateWithoutProductInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -983,7 +1125,7 @@ export type OrderUncheckedUpdateWithoutProductInput = {
 
 export type OrderUncheckedUpdateManyWithoutProductInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   amountCents?: Prisma.IntFieldUpdateOperationsInput | number
   voucherFaceValueCents?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   buyerName?: Prisma.StringFieldUpdateOperationsInput | string
@@ -993,6 +1135,10 @@ export type OrderUncheckedUpdateManyWithoutProductInput = {
   giftCardDeduction?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
   paymentToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentMethod?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posConfirmToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posOrderNumber?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1014,11 +1160,15 @@ export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   giftCardDeduction?: boolean
   status?: boolean
   paymentToken?: boolean
+  paymentMethod?: boolean
+  posGroupId?: boolean
+  posConfirmToken?: boolean
+  posOrderNumber?: boolean
   notificationSentAt?: boolean
   fulfilledAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
-  user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  user?: boolean | Prisma.Order$userArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["order"]>
 
@@ -1035,11 +1185,15 @@ export type OrderSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   giftCardDeduction?: boolean
   status?: boolean
   paymentToken?: boolean
+  paymentMethod?: boolean
+  posGroupId?: boolean
+  posConfirmToken?: boolean
+  posOrderNumber?: boolean
   notificationSentAt?: boolean
   fulfilledAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
-  user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  user?: boolean | Prisma.Order$userArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["order"]>
 
@@ -1056,11 +1210,15 @@ export type OrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   giftCardDeduction?: boolean
   status?: boolean
   paymentToken?: boolean
+  paymentMethod?: boolean
+  posGroupId?: boolean
+  posConfirmToken?: boolean
+  posOrderNumber?: boolean
   notificationSentAt?: boolean
   fulfilledAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
-  user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  user?: boolean | Prisma.Order$userArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["order"]>
 
@@ -1077,35 +1235,39 @@ export type OrderSelectScalar = {
   giftCardDeduction?: boolean
   status?: boolean
   paymentToken?: boolean
+  paymentMethod?: boolean
+  posGroupId?: boolean
+  posConfirmToken?: boolean
+  posOrderNumber?: boolean
   notificationSentAt?: boolean
   fulfilledAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "productId" | "amountCents" | "voucherFaceValueCents" | "buyerName" | "buyerEmail" | "giftCardLink" | "giftCardCodeUsed" | "giftCardDeduction" | "status" | "paymentToken" | "notificationSentAt" | "fulfilledAt" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
+export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "productId" | "amountCents" | "voucherFaceValueCents" | "buyerName" | "buyerEmail" | "giftCardLink" | "giftCardCodeUsed" | "giftCardDeduction" | "status" | "paymentToken" | "paymentMethod" | "posGroupId" | "posConfirmToken" | "posOrderNumber" | "notificationSentAt" | "fulfilledAt" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
 export type OrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  user?: boolean | Prisma.Order$userArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }
 export type OrderIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  user?: boolean | Prisma.Order$userArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }
 export type OrderIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  user?: boolean | Prisma.Order$userArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }
 
 export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Order"
   objects: {
-    user: Prisma.$UserPayload<ExtArgs>
+    user: Prisma.$UserPayload<ExtArgs> | null
     product: Prisma.$ProductPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
-    userId: string
+    userId: string | null
     productId: string
     amountCents: number
     voucherFaceValueCents: number | null
@@ -1116,6 +1278,10 @@ export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     giftCardDeduction: number | null
     status: $Enums.OrderStatus
     paymentToken: string | null
+    paymentMethod: string | null
+    posGroupId: string | null
+    posConfirmToken: string | null
+    posOrderNumber: number | null
     notificationSentAt: Date | null
     fulfilledAt: Date | null
     createdAt: Date
@@ -1514,7 +1680,7 @@ readonly fields: OrderFieldRefs;
  */
 export interface Prisma__OrderClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  user<T extends Prisma.Order$userArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$userArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   product<T extends Prisma.ProductDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductDefaultArgs<ExtArgs>>): Prisma.Prisma__ProductClient<runtime.Types.Result.GetResult<Prisma.$ProductPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1557,6 +1723,10 @@ export interface OrderFieldRefs {
   readonly giftCardDeduction: Prisma.FieldRef<"Order", 'Int'>
   readonly status: Prisma.FieldRef<"Order", 'OrderStatus'>
   readonly paymentToken: Prisma.FieldRef<"Order", 'String'>
+  readonly paymentMethod: Prisma.FieldRef<"Order", 'String'>
+  readonly posGroupId: Prisma.FieldRef<"Order", 'String'>
+  readonly posConfirmToken: Prisma.FieldRef<"Order", 'String'>
+  readonly posOrderNumber: Prisma.FieldRef<"Order", 'Int'>
   readonly notificationSentAt: Prisma.FieldRef<"Order", 'DateTime'>
   readonly fulfilledAt: Prisma.FieldRef<"Order", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Order", 'DateTime'>
@@ -1959,6 +2129,25 @@ export type OrderDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Interna
    * Limit how many Orders to delete.
    */
   limit?: number
+}
+
+/**
+ * Order.user
+ */
+export type Order$userArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the User
+   */
+  select?: Prisma.UserSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the User
+   */
+  omit?: Prisma.UserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  where?: Prisma.UserWhereInput
 }
 
 /**

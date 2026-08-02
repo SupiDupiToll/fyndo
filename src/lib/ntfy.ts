@@ -130,3 +130,46 @@ export async function sendThirdPartyOrderPaidNotification(args: NotifyThirdParty
     throw new Error(`NTFY_FAILED_${response.status}`);
   }
 }
+
+type NotifyPosOrderArgs = {
+  sellerName: string;
+  items: { productName: string; amountCents: number }[];
+  totalCents: number;
+  method: string;
+};
+
+const posMethodLabels: Record<string, string> = {
+  RBANK: "RBank",
+  TIPPIE: "QR (PayPal/Apple Pay/Karte)",
+  TERMINAL: "Kartenterminal",
+  CASH: "Bar",
+};
+
+export async function sendPosOrderNotification(args: NotifyPosOrderArgs) {
+  const webhookUrl = process.env.NTFY_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  const lines = [
+    `POS-Bestellung bei ${args.sellerName}`,
+    `Zahlungsart: ${posMethodLabels[args.method] ?? args.method}`,
+    ...args.items.map(
+      (item) => `${item.productName}: ${formatEuro(item.amountCents)}`,
+    ),
+    `Summe: ${formatEuro(args.totalCents)}`,
+  ];
+
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: {
+      Title: "POS-Bestellung bezahlt",
+      Priority: "default",
+      Tags: "shopping_bags",
+    },
+    body: lines.join("\n"),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`NTFY_FAILED_${response.status}`);
+  }
+}

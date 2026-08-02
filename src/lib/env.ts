@@ -20,6 +20,10 @@ export function getAppUrl(): string {
   return process.env.APP_URL ?? "http://localhost:3000";
 }
 
+export function getTippiePayBase(): string {
+  return process.env.TIPPIE_PAY_BASE ?? "https://pay.tippie.de/business-pay/3763235/EUR/";
+}
+
 function requireEnv(key: string): string {
   const value = process.env[key];
   if (!value) throw new Error(`Missing environment variable: ${key}`);

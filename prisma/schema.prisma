@@ -83,6 +83,7 @@ model Product {
   voucherDiscountValue Float?              @default(10)
   voucherNoticeText   String?
   isActive            Boolean              @default(true)
+  posVisible          Boolean              @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   orders              Order[]
@@ -90,8 +91,8 @@ model Product {
 
 model Order {
   id                   String       @id @default(cuid())
-  userId               String
-  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String?
+  user                 User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   productId            String
   product              Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   amountCents          Int
@@ -103,10 +104,16 @@ model Order {
   giftCardDeduction    Int?
   status               OrderStatus  @default(PENDING)
   paymentToken         String?      @unique
+  paymentMethod        String?
+  posGroupId           String?
+  posConfirmToken      String?
+  posOrderNumber       Int?
   notificationSentAt   DateTime?
   fulfilledAt          DateTime?
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+
+  @@index([posGroupId])
 }
 
 model GiftCard {

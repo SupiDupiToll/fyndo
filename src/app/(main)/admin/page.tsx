@@ -111,7 +111,7 @@ export default async function AdminDashboardPage() {
                 <div>
                   <p className="font-medium text-sm">{o.product.title}</p>
                   <p className="text-xs text-mute">
-                    {o.user.displayName} &middot; {new Date(o.createdAt).toLocaleDateString("de-DE")}
+                    {o.user?.displayName ?? "POS"} &middot; {new Date(o.createdAt).toLocaleDateString("de-DE")}
                     {o.giftCardDeduction ? ` · Gutschein ${formatEuro(o.giftCardDeduction)}` : ""}
                   </p>
                 </div>

@@ -1,0 +1,47 @@
+import { prisma } from "@/lib/db";
+import { sendPosOrderNotification } from "@/lib/ntfy";
+
+export async function finalizePosGroup(
+  posGroupId: string,
+  posConfirmToken: string,
+  method: string,
+) {
+  const orders = await prisma.order.findMany({
+    where: { posGroupId, posConfirmToken },
+    include: {
+      product: {
+        include: { seller: { select: { id: true, sellerName: true, displayName: true } } },
+      },
+    },
+  });
+
+  if (orders.length === 0) return { notFound: true as const };
+
+  const totalCents = orders.reduce((sum, o) => sum + o.amountCents, 0);
+
+  const updated = await prisma.order.updateMany({
+    where: { posGroupId, posConfirmToken, status: "PENDING", notificationSentAt: null },
+    data: { status: "PAID", paymentMethod: method, notificationSentAt: new Date() },
+  });
+
+  if (updated.count === 0) {
+    return { alreadyPaid: true as const, totalCents, itemCount: orders.length };
+  }
+
+  for (const order of orders) {
+    await prisma.user.update({
+      where: { id: order.product.sellerId },
+      data: { sellerBalanceCents: { increment: order.amountCents } },
+    }).catch(() => {});
+  }
+
+  const seller = orders[0].product.seller;
+  await sendPosOrderNotification({
+    sellerName: seller.sellerName ?? seller.displayName,
+    items: orders.map((o) => ({ productName: o.product.title, amountCents: o.amountCents })),
+    totalCents,
+    method,
+  }).catch((err) => console.error("POS NTFY failed:", err));
+
+  return { ok: true as const, totalCents, itemCount: orders.length };
+}
