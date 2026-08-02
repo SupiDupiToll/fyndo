@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSellerOrSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { parseVariants } from "@/lib/product-variants";
 
 export async function GET() {
   const products = await prisma.product.findMany({
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
 
   const canCreateVouchers = user.role === "SUPER_ADMIN" || user.sellerName === "RundiShop";
   const finalKind = kind === "VOUCHER" && canCreateVouchers ? "VOUCHER" : "PRODUCT";
+  const variants = finalKind === "PRODUCT" ? parseVariants(body.variants) : undefined;
 
   const priceInCents = Math.round(parseFloat(price) * 100);
 
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest) {
       imageUrl: imageUrl || null,
       price: priceInCents,
       kind: finalKind,
+      variants,
       voucherMode: finalKind === "VOUCHER" ? voucherMode : null,
       voucherMinCents: finalKind === "VOUCHER" ? (voucherMinCents ? parseInt(voucherMinCents) : null) : null,
       voucherMaxCents: finalKind === "VOUCHER" ? (voucherMaxCents ? parseInt(voucherMaxCents) : null) : null,

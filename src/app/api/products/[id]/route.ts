@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSellerOrSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { parseVariants } from "@/lib/product-variants";
 
 export async function GET(
   _request: Request,
@@ -52,6 +53,10 @@ export async function PUT(
   if (price !== undefined) updateData.price = Math.round(parseFloat(price) * 100);
   if (isActive !== undefined) updateData.isActive = isActive;
   if (body.posVisible !== undefined) updateData.posVisible = Boolean(body.posVisible);
+  if (body.variants !== undefined) {
+    updateData.variants =
+      finalKind === "PRODUCT" ? (parseVariants(body.variants) ?? null) : null;
+  }
 
   if (finalKind === "VOUCHER") {
     updateData.kind = "VOUCHER";
@@ -74,7 +79,6 @@ export async function PUT(
     updateData.voucherDiscountValue = null;
     updateData.voucherNoticeText = null;
   }
-
   const updated = await prisma.product.update({
     where: { id },
     data: updateData,

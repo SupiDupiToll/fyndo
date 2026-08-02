@@ -862,6 +862,7 @@ export const ProductScalarFieldEnum = {
   voucherNoticeText: 'voucherNoticeText',
   isActive: 'isActive',
   posVisible: 'posVisible',
+  variants: 'variants',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -886,6 +887,9 @@ export const OrderScalarFieldEnum = {
   posGroupId: 'posGroupId',
   posConfirmToken: 'posConfirmToken',
   posOrderNumber: 'posOrderNumber',
+  variantId: 'variantId',
+  variantName: 'variantName',
+  quantity: 'quantity',
   notificationSentAt: 'notificationSentAt',
   fulfilledAt: 'fulfilledAt',
   createdAt: 'createdAt',

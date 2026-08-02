@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CameraUpload } from "@/components/camera-upload";
+import { VariantEditor, variantRowsToPayload, type VariantRow } from "@/components/pos/variant-editor";
 
 interface ProductForm {
   title: string;
@@ -21,6 +22,7 @@ export default function EditProductPage() {
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState<ProductForm>({ title: "", description: "", imageUrl: "", price: "", isActive: true });
+  const [variants, setVariants] = useState<VariantRow[]>([]);
 
   useEffect(() => {
     if (!productId) return;
@@ -34,6 +36,15 @@ export default function EditProductPage() {
           price: data.price ? (data.price / 100).toFixed(2) : "",
           isActive: data.isActive ?? true,
         });
+        setVariants(
+          Array.isArray(data.variants)
+            ? data.variants.map((v: { id: string; name: string; priceCents: number }) => ({
+                id: v.id,
+                name: v.name,
+                price: v.priceCents != null ? (v.priceCents / 100).toFixed(2) : "",
+              }))
+            : [],
+        );
       })
       .catch(() => setError("Produkt nicht gefunden"))
       .finally(() => setPageLoading(false));
@@ -49,7 +60,7 @@ export default function EditProductPage() {
       const res = await fetch(`/api/products/${productId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, variants: variantRowsToPayload(variants) }),
       });
       const data = await res.json() as { error?: string };
       if (!res.ok) { setError(data.error ?? "Fehler beim Speichern."); return; }
@@ -100,7 +111,9 @@ export default function EditProductPage() {
             <span className="absolute left-5 top-1/2 -translate-y-1/2 text-mute font-medium">€</span>
             <input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="w-full rounded-xl border border-line bg-white pl-10 pr-5 py-3.5 outline-none focus:border-accent transition-colors" required />
           </div>
+          <p className="text-xs text-mute mt-2">Basispreis. Wird im Kiosk angezeigt, wenn es keine Varianten gibt.</p>
         </div>
+        <VariantEditor initial={variants} onChange={setVariants} />
         <div className="flex items-center gap-3">
           <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="h-5 w-5 rounded border-line accent-accent" />
           <label htmlFor="isActive" className="text-sm font-bold">Produkt ist aktiv</label>

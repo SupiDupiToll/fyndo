@@ -69,12 +69,13 @@ export async function GET(request: Request) {
         status,
         totalCents,
         itemCount: sorted.length,
-        quantity: sorted.reduce((s, o) => s + Math.max(Math.round(o.amountCents / (o.product.price || 1)), 1), 0),
+        quantity: sorted.reduce((s, o) => s + (o.quantity || 1), 0),
         createdAt: first.createdAt.toISOString(),
         items: sorted.map((o) => ({
           title: o.product.title,
+          variantName: o.variantName ?? null,
           amountCents: o.amountCents,
-          qty: Math.max(Math.round(o.amountCents / (o.product.price || 1)), 1),
+          qty: o.quantity || Math.max(Math.round(o.amountCents / (o.product.price || 1)), 1),
         })),
       };
     })

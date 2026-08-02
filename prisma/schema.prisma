@@ -84,6 +84,7 @@ model Product {
   voucherNoticeText   String?
   isActive            Boolean              @default(true)
   posVisible          Boolean              @default(true)
+  variants            Json?                 @default("[]")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   orders              Order[]
@@ -108,6 +109,9 @@ model Order {
   posGroupId           String?
   posConfirmToken      String?
   posOrderNumber       Int?
+  variantId            String?
+  variantName          String?
+  quantity             Int          @default(1)
   notificationSentAt   DateTime?
   fulfilledAt          DateTime?
   createdAt            DateTime     @default(now())

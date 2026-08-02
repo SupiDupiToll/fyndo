@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CameraUpload } from "@/components/camera-upload";
+import { VariantEditor, variantRowsToPayload, type VariantRow } from "@/components/pos/variant-editor";
 
 export default function CreateProductPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function CreateProductPage() {
     price: "",
     kind: "PRODUCT" as "PRODUCT" | "VOUCHER",
   });
+  const [variants, setVariants] = useState<VariantRow[]>([]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +28,7 @@ export default function CreateProductPage() {
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, variants: variantRowsToPayload(variants) }),
       });
       const data = await res.json() as { error?: string; id?: string };
 
@@ -62,7 +64,9 @@ export default function CreateProductPage() {
             <span className="absolute left-5 top-1/2 -translate-y-1/2 text-mute font-medium">€</span>
             <input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="w-full rounded-xl border border-line bg-white pl-10 pr-5 py-3.5 outline-none focus:border-accent transition-colors" required />
           </div>
+          <p className="text-xs text-mute mt-2">Basispreis. Wird im Kiosk angezeigt, wenn es keine Varianten gibt.</p>
         </div>
+        <VariantEditor initial={[]} onChange={setVariants} />
         <div className="flex gap-4 pt-4">
           <button type="submit" disabled={loading} className="rounded-xl bg-accent px-8 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50">
             {loading ? "Erstelle..." : "Produkt erstellen"}

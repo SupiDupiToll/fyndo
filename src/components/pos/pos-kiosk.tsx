@@ -11,15 +11,18 @@ import {
 import { POS_MIN_DIGITAL_PAYMENT_CENTS, POS_PAYMENT_METHODS, type PosPaymentMethod } from "@/lib/pos";
 import { formatEuro } from "@/lib/format";
 
+export type PosVariant = { id: string; name: string; priceCents: number };
+
 export type PosProduct = {
   id: string;
   title: string;
   description: string;
   imageUrl: string | null;
   price: number;
+  variants: PosVariant[];
 };
 
-type CartItem = { product: PosProduct; qty: number };
+type CartItem = { product: PosProduct; variant: PosVariant | null; qty: number };
 
 type OrderInfo = {
   posGroupId: string;
@@ -36,11 +39,20 @@ const METHOD_LABELS: Record<PosPaymentMethod, { title: string; sub: string; icon
   CASH: { title: "Bar", sub: "Betrag an der Kasse bezahlen", icon: "fa-solid fa-money-bill-wave" },
 };
 
+function itemPrice(product: PosProduct, variant: PosVariant | null) {
+  return variant ? variant.priceCents : product.price;
+}
+
+function itemLabel(item: CartItem) {
+  return item.variant ? `${item.product.title} (${item.variant.name})` : item.product.title;
+}
+
 export function PosKiosk({ vendorName, products }: { vendorName: string; products: PosProduct[] }) {
   const [cart, setCart] = useState<Map<string, CartItem>>(new Map());
   const [speakerOn, setSpeakerOn] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [pickerProduct, setPickerProduct] = useState<PosProduct | null>(null);
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [method, setMethod] = useState<PosPaymentMethod | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
@@ -74,26 +86,42 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
   }, [vendorName]);
 
   const cartCount = useMemo(() => Array.from(cart.values()).reduce((s, i) => s + i.qty, 0), [cart]);
-  const cartTotal = useMemo(() => Array.from(cart.values()).reduce((s, i) => s + i.product.price * i.qty, 0), [cart]);
+  const cartTotal = useMemo(
+    () => Array.from(cart.values()).reduce((s, i) => s + itemPrice(i.product, i.variant) * i.qty, 0),
+    [cart],
+  );
 
-  function setQty(product: PosProduct, qty: number) {
+  function cartKey(product: PosProduct, variant: PosVariant | null) {
+    return `${product.id}:${variant?.id ?? ""}`;
+  }
+
+  function setQty(product: PosProduct, variant: PosVariant | null, qty: number) {
+    const key = cartKey(product, variant);
     setCart((prev) => {
       const next = new Map(prev);
-      if (qty <= 0) next.delete(product.id);
-      else next.set(product.id, { product, qty });
+      if (qty <= 0) next.delete(key);
+      else next.set(key, { product, variant, qty });
       return next;
     });
   }
 
-  function addProduct(product: PosProduct) {
-    const current = cart.get(product.id)?.qty ?? 0;
-    setQty(product, current + 1);
-    announce("product-added", `${product.title}, ${formatSpokenEuro(product.price)}.`);
+  function addProduct(product: PosProduct, variant: PosVariant | null) {
+    const key = cartKey(product, variant);
+    const current = cart.get(key)?.qty ?? 0;
+    setQty(product, variant, current + 1);
+    const label = variant ? `${product.title} ${variant.name}` : product.title;
+    announce("product-added", `${label}, ${formatSpokenEuro(itemPrice(product, variant))}.`);
   }
 
-  function removeProduct(product: PosProduct) {
-    setQty(product, 0);
-    announce("product-removed", `${product.title} entfernt.`);
+  function removeProduct(product: PosProduct, variant: PosVariant | null) {
+    setQty(product, variant, 0);
+    const label = variant ? `${product.title} ${variant.name}` : product.title;
+    announce("product-removed", `${label} entfernt.`);
+  }
+
+  function openPicker(product: PosProduct) {
+    setPickerProduct(product);
+    announce("select-payment", `${product.title}. Bitte Größe oder Variante wählen.`);
   }
 
   function clearCart() {
@@ -112,7 +140,11 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vendor: vendorName,
-          items: Array.from(cart.values()).map((i) => ({ productId: i.product.id, qty: i.qty })),
+          items: Array.from(cart.values()).map((i) => ({
+            productId: i.product.id,
+            qty: i.qty,
+            variantId: i.variant?.id ?? null,
+          })),
         }),
       });
       const data = await res.json();
@@ -285,9 +317,12 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
               <ProductTile
                 key={product.id}
                 product={product}
-                qty={cart.get(product.id)?.qty ?? 0}
-                onAdd={() => addProduct(product)}
-                onSetQty={(q) => setQty(product, q)}
+                qty={product.variants.length > 0 ? 0 : (cart.get(cartKey(product, null))?.qty ?? 0)}
+                onAdd={() => {
+                  if (product.variants.length > 0) openPicker(product);
+                  else addProduct(product, null);
+                }}
+                onSetQty={(q) => setQty(product, null, q)}
               />
             ))}
           </div>
@@ -317,8 +352,19 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
           totalCents={cartTotal}
           onClose={() => setCartOpen(false)}
           onCheckout={() => void startCheckout()}
-          onSetQty={(product, q) => setQty(product, q)}
-          onRemove={(product) => removeProduct(product)}
+          onSetQty={(item, q) => setQty(item.product, item.variant, q)}
+          onRemove={(item) => removeProduct(item.product, item.variant)}
+        />
+      )}
+
+      {pickerProduct && (
+        <VariantPickerOverlay
+          product={pickerProduct}
+          onPick={(variant) => {
+            addProduct(pickerProduct, variant);
+            setPickerProduct(null);
+          }}
+          onClose={() => setPickerProduct(null)}
         />
       )}
 
@@ -354,6 +400,9 @@ function ProductTile({
   onAdd: () => void;
   onSetQty: (qty: number) => void;
 }) {
+  const hasVariants = product.variants.length > 0;
+  const minPrice = hasVariants ? Math.min(...product.variants.map((v) => v.priceCents)) : null;
+
   return (
     <button
       onClick={onAdd}
@@ -369,7 +418,14 @@ function ProductTile({
       </div>
       <div className="mt-auto">
         <h3 className="font-bold text-sm sm:text-base leading-tight line-clamp-2">{product.title}</h3>
-        <p className="mt-1 text-lg sm:text-xl font-black text-ink tabular-nums">{formatEuro(product.price)}</p>
+        <p className="mt-1 text-lg sm:text-xl font-black text-ink tabular-nums">
+          {minPrice != null ? `ab ${formatEuro(minPrice)}` : formatEuro(product.price)}
+        </p>
+        {hasVariants && (
+          <span className="mt-1 inline-block rounded-full bg-accent/10 px-2.5 py-0.5 text-[11px] font-bold text-accent">
+            {product.variants.length} Varianten
+          </span>
+        )}
       </div>
       {qty > 0 && (
         <div
@@ -397,6 +453,51 @@ function ProductTile({
   );
 }
 
+function VariantPickerOverlay({
+  product,
+  onPick,
+  onClose,
+}: {
+  product: PosProduct;
+  onPick: (variant: PosVariant) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-40 bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8" onClick={onClose}>
+      <div className="w-full max-w-lg max-h-full overflow-y-auto rounded-3xl border border-line bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold truncate">{product.title}</h2>
+            <p className="text-xs text-mute">Wähle eine Variante</p>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors" aria-label="Schließen">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-3">
+          {product.variants.map((variant) => (
+            <button
+              key={variant.id}
+              onClick={() => onPick(variant)}
+              className="flex w-full items-center justify-between gap-4 rounded-2xl border border-line bg-white p-4 text-left transition-all hover:border-accent/50 hover:bg-surf active:scale-[0.98]"
+            >
+              <span className="font-bold">{variant.name}</span>
+              <span className="text-xl font-black tabular-nums">{formatEuro(variant.priceCents)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CartDrawer({
   items,
   totalCents,
@@ -409,8 +510,8 @@ function CartDrawer({
   totalCents: number;
   onClose: () => void;
   onCheckout: () => void;
-  onSetQty: (product: PosProduct, qty: number) => void;
-  onRemove: (product: PosProduct) => void;
+  onSetQty: (item: CartItem, qty: number) => void;
+  onRemove: (item: CartItem) => void;
 }) {
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -438,7 +539,7 @@ function CartDrawer({
             <div className="text-center py-16 text-mute">Ihr Warenkorb ist leer.</div>
           ) : (
             items.map((item) => (
-              <div key={item.product.id} className="flex items-center gap-4 rounded-2xl border border-line p-3">
+              <div key={`${item.product.id}:${item.variant?.id ?? ""}`} className="flex items-center gap-4 rounded-2xl border border-line p-3">
                 <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-surf">
                   {item.product.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -448,12 +549,12 @@ function CartDrawer({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate">{item.product.title}</p>
-                  <p className="text-xs text-mute tabular-nums">{formatEuro(item.product.price)}</p>
+                  <p className="font-bold text-sm truncate">{itemLabel(item)}</p>
+                  <p className="text-xs text-mute tabular-nums">{formatEuro(itemPrice(item.product, item.variant))}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => onSetQty(item.product, item.qty - 1)}
+                    onClick={() => onSetQty(item, item.qty - 1)}
                     className="w-8 h-8 rounded-lg border border-line text-ink font-black flex items-center justify-center hover:bg-surf transition-colors"
                     aria-label="Menge verringern"
                   >
@@ -461,7 +562,7 @@ function CartDrawer({
                   </button>
                   <span className="w-8 text-center text-sm font-black tabular-nums">{item.qty}</span>
                   <button
-                    onClick={() => onSetQty(item.product, item.qty + 1)}
+                    onClick={() => onSetQty(item, item.qty + 1)}
                     className="w-8 h-8 rounded-lg border border-line text-ink font-black flex items-center justify-center hover:bg-surf transition-colors"
                     aria-label="Menge erhöhen"
                   >
@@ -469,9 +570,9 @@ function CartDrawer({
                   </button>
                 </div>
                 <div className="text-right min-w-16">
-                  <p className="font-black tabular-nums">{formatEuro(item.product.price * item.qty)}</p>
+                  <p className="font-black tabular-nums">{formatEuro(itemPrice(item.product, item.variant) * item.qty)}</p>
                   <button
-                    onClick={() => onRemove(item.product)}
+                    onClick={() => onRemove(item)}
                     className="text-xs text-red-500 hover:underline"
                   >
                     Entfernen

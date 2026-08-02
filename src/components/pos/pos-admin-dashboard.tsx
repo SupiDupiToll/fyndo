@@ -13,7 +13,7 @@ type PosGroup = {
   itemCount: number;
   quantity: number;
   createdAt: string;
-  items: { title: string; amountCents: number; qty: number }[];
+  items: { title: string; variantName: string | null; amountCents: number; qty: number }[];
 };
 
 const METHOD_LABELS: Record<string, string> = {
@@ -190,6 +190,9 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
                         <div key={idx} className="flex items-center justify-between gap-3 text-sm">
                           <span className="text-ink truncate">
                             {item.title}
+                            {item.variantName && (
+                              <span className="text-mute"> ({item.variantName})</span>
+                            )}
                             {item.qty > 1 && (
                               <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 rounded-full bg-accent/10 px-2 text-xs font-bold text-accent tabular-nums">
                                 ×{item.qty}

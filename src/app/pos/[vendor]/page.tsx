@@ -43,6 +43,9 @@ export default async function PosPage({
         description: p.description,
         imageUrl: p.imageUrl,
         price: p.price,
+        variants: Array.isArray(p.variants)
+          ? (p.variants as { id: string; name: string; priceCents: number }[])
+          : [],
       }))}
     />
   );
