@@ -41,12 +41,12 @@ function waitForFrames(containerId: string, timeoutMs: number): Promise<boolean>
   });
 }
 
-function sortFrontFirst(list: CameraOption[]): CameraOption[] {
+function sortBackFirst(list: CameraOption[]): CameraOption[] {
   const frontRe = /front|user|webcam|integrated|vorne|vorder|facetime/i;
   const backRe = /back|rear|environment|hinten|rück/i;
   return [...list].sort((a, b) => {
     const rank = (c: CameraOption) =>
-      frontRe.test(c.label) ? 0 : backRe.test(c.label) ? 2 : 1;
+      backRe.test(c.label) ? 0 : frontRe.test(c.label) ? 2 : 1;
     return rank(a) - rank(b);
   });
 }
@@ -70,7 +70,7 @@ export function CardScanner({
       const cam = list[idx % list.length];
       if (cam.deviceId) return { deviceId: { exact: cam.deviceId } };
     }
-    return idx % 2 === 0 ? { facingMode: "user" } : { facingMode: "environment" };
+    return idx % 2 === 0 ? { facingMode: "environment" } : { facingMode: "user" };
   }
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export function CardScanner({
       if (cancelled) return;
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const list = sortFrontFirst(
+        const list = sortBackFirst(
           devices
             .filter((d) => d.kind === "videoinput")
             .map((d) => ({ deviceId: d.deviceId, label: d.label || "Kamera" })),
@@ -100,7 +100,7 @@ export function CardScanner({
             if (match >= 0) idx = match;
           }
         } catch {
-          // fall back to front camera
+          // fall back to back camera
         }
         setCameraIdx(idx);
       } catch {
