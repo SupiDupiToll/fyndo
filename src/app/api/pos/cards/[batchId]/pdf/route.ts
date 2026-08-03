@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readFile } from "fs/promises";
+import path from "path";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { requireSellerOrSuperAdmin } from "@/lib/auth";
@@ -7,6 +9,16 @@ import { getPosCardSecret } from "@/lib/env";
 import { encodeCardToken } from "@/lib/pos-cards";
 
 export const dynamic = "force-dynamic";
+
+const FONT_DIR = path.join(process.cwd(), "private", "fonts");
+
+async function loadFonts() {
+  const [regular, bold] = await Promise.all([
+    readFile(path.join(FONT_DIR, "Roboto-Regular.ttf")),
+    readFile(path.join(FONT_DIR, "Roboto-Bold.ttf")),
+  ]);
+  return { regular, bold };
+}
 
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
@@ -43,6 +55,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const secret = getPosCardSecret();
   const sellerId = cards[0].sellerId;
 
+  const { regular, bold } = await loadFonts();
+
   const qrBuffers = await Promise.all(
     cards.map((card) =>
       QRCode.toBuffer(encodeCardToken(secret, sellerId, card.number), {
@@ -54,7 +68,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ),
   );
 
-  const doc = new PDFDocument({ size: "A4", margin: 0, info: { Title: `FYNDO Bestellnummern-Karten` } });
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 0,
+    font: "",
+    info: { Title: `FYNDO Bestellnummern-Karten` },
+  });
+  doc.registerFont("Body", regular);
+  doc.registerFont("Bold", bold);
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
   const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
@@ -76,12 +97,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const qrSize = Math.min(CELL_W, CELL_H) * 0.55;
     doc.image(qrBuffers[index], x + (CELL_W - qrSize) / 2, y + 10, { width: qrSize, height: qrSize });
 
-    doc.fontSize(9).fillColor("#64748b").text("FYNDO", x, y + 10 + qrSize + 8, {
+    doc.font("Body").fontSize(9).fillColor("#64748b").text("FYNDO", x, y + 10 + qrSize + 8, {
       width: CELL_W - 8,
       align: "center",
     });
 
-    doc.font("Helvetica-Bold")
+    doc.font("Bold")
       .fontSize(22)
       .fillColor("#0f172a")
       .text(`#${card.number}`, x, y + 10 + qrSize + 20, {
@@ -89,13 +110,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         align: "center",
       });
 
-    doc.font("Helvetica")
-      .fontSize(7)
-      .fillColor("#94a3b8")
-      .text(`Karte ${index + 1}/${cards.length} · Bestellnummer-Karte`, x, y + CELL_H - 14, {
-        width: CELL_W - 8,
-        align: "center",
-      });
   });
 
   doc.end();
