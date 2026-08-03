@@ -37,6 +37,15 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "Storniert",
 };
 
+type CardBatch = {
+  batchId: string;
+  count: number;
+  used: number;
+  createdAt: string;
+  firstNumber: number;
+  lastNumber: number;
+};
+
 export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
   const [scope, setScope] = useState<"open" | "paid" | "all">("open");
   const [groups, setGroups] = useState<PosGroup[]>([]);
@@ -44,6 +53,20 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [methods, setMethods] = useState<Record<string, string>>({});
+  const [batches, setBatches] = useState<CardBatch[]>([]);
+  const [cardCount, setCardCount] = useState(30);
+  const [cardBusy, setCardBusy] = useState(false);
+  const [cardError, setCardError] = useState("");
+
+  async function loadBatches() {
+    try {
+      const res = await fetch(`/api/pos/cards?vendor=${encodeURIComponent(vendorName)}`);
+      if (!res.ok) return;
+      setBatches(await res.json());
+    } catch {
+      // ignore, section stays empty
+    }
+  }
 
   async function load() {
     try {
@@ -62,6 +85,7 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
   useEffect(() => {
     setLoading(true);
     void load();
+    void loadBatches();
     const interval = window.setInterval(() => void load(), 5000);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,6 +154,29 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
     } finally {
       setBusyId(null);
       void load();
+    }
+  }
+
+  async function createBatch() {
+    setCardBusy(true);
+    setCardError("");
+    try {
+      const res = await fetch("/api/pos/cards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendor: vendorName, count: cardCount }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCardError(data.error ?? "Generierung fehlgeschlagen.");
+        return;
+      }
+      window.open(`/api/pos/cards/${encodeURIComponent(data.batchId)}/pdf`, "_blank");
+      await loadBatches();
+    } catch {
+      setCardError("Generierung fehlgeschlagen.");
+    } finally {
+      setCardBusy(false);
     }
   }
 
@@ -281,6 +328,88 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
           })}
         </div>
       )}
+
+      <section className="mt-10 rounded-2xl border border-line bg-white p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Bestellnummern-Karten</h2>
+            <p className="text-sm text-mute mt-1">
+              Generiert ein PDF mit QR-Karten. Kunden nehmen eine Karte und scannen sie an der Kiosk-Kamera.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={cardCount}
+              onChange={(e) => setCardCount(Math.max(1, Math.round(Number(e.target.value) || 30)))}
+              className="w-24 rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold outline-none"
+              aria-label="Anzahl Karten"
+            />
+            <button
+              onClick={() => void createBatch()}
+              disabled={cardBusy}
+              className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+            >
+              {cardBusy ? "Generiert…" : "Generieren & PDF"}
+            </button>
+          </div>
+        </div>
+
+        {cardError && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{cardError}</div>
+        )}
+
+        {batches.length === 0 ? (
+          <p className="mt-6 text-sm text-mute">Noch keine Karten generiert.</p>
+        ) : (
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-mute uppercase tracking-wider border-b border-line">
+                  <th className="pb-2 pr-4">Erstellt</th>
+                  <th className="pb-2 pr-4">Nummern</th>
+                  <th className="pb-2 pr-4">Verbraucht</th>
+                  <th className="pb-2 pr-4">Verfügbar</th>
+                  <th className="pb-2 text-right">PDF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batches.map((batch) => (
+                  <tr key={batch.batchId} className="border-b border-line last:border-0">
+                    <td className="py-3 pr-4 text-mute">
+                      {new Date(batch.createdAt).toLocaleDateString("de-DE")} ·{" "}
+                      {new Date(batch.createdAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="py-3 pr-4 font-bold tabular-nums">
+                      #{batch.firstNumber} – #{batch.lastNumber}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="inline-block rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600 tabular-nums">
+                        {batch.used}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="inline-block rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-600 tabular-nums">
+                        {batch.count - batch.used}
+                      </span>
+                    </td>
+                    <td className="py-3 text-right">
+                      <button
+                        onClick={() => window.open(`/api/pos/cards/${encodeURIComponent(batch.batchId)}/pdf`, "_blank")}
+                        className="rounded-xl border border-line px-3 py-2 text-xs font-bold text-accent hover:bg-surf transition-colors"
+                      >
+                        PDF
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -33,6 +33,11 @@ export type Product = Prisma.ProductModel
  */
 export type Order = Prisma.OrderModel
 /**
+ * Model PosNumberCard
+ * 
+ */
+export type PosNumberCard = Prisma.PosNumberCardModel
+/**
  * Model GiftCard
  * 
  */

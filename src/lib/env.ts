@@ -16,6 +16,10 @@ export function getRbankConfig(): RBankConfig {
   };
 }
 
+export function getPosCardSecret(): string {
+  return process.env.POS_CARD_SECRET ?? "";
+}
+
 export function getAppUrl(): string {
   return process.env.APP_URL ?? "http://localhost:3000";
 }

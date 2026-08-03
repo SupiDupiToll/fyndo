@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import QRCode from "qrcode";
 import {
   announce,
@@ -10,6 +11,14 @@ import {
 } from "@/lib/pos-speech";
 import { POS_MIN_DIGITAL_PAYMENT_CENTS, POS_PAYMENT_METHODS, type PosPaymentMethod } from "@/lib/pos";
 import { formatEuro } from "@/lib/format";
+
+const CardScanner = dynamic(
+  () => import("@/components/pos/card-scanner").then((m) => m.CardScanner),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 w-64 animate-pulse rounded-2xl border border-line bg-tile" />,
+  },
+);
 
 export type PosVariant = { id: string; name: string; priceCents: number };
 
@@ -55,6 +64,10 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
   const [pickerProduct, setPickerProduct] = useState<PosProduct | null>(null);
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [method, setMethod] = useState<PosPaymentMethod | null>(null);
+  const [cardToken, setCardToken] = useState<string | null>(null);
+  const [cardNumber, setCardNumber] = useState<number | null>(null);
+  const [cardError, setCardError] = useState("");
+  const [cardBusy, setCardBusy] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -131,14 +144,51 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
   async function startCheckout() {
     if (cart.size === 0) return;
     setError("");
+    setCardError("");
     setCartOpen(false);
     setCheckoutOpen(true);
     announce("checkout", "Zur Kasse.");
-    announce("select-payment", `Bitte wählen Sie Ihre Zahlungsart.`);
+    announce("card-scanned", "Bitte nehmen Sie eine Bestellnummer-Karte und scannen Sie den QR-Code an der Kamera.");
+  }
+
+  async function handleCardToken(token: string) {
+    setCardBusy(true);
+    setCardError("");
+    try {
+      const res = await fetch("/api/pos/cards/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendor: vendorName, cardToken: token }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCardToken(null);
+        setCardNumber(null);
+        setCardError(data.error ?? "Ungültige Karte.");
+        return;
+      }
+      setCardToken(token);
+      setCardNumber(data.number);
+      announce("card-scanned", `Ihre Bestellnummer ist ${data.number}.`);
+    } catch {
+      setCardError("Karte konnte nicht geprüft werden.");
+    } finally {
+      setCardBusy(false);
+    }
+  }
+
+  function resetCard() {
+    setCardToken(null);
+    setCardNumber(null);
+    setCardError("");
   }
 
   async function selectMethod(m: PosPaymentMethod) {
     if (cart.size === 0) return;
+    if (!cardToken || cardNumber === null) {
+      setError("Bitte zuerst eine Bestellnummer-Karte scannen.");
+      return;
+    }
     setError("");
     setBusy(true);
     setMethod(m);
@@ -152,6 +202,7 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             vendor: vendorName,
+            cardToken,
             items: Array.from(cart.values()).map((i) => ({
               productId: i.product.id,
               qty: i.qty,
@@ -162,6 +213,7 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
         const orderData = await orderRes.json();
         if (!orderRes.ok) {
           setError(orderData.error ?? "Bestellung konnte nicht gestartet werden.");
+          if (orderRes.status === 400 || orderRes.status === 409) resetCard();
           setMethod(null);
           setBusy(false);
           return;
@@ -262,6 +314,7 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
     setError("");
     setDone(null);
     setRbankStatus(null);
+    resetCard();
   }
 
   function resetForNext() {
@@ -374,12 +427,23 @@ export function PosKiosk({ vendorName, products }: { vendorName: string; product
           order={order}
           totalCents={cartTotal}
           method={method}
+          cardNumber={cardNumber}
+          cardError={cardError}
+          cardBusy={cardBusy}
           paymentUrl={paymentUrl}
           busy={busy}
           error={error}
           rbankStatus={rbankStatus}
           onSelectMethod={(m) => void selectMethod(m)}
-          onBack={method ? () => { clearAnnouncements(); setMethod(null); setPaymentUrl(null); setRbankStatus(null); } : () => void abortCheckout()}
+          onCardToken={(token) => void handleCardToken(token)}
+          onCardError={(message) => setCardError(message)}
+          onBack={
+            method
+              ? () => { clearAnnouncements(); setMethod(null); setPaymentUrl(null); setRbankStatus(null); }
+              : cardNumber !== null
+                ? resetCard
+                : () => void abortCheckout()
+          }
         />
       )}
 
@@ -405,9 +469,17 @@ function ProductTile({
   const minPrice = hasVariants ? Math.min(...product.variants.map((v) => v.priceCents)) : null;
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onAdd}
-      className="group flex flex-col items-stretch rounded-2xl border border-line bg-white p-3 sm:p-4 text-left transition-all hover:border-accent/50 hover:shadow-lg active:scale-[0.97]"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onAdd();
+        }
+      }}
+      className="group flex flex-col items-stretch rounded-2xl border border-line bg-white p-3 sm:p-4 text-left transition-all hover:border-accent/50 hover:shadow-lg active:scale-[0.97] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
       <div className="aspect-square w-full overflow-hidden rounded-xl bg-surf mb-3">
         {product.imageUrl ? (
@@ -450,7 +522,7 @@ function ProductTile({
           </button>
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -607,33 +679,44 @@ function CheckoutOverlay({
   order,
   totalCents,
   method,
+  cardNumber,
+  cardError,
+  cardBusy,
   paymentUrl,
   busy,
   error,
   rbankStatus,
   onSelectMethod,
+  onCardToken,
+  onCardError,
   onBack,
 }: {
   vendorName: string;
   order: OrderInfo | null;
   totalCents: number;
   method: PosPaymentMethod | null;
+  cardNumber: number | null;
+  cardError: string;
+  cardBusy: boolean;
   paymentUrl: string | null;
   busy: boolean;
   error: string;
   rbankStatus: string | null;
   onSelectMethod: (m: PosPaymentMethod) => void;
+  onCardToken: (token: string) => void;
+  onCardError: (message: string) => void;
   onBack: () => void;
 }) {
+  const displayNumber = order?.posOrderNumber ?? cardNumber;
   return (
     <div className="fixed inset-0 z-40 bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-3xl max-h-full overflow-y-auto rounded-3xl border border-line bg-white shadow-xl flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div>
             <p className="text-xs text-mute uppercase tracking-widest">
-              {vendorName} · POS{order ? ` · Bestellnummer #${order.posOrderNumber}` : ""}
+              {vendorName} · POS{displayNumber != null ? ` · Bestellnummer #${displayNumber}` : ""}
             </p>
-            <h2 className="text-xl font-bold">Bezahlung</h2>
+            <h2 className="text-xl font-bold">{cardNumber === null ? "Bestellnummer-Karte" : "Bezahlung"}</h2>
           </div>
           <button onClick={onBack} className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors" aria-label="Zurück">
             <i className="fa-solid fa-arrow-left" />
@@ -651,7 +734,14 @@ function CheckoutOverlay({
             </div>
           )}
 
-          {!method ? (
+          {cardNumber === null ? (
+            <CardScanStep
+              cardError={cardError}
+              cardBusy={cardBusy}
+              onCardToken={onCardToken}
+              onCardError={onCardError}
+            />
+          ) : !method ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {POS_PAYMENT_METHODS.map((m) => {
                 const meta = METHOD_LABELS[m];
@@ -685,6 +775,35 @@ function CheckoutOverlay({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function CardScanStep({
+  cardError,
+  cardBusy,
+  onCardToken,
+  onCardError,
+}: {
+  cardError: string;
+  cardBusy: boolean;
+  onCardToken: (token: string) => void;
+  onCardError: (message: string) => void;
+}) {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <CardScanner onScan={onCardToken} onError={onCardError} />
+      {cardError && (
+        <div className="mt-4 w-full max-w-sm rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {cardError}
+        </div>
+      )}
+      {cardBusy && (
+        <div className="mt-4 flex items-center gap-3 text-mute">
+          <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm font-medium">Prüfe Karte…</span>
+        </div>
+      )}
     </div>
   );
 }

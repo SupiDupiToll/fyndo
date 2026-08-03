@@ -400,6 +400,7 @@ export const ModelName = {
   User: 'User',
   Product: 'Product',
   Order: 'Order',
+  PosNumberCard: 'PosNumberCard',
   GiftCard: 'GiftCard',
   ThirdPartyOrder: 'ThirdPartyOrder'
 } as const
@@ -417,7 +418,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "product" | "order" | "giftCard" | "thirdPartyOrder"
+    modelProps: "user" | "product" | "order" | "posNumberCard" | "giftCard" | "thirdPartyOrder"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -640,6 +641,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.OrderCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.OrderCountAggregateOutputType> | number
+        }
+      }
+    }
+    PosNumberCard: {
+      payload: Prisma.$PosNumberCardPayload<ExtArgs>
+      fields: Prisma.PosNumberCardFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PosNumberCardFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PosNumberCardFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>
+        }
+        findFirst: {
+          args: Prisma.PosNumberCardFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PosNumberCardFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>
+        }
+        findMany: {
+          args: Prisma.PosNumberCardFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>[]
+        }
+        create: {
+          args: Prisma.PosNumberCardCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>
+        }
+        createMany: {
+          args: Prisma.PosNumberCardCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PosNumberCardCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>[]
+        }
+        delete: {
+          args: Prisma.PosNumberCardDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>
+        }
+        update: {
+          args: Prisma.PosNumberCardUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>
+        }
+        deleteMany: {
+          args: Prisma.PosNumberCardDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PosNumberCardUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PosNumberCardUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>[]
+        }
+        upsert: {
+          args: Prisma.PosNumberCardUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PosNumberCardPayload>
+        }
+        aggregate: {
+          args: Prisma.PosNumberCardAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePosNumberCard>
+        }
+        groupBy: {
+          args: Prisma.PosNumberCardGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PosNumberCardGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PosNumberCardCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PosNumberCardCountAggregateOutputType> | number
         }
       }
     }
@@ -888,6 +963,7 @@ export const OrderScalarFieldEnum = {
   posGroupId: 'posGroupId',
   posConfirmToken: 'posConfirmToken',
   posOrderNumber: 'posOrderNumber',
+  posCardId: 'posCardId',
   variantId: 'variantId',
   variantName: 'variantName',
   quantity: 'quantity',
@@ -898,6 +974,20 @@ export const OrderScalarFieldEnum = {
 } as const
 
 export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+
+
+export const PosNumberCardScalarFieldEnum = {
+  id: 'id',
+  sellerId: 'sellerId',
+  batchId: 'batchId',
+  number: 'number',
+  used: 'used',
+  usedAt: 'usedAt',
+  orderId: 'orderId',
+  createdAt: 'createdAt'
+} as const
+
+export type PosNumberCardScalarFieldEnum = (typeof PosNumberCardScalarFieldEnum)[keyof typeof PosNumberCardScalarFieldEnum]
 
 
 export const GiftCardScalarFieldEnum = {
@@ -1317,6 +1407,7 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   product?: Prisma.ProductOmit
   order?: Prisma.OrderOmit
+  posNumberCard?: Prisma.PosNumberCardOmit
   giftCard?: Prisma.GiftCardOmit
   thirdPartyOrder?: Prisma.ThirdPartyOrderOmit
 }

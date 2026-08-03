@@ -54,6 +54,7 @@ export const ModelName = {
   User: 'User',
   Product: 'Product',
   Order: 'Order',
+  PosNumberCard: 'PosNumberCard',
   GiftCard: 'GiftCard',
   ThirdPartyOrder: 'ThirdPartyOrder'
 } as const
@@ -132,6 +133,7 @@ export const OrderScalarFieldEnum = {
   posGroupId: 'posGroupId',
   posConfirmToken: 'posConfirmToken',
   posOrderNumber: 'posOrderNumber',
+  posCardId: 'posCardId',
   variantId: 'variantId',
   variantName: 'variantName',
   quantity: 'quantity',
@@ -142,6 +144,20 @@ export const OrderScalarFieldEnum = {
 } as const
 
 export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+
+
+export const PosNumberCardScalarFieldEnum = {
+  id: 'id',
+  sellerId: 'sellerId',
+  batchId: 'batchId',
+  number: 'number',
+  used: 'used',
+  usedAt: 'usedAt',
+  orderId: 'orderId',
+  createdAt: 'createdAt'
+} as const
+
+export type PosNumberCardScalarFieldEnum = (typeof PosNumberCardScalarFieldEnum)[keyof typeof PosNumberCardScalarFieldEnum]
 
 
 export const GiftCardScalarFieldEnum = {

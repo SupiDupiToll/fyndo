@@ -110,6 +110,7 @@ model Order {
   posGroupId           String?
   posConfirmToken      String?
   posOrderNumber       Int?
+  posCardId            String?
   variantId            String?
   variantName          String?
   quantity             Int          @default(1)
@@ -119,6 +120,21 @@ model Order {
   updatedAt            DateTime     @updatedAt
 
   @@index([posGroupId])
+}
+
+model PosNumberCard {
+  id        String   @id @default(cuid())
+  sellerId  String
+  batchId   String
+  number    Int
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  @@index([sellerId, batchId])
+  @@index([sellerId, used])
+  @@index([batchId])
 }
 
 model GiftCard {
