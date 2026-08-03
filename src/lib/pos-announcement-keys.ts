@@ -2,6 +2,7 @@ export const POS_ANNOUNCEMENT_KEYS = [
   "welcome",
   "product-added",
   "product-removed",
+  "container",
   "cart",
   "checkout",
   "select-payment",
@@ -15,6 +16,7 @@ export const POS_ANNOUNCEMENT_KEYS = [
   "payment-error",
   "new-order",
   "order-sent",
+  "idle-countdown",
 ] as const;
 
 export type AnnouncementKey = (typeof POS_ANNOUNCEMENT_KEYS)[number];

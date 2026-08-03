@@ -12,6 +12,7 @@ type ProductRow = {
   isActive: boolean;
   posVisible: boolean;
   posOnly: boolean;
+  isContainer: boolean;
   ordersCount: number;
   sellerLabel?: string;
   showSeller?: boolean;
@@ -61,6 +62,11 @@ export function ProductListAdmin({ products, showSeller }: { products: ProductRo
           <span className={`text-xs font-bold rounded-full px-3 py-1 whitespace-nowrap ${p.posOnly ? "bg-purple-50 text-purple-700" : "bg-gray-50 text-mute"}`}>
             {p.posOnly ? "Nur POS" : "Shop"}
           </span>
+          {p.isContainer && (
+            <span className="text-xs font-bold rounded-full px-3 py-1 whitespace-nowrap bg-amber-50 text-amber-700">
+              Becher
+            </span>
+          )}
           <label className="flex items-center gap-2 cursor-pointer select-none" title="Kurzfristig ausblenden">
             <input
               type="checkbox"

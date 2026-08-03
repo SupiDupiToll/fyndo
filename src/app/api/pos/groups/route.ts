@@ -76,6 +76,8 @@ export async function GET(request: Request) {
         items: sorted.map((o) => ({
           title: o.product.title,
           variantName: o.variantName ?? null,
+          containerId: o.posContainerId ?? null,
+          containerName: o.posContainerName ?? null,
           amountCents: o.amountCents,
           qty: o.quantity || Math.max(Math.round(o.amountCents / (o.product.price || 1)), 1),
         })),

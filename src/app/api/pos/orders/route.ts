@@ -12,7 +12,13 @@ export async function POST(request: NextRequest) {
   let body: {
     vendor?: string;
     cardToken?: string;
-    items?: { productId: string; qty?: number; variantId?: string | null }[];
+    items?: {
+      productId: string;
+      qty?: number;
+      variantId?: string | null;
+      containerKey?: string | null;
+      containerLabel?: string | null;
+    }[];
   };
   try {
     body = await request.json();
@@ -36,12 +42,21 @@ export async function POST(request: NextRequest) {
       productId: String(i.productId ?? ""),
       qty: Number(i.qty) || 0,
       variantId: i.variantId ? String(i.variantId) : null,
+      containerKey: i.containerKey ? String(i.containerKey).slice(0, 64) : null,
+      containerLabel: i.containerLabel ? String(i.containerLabel).slice(0, 120) : null,
     }))
     .filter((i) => i.productId && i.qty > 0)
-    .reduce<{ productId: string; qty: number; variantId: string | null }[]>((acc, i) => {
-      const existing = acc.find((x) => x.productId === i.productId && x.variantId === i.variantId);
+    .reduce<
+      { productId: string; qty: number; variantId: string | null; containerKey: string | null; containerLabel: string | null }[]
+    >((acc, i) => {
+      const existing = acc.find(
+        (x) =>
+          x.productId === i.productId &&
+          x.variantId === i.variantId &&
+          x.containerKey === i.containerKey,
+      );
       if (existing) existing.qty += i.qty;
-      else acc.push({ productId: i.productId, qty: i.qty, variantId: i.variantId });
+      else acc.push(i);
       return acc;
     }, []);
 
@@ -148,6 +163,8 @@ export async function POST(request: NextRequest) {
         posCardId: card.id,
         variantId: variant?.id ?? null,
         variantName: variant?.name ?? null,
+        posContainerId: item.containerKey,
+        posContainerName: item.containerLabel,
       };
     }),
   });

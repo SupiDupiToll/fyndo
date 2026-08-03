@@ -913,6 +913,7 @@ export const UserScalarFieldEnum = {
   role: 'role',
   sellerName: 'sellerName',
   sellerBalanceCents: 'sellerBalanceCents',
+  posSettings: 'posSettings',
   createdAt: 'createdAt'
 } as const
 
@@ -939,6 +940,7 @@ export const ProductScalarFieldEnum = {
   posVisible: 'posVisible',
   posOnly: 'posOnly',
   variants: 'variants',
+  isContainer: 'isContainer',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -966,6 +968,8 @@ export const OrderScalarFieldEnum = {
   posCardId: 'posCardId',
   variantId: 'variantId',
   variantName: 'variantName',
+  posContainerId: 'posContainerId',
+  posContainerName: 'posContainerName',
   quantity: 'quantity',
   notificationSentAt: 'notificationSentAt',
   fulfilledAt: 'fulfilledAt',
@@ -1056,14 +1060,6 @@ export const QueryMode = {
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
 
 
-export const NullsOrder = {
-  first: 'first',
-  last: 'last'
-} as const
-
-export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
-
-
 export const JsonNullValueFilter = {
   DbNull: DbNull,
   JsonNull: JsonNull,
@@ -1071,6 +1067,14 @@ export const JsonNullValueFilter = {
 } as const
 
 export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 
 
@@ -1122,6 +1126,20 @@ export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
+ * Reference to a field of type 'Json'
+ */
+export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+/**
+ * Reference to a field of type 'QueryMode'
+ */
+export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+/**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -1160,20 +1178,6 @@ export type EnumVoucherModeFieldRefInput<$PrismaModel> = FieldRefInputType<$Pris
  * Reference to a field of type 'VoucherMode[]'
  */
 export type ListEnumVoucherModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VoucherMode[]'>
-    
-
-
-/**
- * Reference to a field of type 'Json'
- */
-export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-    
-
-
-/**
- * Reference to a field of type 'QueryMode'
- */
-export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
     
 
 

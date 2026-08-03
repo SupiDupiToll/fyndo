@@ -13,6 +13,7 @@ interface ProductForm {
   isActive: boolean;
   posVisible: boolean;
   posOnly: boolean;
+  isContainer: boolean;
 }
 
 export default function EditProductPage() {
@@ -23,7 +24,7 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
-  const [form, setForm] = useState<ProductForm>({ title: "", description: "", imageUrl: "", price: "", isActive: true, posVisible: true, posOnly: false });
+  const [form, setForm] = useState<ProductForm>({ title: "", description: "", imageUrl: "", price: "", isActive: true, posVisible: true, posOnly: false, isContainer: false });
   const [variants, setVariants] = useState<VariantRow[]>([]);
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function EditProductPage() {
           isActive: data.isActive ?? true,
           posVisible: data.posVisible ?? true,
           posOnly: data.posOnly ?? false,
+          isContainer: data.isContainer ?? false,
         });
         setVariants(
           Array.isArray(data.variants)
@@ -129,6 +131,10 @@ export default function EditProductPage() {
         <div className="flex items-center gap-3">
           <input type="checkbox" id="posOnly" checked={form.posOnly} onChange={(e) => setForm({ ...form, posOnly: e.target.checked })} className="h-5 w-5 rounded border-line accent-accent" />
           <label htmlFor="posOnly" className="text-sm font-bold">Nur im POS anzeigen (nicht im Shop)</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" id="isContainer" checked={form.isContainer} onChange={(e) => setForm({ ...form, isContainer: e.target.checked })} className="h-5 w-5 rounded border-line accent-accent" />
+          <label htmlFor="isContainer" className="text-sm font-bold">Ist ein Becher / Schüssel (Eisdiele)</label>
         </div>
 
         <div className="flex gap-4 pt-4">

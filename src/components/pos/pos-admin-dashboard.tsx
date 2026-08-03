@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { formatEuro } from "@/lib/format";
+import {
+  parsePosSettings,
+  POS_SETTINGS_DEFAULTS,
+  type PosLockMedia,
+  type PosSettings,
+} from "@/lib/pos-settings";
 
 type PosGroup = {
   posGroupId: string;
@@ -13,7 +19,7 @@ type PosGroup = {
   itemCount: number;
   quantity: number;
   createdAt: string;
-  items: { title: string; variantName: string | null; amountCents: number; qty: number }[];
+  items: { title: string; variantName: string | null; containerName: string | null; amountCents: number; qty: number }[];
 };
 
 const METHOD_LABELS: Record<string, string> = {
@@ -57,6 +63,61 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
   const [cardCount, setCardCount] = useState(30);
   const [cardBusy, setCardBusy] = useState(false);
   const [cardError, setCardError] = useState("");
+  const [lockSettings, setLockSettings] = useState<PosSettings>({ ...POS_SETTINGS_DEFAULTS });
+  const [lockBusy, setLockBusy] = useState(false);
+  const [lockError, setLockError] = useState("");
+  const [lockSaved, setLockSaved] = useState(false);
+
+  async function loadLockSettings() {
+    try {
+      const res = await fetch(`/api/pos/settings?vendor=${encodeURIComponent(vendorName)}`);
+      if (!res.ok) return;
+      setLockSettings(parsePosSettings(await res.json()));
+    } catch {
+      // ignore, defaults stay
+    }
+  }
+
+  async function saveLockSettings() {
+    setLockBusy(true);
+    setLockError("");
+    setLockSaved(false);
+    try {
+      const res = await fetch("/api/pos/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...lockSettings, vendor: vendorName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setLockError(data.error ?? "Speichern fehlgeschlagen.");
+        return;
+      }
+      setLockSettings(parsePosSettings(data));
+      setLockSaved(true);
+      window.setTimeout(() => setLockSaved(false), 2500);
+    } catch {
+      setLockError("Speichern fehlgeschlagen.");
+    } finally {
+      setLockBusy(false);
+    }
+  }
+
+  function setLockMedia(media: PosLockMedia[]) {
+    setLockSettings((s) => ({ ...s, media }));
+  }
+
+  function updateLockMedia(index: number, patch: Partial<PosLockMedia>) {
+    setLockMedia(lockSettings.media.map((m, i) => (i === index ? { ...m, ...patch } : m)));
+  }
+
+  function moveLockMedia(index: number, dir: -1 | 1) {
+    const next = [...lockSettings.media];
+    const target = index + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    setLockMedia(next);
+  }
 
   async function loadBatches() {
     try {
@@ -86,6 +147,7 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
     setLoading(true);
     void load();
     void loadBatches();
+    void loadLockSettings();
     const interval = window.setInterval(() => void load(), 5000);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -258,22 +320,39 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
                       </span>
                     </div>
                     <div className="mt-3 space-y-1">
-                      {group.items.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-3 text-sm">
-                          <span className="text-ink truncate">
-                            {item.title}
-                            {item.variantName && (
-                              <span className="text-mute"> ({item.variantName})</span>
+                      {(() => {
+                        const itemGroups: { name: string | null; items: typeof group.items }[] = [];
+                        for (const item of group.items) {
+                          const existing = itemGroups.find((g) => g.name === item.containerName);
+                          if (existing) existing.items.push(item);
+                          else itemGroups.push({ name: item.containerName, items: [item] });
+                        }
+                        return itemGroups.map((ig, igIdx) => (
+                          <div key={igIdx}>
+                            {ig.name && (
+                              <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-accent">
+                                {ig.name}
+                              </p>
                             )}
-                            {item.qty > 1 && (
-                              <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 rounded-full bg-accent/10 px-2 text-xs font-bold text-accent tabular-nums">
-                                ×{item.qty}
-                              </span>
-                            )}
-                          </span>
-                          <span className="text-mute tabular-nums shrink-0">{formatEuro(item.amountCents)}</span>
-                        </div>
-                      ))}
+                            {ig.items.map((item, idx) => (
+                              <div key={idx} className="flex items-center justify-between gap-3 text-sm">
+                                <span className="text-ink truncate">
+                                  {item.title}
+                                  {item.variantName && (
+                                    <span className="text-mute"> ({item.variantName})</span>
+                                  )}
+                                  {item.qty > 1 && (
+                                    <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 rounded-full bg-accent/10 px-2 text-xs font-bold text-accent tabular-nums">
+                                      ×{item.qty}
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="text-mute tabular-nums shrink-0">{formatEuro(item.amountCents)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
 
@@ -409,6 +488,185 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
             </table>
           </div>
         )}
+      </section>
+
+      <section className="mt-10 rounded-2xl border border-line bg-white p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Lock-Screen</h2>
+            <p className="text-sm text-mute mt-1">
+              Vollbild-Attraktionsbildschirm mit Bildern/Videos, der beim Öffnen, nach einer
+              Bestellung und bei Inaktivität angezeigt wird.
+            </p>
+          </div>
+          <label className="flex items-center gap-3 text-sm font-bold">
+            <span className={lockSettings.lockScreenEnabled ? "text-accent" : "text-mute"}>
+              {lockSettings.lockScreenEnabled ? "Aktiv" : "Aus"}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={lockSettings.lockScreenEnabled}
+              onClick={() =>
+                setLockSettings((s) => ({ ...s, lockScreenEnabled: !s.lockScreenEnabled }))
+              }
+              className={`relative h-8 w-14 rounded-full transition-colors ${lockSettings.lockScreenEnabled ? "bg-accent" : "bg-tile"}`}
+            >
+              <span
+                className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${lockSettings.lockScreenEnabled ? "left-7" : "left-1"}`}
+              />
+            </button>
+          </label>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <label className="block rounded-xl border border-line p-4">
+            <span className="text-xs font-bold text-mute uppercase tracking-wider">
+              Inaktivität (Sekunden)
+            </span>
+            <input
+              type="number"
+              min={5}
+              max={600}
+              value={lockSettings.idleTimeoutSeconds}
+              onChange={(e) =>
+                setLockSettings((s) => ({
+                  ...s,
+                  idleTimeoutSeconds: Math.max(5, Math.round(Number(e.target.value) || POS_SETTINGS_DEFAULTS.idleTimeoutSeconds)),
+                }))
+              }
+              className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold outline-none"
+            />
+            <span className="mt-1 block text-xs text-mute">Nach dieser Zeit ohne Bedienung.</span>
+          </label>
+
+          <label className="block rounded-xl border border-line p-4">
+            <span className="text-xs font-bold text-mute uppercase tracking-wider">
+              Auto-Lock nach Bestellung (Sekunden)
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={120}
+              value={lockSettings.successAutoLockSeconds}
+              onChange={(e) =>
+                setLockSettings((s) => ({
+                  ...s,
+                  successAutoLockSeconds: Math.max(0, Math.round(Number(e.target.value) || 0)),
+                }))
+              }
+              className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold outline-none"
+            />
+            <span className="mt-1 block text-xs text-mute">
+              Erfolgs-Screen danach automatisch sperren (0 = nur über Button).
+            </span>
+          </label>
+
+          <div className="rounded-xl border border-line p-4">
+            <span className="text-xs font-bold text-mute uppercase tracking-wider">
+              Beim Öffnen anzeigen
+            </span>
+            <label className="mt-2 flex items-center gap-3 text-sm font-bold">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={lockSettings.showOnLoad}
+                onClick={() => setLockSettings((s) => ({ ...s, showOnLoad: !s.showOnLoad }))}
+                className={`relative h-8 w-14 rounded-full transition-colors ${lockSettings.showOnLoad ? "bg-accent" : "bg-tile"}`}
+              >
+                <span
+                  className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${lockSettings.showOnLoad ? "left-7" : "left-1"}`}
+                />
+              </button>
+              <span>{lockSettings.showOnLoad ? "Ja" : "Nein"}</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <h3 className="text-sm font-bold text-mute uppercase tracking-wider">Hintergrund-Medien</h3>
+          <p className="mt-1 text-xs text-mute">
+            Bilder und Videos werden im Wechsel mit Überblendung angezeigt. Ohne Medien erscheint ein
+            Branding-Hintergrund.
+          </p>
+
+          {lockSettings.media.length === 0 ? (
+            <p className="mt-4 text-sm text-mute">Noch keine Medien hinzugefügt.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {lockSettings.media.map((item, index) => (
+                <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-line p-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => moveLockMedia(index, -1)}
+                      disabled={index === 0}
+                      className="h-9 w-9 rounded-lg border border-line flex items-center justify-center text-mute hover:bg-surf disabled:opacity-30 transition-colors"
+                      aria-label="Nach oben"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      onClick={() => moveLockMedia(index, 1)}
+                      disabled={index === lockSettings.media.length - 1}
+                      className="h-9 w-9 rounded-lg border border-line flex items-center justify-center text-mute hover:bg-surf disabled:opacity-30 transition-colors"
+                      aria-label="Nach unten"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                  <select
+                    value={item.type}
+                    onChange={(e) => updateLockMedia(index, { type: e.target.value as PosLockMedia["type"] })}
+                    className="rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold outline-none"
+                    aria-label="Medientyp"
+                  >
+                    <option value="image">Bild</option>
+                    <option value="video">Video</option>
+                  </select>
+                  <input
+                    type="url"
+                    value={item.url}
+                    onChange={(e) => updateLockMedia(index, { url: e.target.value })}
+                    placeholder="https://..."
+                    className="flex-1 min-w-0 rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
+                  />
+                  <button
+                    onClick={() => setLockMedia(lockSettings.media.filter((_, i) => i !== index))}
+                    className="h-9 w-9 rounded-lg border border-line flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors"
+                    aria-label="Entfernen"
+                  >
+                    <i className="fa-solid fa-trash" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={() => setLockMedia([...lockSettings.media, { type: "image", url: "" }])}
+            className="mt-4 rounded-xl border border-line px-4 py-2 text-sm font-bold text-accent hover:bg-surf transition-colors"
+          >
+            <i className="fa-solid fa-plus mr-1.5" />
+            Medien hinzufügen
+          </button>
+        </div>
+
+        <div className="mt-6 flex items-center gap-4">
+          <button
+            onClick={() => void saveLockSettings()}
+            disabled={lockBusy}
+            className="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+          >
+            {lockBusy ? "Speichert…" : "Speichern"}
+          </button>
+          {lockSaved && (
+            <span className="text-sm font-bold text-green-600">
+              <i className="fa-solid fa-check mr-1" />
+              Gespeichert
+            </span>
+          )}
+          {lockError && <span className="text-sm font-bold text-red-500">{lockError}</span>}
+        </div>
       </section>
     </div>
   );

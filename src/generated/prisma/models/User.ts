@@ -64,6 +64,7 @@ export type UserCountAggregateOutputType = {
   role: number
   sellerName: number
   sellerBalanceCents: number
+  posSettings: number
   createdAt: number
   _all: number
 }
@@ -107,6 +108,7 @@ export type UserCountAggregateInputType = {
   role?: true
   sellerName?: true
   sellerBalanceCents?: true
+  posSettings?: true
   createdAt?: true
   _all?: true
 }
@@ -205,6 +207,7 @@ export type UserGroupByOutputType = {
   role: $Enums.UserRole
   sellerName: string | null
   sellerBalanceCents: number
+  posSettings: runtime.JsonValue | null
   createdAt: Date
   _count: UserCountAggregateOutputType | null
   _avg: UserAvgAggregateOutputType | null
@@ -239,6 +242,7 @@ export type UserWhereInput = {
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   sellerName?: Prisma.StringNullableFilter<"User"> | string | null
   sellerBalanceCents?: Prisma.IntFilter<"User"> | number
+  posSettings?: Prisma.JsonNullableFilter<"User">
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   orders?: Prisma.OrderListRelationFilter
   thirdPartyOrders?: Prisma.ThirdPartyOrderListRelationFilter
@@ -254,6 +258,7 @@ export type UserOrderByWithRelationInput = {
   role?: Prisma.SortOrder
   sellerName?: Prisma.SortOrderInput | Prisma.SortOrder
   sellerBalanceCents?: Prisma.SortOrder
+  posSettings?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   orders?: Prisma.OrderOrderByRelationAggregateInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderOrderByRelationAggregateInput
@@ -272,6 +277,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   sellerName?: Prisma.StringNullableFilter<"User"> | string | null
   sellerBalanceCents?: Prisma.IntFilter<"User"> | number
+  posSettings?: Prisma.JsonNullableFilter<"User">
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   orders?: Prisma.OrderListRelationFilter
   thirdPartyOrders?: Prisma.ThirdPartyOrderListRelationFilter
@@ -287,6 +293,7 @@ export type UserOrderByWithAggregationInput = {
   role?: Prisma.SortOrder
   sellerName?: Prisma.SortOrderInput | Prisma.SortOrder
   sellerBalanceCents?: Prisma.SortOrder
+  posSettings?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
   _avg?: Prisma.UserAvgOrderByAggregateInput
@@ -306,6 +313,7 @@ export type UserScalarWhereWithAggregatesInput = {
   role?: Prisma.EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
   sellerName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   sellerBalanceCents?: Prisma.IntWithAggregatesFilter<"User"> | number
+  posSettings?: Prisma.JsonNullableWithAggregatesFilter<"User">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
 
@@ -317,6 +325,7 @@ export type UserCreateInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderCreateNestedManyWithoutUserInput
@@ -332,6 +341,7 @@ export type UserUncheckedCreateInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedCreateNestedManyWithoutUserInput
@@ -347,6 +357,7 @@ export type UserUpdateInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUpdateManyWithoutUserNestedInput
@@ -362,6 +373,7 @@ export type UserUncheckedUpdateInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedUpdateManyWithoutUserNestedInput
@@ -377,6 +389,7 @@ export type UserCreateManyInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
@@ -388,6 +401,7 @@ export type UserUpdateManyMutationInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -399,6 +413,7 @@ export type UserUncheckedUpdateManyInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -410,6 +425,7 @@ export type UserCountOrderByAggregateInput = {
   role?: Prisma.SortOrder
   sellerName?: Prisma.SortOrder
   sellerBalanceCents?: Prisma.SortOrder
+  posSettings?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -543,6 +559,7 @@ export type UserCreateWithoutProductsInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderCreateNestedManyWithoutUserInput
@@ -557,6 +574,7 @@ export type UserUncheckedCreateWithoutProductsInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedCreateNestedManyWithoutUserInput
@@ -587,6 +605,7 @@ export type UserUpdateWithoutProductsInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUpdateManyWithoutUserNestedInput
@@ -601,6 +620,7 @@ export type UserUncheckedUpdateWithoutProductsInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedUpdateManyWithoutUserNestedInput
@@ -615,6 +635,7 @@ export type UserCreateWithoutOrdersInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   thirdPartyOrders?: Prisma.ThirdPartyOrderCreateNestedManyWithoutUserInput
   products?: Prisma.ProductCreateNestedManyWithoutSellerInput
@@ -629,6 +650,7 @@ export type UserUncheckedCreateWithoutOrdersInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedCreateNestedManyWithoutUserInput
   products?: Prisma.ProductUncheckedCreateNestedManyWithoutSellerInput
@@ -659,6 +681,7 @@ export type UserUpdateWithoutOrdersInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   thirdPartyOrders?: Prisma.ThirdPartyOrderUpdateManyWithoutUserNestedInput
   products?: Prisma.ProductUpdateManyWithoutSellerNestedInput
@@ -673,6 +696,7 @@ export type UserUncheckedUpdateWithoutOrdersInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedUpdateManyWithoutUserNestedInput
   products?: Prisma.ProductUncheckedUpdateManyWithoutSellerNestedInput
@@ -687,6 +711,7 @@ export type UserCreateWithoutGiftCardsInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderCreateNestedManyWithoutUserInput
@@ -701,6 +726,7 @@ export type UserUncheckedCreateWithoutGiftCardsInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedCreateNestedManyWithoutUserInput
@@ -731,6 +757,7 @@ export type UserUpdateWithoutGiftCardsInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUpdateManyWithoutUserNestedInput
@@ -745,6 +772,7 @@ export type UserUncheckedUpdateWithoutGiftCardsInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
   thirdPartyOrders?: Prisma.ThirdPartyOrderUncheckedUpdateManyWithoutUserNestedInput
@@ -759,6 +787,7 @@ export type UserCreateWithoutThirdPartyOrdersInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutUserInput
   products?: Prisma.ProductCreateNestedManyWithoutSellerInput
@@ -773,6 +802,7 @@ export type UserUncheckedCreateWithoutThirdPartyOrdersInput = {
   role?: $Enums.UserRole
   sellerName?: string | null
   sellerBalanceCents?: number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
   products?: Prisma.ProductUncheckedCreateNestedManyWithoutSellerInput
@@ -803,6 +833,7 @@ export type UserUpdateWithoutThirdPartyOrdersInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
   products?: Prisma.ProductUpdateManyWithoutSellerNestedInput
@@ -817,6 +848,7 @@ export type UserUncheckedUpdateWithoutThirdPartyOrdersInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   sellerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sellerBalanceCents?: Prisma.IntFieldUpdateOperationsInput | number
+  posSettings?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
   products?: Prisma.ProductUncheckedUpdateManyWithoutSellerNestedInput
@@ -889,6 +921,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   role?: boolean
   sellerName?: boolean
   sellerBalanceCents?: boolean
+  posSettings?: boolean
   createdAt?: boolean
   orders?: boolean | Prisma.User$ordersArgs<ExtArgs>
   thirdPartyOrders?: boolean | Prisma.User$thirdPartyOrdersArgs<ExtArgs>
@@ -905,6 +938,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   role?: boolean
   sellerName?: boolean
   sellerBalanceCents?: boolean
+  posSettings?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["user"]>
 
@@ -916,6 +950,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   role?: boolean
   sellerName?: boolean
   sellerBalanceCents?: boolean
+  posSettings?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["user"]>
 
@@ -927,10 +962,11 @@ export type UserSelectScalar = {
   role?: boolean
   sellerName?: boolean
   sellerBalanceCents?: boolean
+  posSettings?: boolean
   createdAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "stackUserId" | "email" | "displayName" | "role" | "sellerName" | "sellerBalanceCents" | "createdAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "stackUserId" | "email" | "displayName" | "role" | "sellerName" | "sellerBalanceCents" | "posSettings" | "createdAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   orders?: boolean | Prisma.User$ordersArgs<ExtArgs>
   thirdPartyOrders?: boolean | Prisma.User$thirdPartyOrdersArgs<ExtArgs>
@@ -957,6 +993,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     role: $Enums.UserRole
     sellerName: string | null
     sellerBalanceCents: number
+    posSettings: runtime.JsonValue | null
     createdAt: Date
   }, ExtArgs["result"]["user"]>
   composites: {}
@@ -1392,6 +1429,7 @@ export interface UserFieldRefs {
   readonly role: Prisma.FieldRef<"User", 'UserRole'>
   readonly sellerName: Prisma.FieldRef<"User", 'String'>
   readonly sellerBalanceCents: Prisma.FieldRef<"User", 'Int'>
+  readonly posSettings: Prisma.FieldRef<"User", 'Json'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
 }
     

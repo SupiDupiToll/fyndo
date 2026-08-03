@@ -133,7 +133,7 @@ export async function sendThirdPartyOrderPaidNotification(args: NotifyThirdParty
 
 type NotifyPosOrderArgs = {
   sellerName: string;
-  items: { productName: string; amountCents: number }[];
+  items: { productName: string; containerName?: string | null; amountCents: number }[];
   totalCents: number;
   method: string;
 };
@@ -153,7 +153,8 @@ export async function sendPosOrderNotification(args: NotifyPosOrderArgs) {
     `POS-Bestellung bei ${args.sellerName}`,
     `Zahlungsart: ${posMethodLabels[args.method] ?? args.method}`,
     ...args.items.map(
-      (item) => `${item.productName}: ${formatEuro(item.amountCents)}`,
+      (item) =>
+        `${item.containerName ? `[${item.containerName}] ` : ""}${item.productName}: ${formatEuro(item.amountCents)}`,
     ),
     `Summe: ${formatEuro(args.totalCents)}`,
   ];

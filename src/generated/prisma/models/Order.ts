@@ -62,6 +62,8 @@ export type OrderMinAggregateOutputType = {
   posCardId: string | null
   variantId: string | null
   variantName: string | null
+  posContainerId: string | null
+  posContainerName: string | null
   quantity: number | null
   notificationSentAt: Date | null
   fulfilledAt: Date | null
@@ -89,6 +91,8 @@ export type OrderMaxAggregateOutputType = {
   posCardId: string | null
   variantId: string | null
   variantName: string | null
+  posContainerId: string | null
+  posContainerName: string | null
   quantity: number | null
   notificationSentAt: Date | null
   fulfilledAt: Date | null
@@ -116,6 +120,8 @@ export type OrderCountAggregateOutputType = {
   posCardId: number
   variantId: number
   variantName: number
+  posContainerId: number
+  posContainerName: number
   quantity: number
   notificationSentAt: number
   fulfilledAt: number
@@ -161,6 +167,8 @@ export type OrderMinAggregateInputType = {
   posCardId?: true
   variantId?: true
   variantName?: true
+  posContainerId?: true
+  posContainerName?: true
   quantity?: true
   notificationSentAt?: true
   fulfilledAt?: true
@@ -188,6 +196,8 @@ export type OrderMaxAggregateInputType = {
   posCardId?: true
   variantId?: true
   variantName?: true
+  posContainerId?: true
+  posContainerName?: true
   quantity?: true
   notificationSentAt?: true
   fulfilledAt?: true
@@ -215,6 +225,8 @@ export type OrderCountAggregateInputType = {
   posCardId?: true
   variantId?: true
   variantName?: true
+  posContainerId?: true
+  posContainerName?: true
   quantity?: true
   notificationSentAt?: true
   fulfilledAt?: true
@@ -329,6 +341,8 @@ export type OrderGroupByOutputType = {
   posCardId: string | null
   variantId: string | null
   variantName: string | null
+  posContainerId: string | null
+  posContainerName: string | null
   quantity: number
   notificationSentAt: Date | null
   fulfilledAt: Date | null
@@ -379,6 +393,8 @@ export type OrderWhereInput = {
   posCardId?: Prisma.StringNullableFilter<"Order"> | string | null
   variantId?: Prisma.StringNullableFilter<"Order"> | string | null
   variantName?: Prisma.StringNullableFilter<"Order"> | string | null
+  posContainerId?: Prisma.StringNullableFilter<"Order"> | string | null
+  posContainerName?: Prisma.StringNullableFilter<"Order"> | string | null
   quantity?: Prisma.IntFilter<"Order"> | number
   notificationSentAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   fulfilledAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
@@ -408,6 +424,8 @@ export type OrderOrderByWithRelationInput = {
   posCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   variantId?: Prisma.SortOrderInput | Prisma.SortOrder
   variantName?: Prisma.SortOrderInput | Prisma.SortOrder
+  posContainerId?: Prisma.SortOrderInput | Prisma.SortOrder
+  posContainerName?: Prisma.SortOrderInput | Prisma.SortOrder
   quantity?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -440,6 +458,8 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   posCardId?: Prisma.StringNullableFilter<"Order"> | string | null
   variantId?: Prisma.StringNullableFilter<"Order"> | string | null
   variantName?: Prisma.StringNullableFilter<"Order"> | string | null
+  posContainerId?: Prisma.StringNullableFilter<"Order"> | string | null
+  posContainerName?: Prisma.StringNullableFilter<"Order"> | string | null
   quantity?: Prisma.IntFilter<"Order"> | number
   notificationSentAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   fulfilledAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
@@ -469,6 +489,8 @@ export type OrderOrderByWithAggregationInput = {
   posCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   variantId?: Prisma.SortOrderInput | Prisma.SortOrder
   variantName?: Prisma.SortOrderInput | Prisma.SortOrder
+  posContainerId?: Prisma.SortOrderInput | Prisma.SortOrder
+  posContainerName?: Prisma.SortOrderInput | Prisma.SortOrder
   quantity?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -504,6 +526,8 @@ export type OrderScalarWhereWithAggregatesInput = {
   posCardId?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
   variantId?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
   variantName?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
+  posContainerId?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
+  posContainerName?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
   quantity?: Prisma.IntWithAggregatesFilter<"Order"> | number
   notificationSentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
   fulfilledAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
@@ -529,6 +553,8 @@ export type OrderCreateInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -558,6 +584,8 @@ export type OrderUncheckedCreateInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -583,6 +611,8 @@ export type OrderUpdateInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -612,6 +642,8 @@ export type OrderUncheckedUpdateInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -639,6 +671,8 @@ export type OrderCreateManyInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -664,6 +698,8 @@ export type OrderUpdateManyMutationInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -691,6 +727,8 @@ export type OrderUncheckedUpdateManyInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -728,6 +766,8 @@ export type OrderCountOrderByAggregateInput = {
   posCardId?: Prisma.SortOrder
   variantId?: Prisma.SortOrder
   variantName?: Prisma.SortOrder
+  posContainerId?: Prisma.SortOrder
+  posContainerName?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrder
@@ -763,6 +803,8 @@ export type OrderMaxOrderByAggregateInput = {
   posCardId?: Prisma.SortOrder
   variantId?: Prisma.SortOrder
   variantName?: Prisma.SortOrder
+  posContainerId?: Prisma.SortOrder
+  posContainerName?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrder
@@ -790,6 +832,8 @@ export type OrderMinOrderByAggregateInput = {
   posCardId?: Prisma.SortOrder
   variantId?: Prisma.SortOrder
   variantName?: Prisma.SortOrder
+  posContainerId?: Prisma.SortOrder
+  posContainerName?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
   notificationSentAt?: Prisma.SortOrder
   fulfilledAt?: Prisma.SortOrder
@@ -915,6 +959,8 @@ export type OrderCreateWithoutUserInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -942,6 +988,8 @@ export type OrderUncheckedCreateWithoutUserInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -998,6 +1046,8 @@ export type OrderScalarWhereInput = {
   posCardId?: Prisma.StringNullableFilter<"Order"> | string | null
   variantId?: Prisma.StringNullableFilter<"Order"> | string | null
   variantName?: Prisma.StringNullableFilter<"Order"> | string | null
+  posContainerId?: Prisma.StringNullableFilter<"Order"> | string | null
+  posContainerName?: Prisma.StringNullableFilter<"Order"> | string | null
   quantity?: Prisma.IntFilter<"Order"> | number
   notificationSentAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   fulfilledAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
@@ -1023,6 +1073,8 @@ export type OrderCreateWithoutProductInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -1050,6 +1102,8 @@ export type OrderUncheckedCreateWithoutProductInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -1102,6 +1156,8 @@ export type OrderCreateManyUserInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -1127,6 +1183,8 @@ export type OrderUpdateWithoutUserInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1154,6 +1212,8 @@ export type OrderUncheckedUpdateWithoutUserInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1180,6 +1240,8 @@ export type OrderUncheckedUpdateManyWithoutUserInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1206,6 +1268,8 @@ export type OrderCreateManyProductInput = {
   posCardId?: string | null
   variantId?: string | null
   variantName?: string | null
+  posContainerId?: string | null
+  posContainerName?: string | null
   quantity?: number
   notificationSentAt?: Date | string | null
   fulfilledAt?: Date | string | null
@@ -1231,6 +1295,8 @@ export type OrderUpdateWithoutProductInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1258,6 +1324,8 @@ export type OrderUncheckedUpdateWithoutProductInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1284,6 +1352,8 @@ export type OrderUncheckedUpdateManyWithoutProductInput = {
   posCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posContainerName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
   notificationSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   fulfilledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1313,6 +1383,8 @@ export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   posCardId?: boolean
   variantId?: boolean
   variantName?: boolean
+  posContainerId?: boolean
+  posContainerName?: boolean
   quantity?: boolean
   notificationSentAt?: boolean
   fulfilledAt?: boolean
@@ -1342,6 +1414,8 @@ export type OrderSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   posCardId?: boolean
   variantId?: boolean
   variantName?: boolean
+  posContainerId?: boolean
+  posContainerName?: boolean
   quantity?: boolean
   notificationSentAt?: boolean
   fulfilledAt?: boolean
@@ -1371,6 +1445,8 @@ export type OrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   posCardId?: boolean
   variantId?: boolean
   variantName?: boolean
+  posContainerId?: boolean
+  posContainerName?: boolean
   quantity?: boolean
   notificationSentAt?: boolean
   fulfilledAt?: boolean
@@ -1400,6 +1476,8 @@ export type OrderSelectScalar = {
   posCardId?: boolean
   variantId?: boolean
   variantName?: boolean
+  posContainerId?: boolean
+  posContainerName?: boolean
   quantity?: boolean
   notificationSentAt?: boolean
   fulfilledAt?: boolean
@@ -1407,7 +1485,7 @@ export type OrderSelectScalar = {
   updatedAt?: boolean
 }
 
-export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "productId" | "amountCents" | "voucherFaceValueCents" | "buyerName" | "buyerEmail" | "giftCardLink" | "giftCardCodeUsed" | "giftCardDeduction" | "status" | "paymentToken" | "paymentMethod" | "posGroupId" | "posConfirmToken" | "posOrderNumber" | "posCardId" | "variantId" | "variantName" | "quantity" | "notificationSentAt" | "fulfilledAt" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
+export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "productId" | "amountCents" | "voucherFaceValueCents" | "buyerName" | "buyerEmail" | "giftCardLink" | "giftCardCodeUsed" | "giftCardDeduction" | "status" | "paymentToken" | "paymentMethod" | "posGroupId" | "posConfirmToken" | "posOrderNumber" | "posCardId" | "variantId" | "variantName" | "posContainerId" | "posContainerName" | "quantity" | "notificationSentAt" | "fulfilledAt" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
 export type OrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Order$userArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
@@ -1447,6 +1525,8 @@ export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     posCardId: string | null
     variantId: string | null
     variantName: string | null
+    posContainerId: string | null
+    posContainerName: string | null
     quantity: number
     notificationSentAt: Date | null
     fulfilledAt: Date | null
@@ -1896,6 +1976,8 @@ export interface OrderFieldRefs {
   readonly posCardId: Prisma.FieldRef<"Order", 'String'>
   readonly variantId: Prisma.FieldRef<"Order", 'String'>
   readonly variantName: Prisma.FieldRef<"Order", 'String'>
+  readonly posContainerId: Prisma.FieldRef<"Order", 'String'>
+  readonly posContainerName: Prisma.FieldRef<"Order", 'String'>
   readonly quantity: Prisma.FieldRef<"Order", 'Int'>
   readonly notificationSentAt: Prisma.FieldRef<"Order", 'DateTime'>
   readonly fulfilledAt: Prisma.FieldRef<"Order", 'DateTime'>

@@ -40,7 +40,11 @@ export async function finalizePosGroup(
   const seller = orders[0].product.seller;
   await sendPosOrderNotification({
     sellerName: seller.sellerName ?? seller.displayName,
-    items: orders.map((o) => ({ productName: o.product.title, amountCents: o.amountCents })),
+    items: orders.map((o) => ({
+      productName: o.product.title,
+      containerName: o.posContainerName,
+      amountCents: o.amountCents,
+    })),
     totalCents,
     method,
   }).catch((err) => console.error("POS NTFY failed:", err));

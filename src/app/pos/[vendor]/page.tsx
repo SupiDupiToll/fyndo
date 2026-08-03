@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { PosKiosk } from "@/components/pos/pos-kiosk";
 import { getVendorName } from "@/lib/vendor";
 import { getCurrentUser } from "@/lib/auth";
+import { parsePosSettings } from "@/lib/pos-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function PosPage({
         { displayName: { equals: vendorName, mode: "insensitive" } },
       ],
     },
-    select: { id: true, sellerName: true, displayName: true },
+    select: { id: true, sellerName: true, displayName: true, posSettings: true },
   });
 
   if (!seller) notFound();
@@ -54,16 +55,19 @@ export default async function PosPage({
   if (products.length === 0) notFound();
 
   const resolvedVendorName = getVendorName(products[0].seller);
+  const posSettings = parsePosSettings(seller.posSettings);
 
   return (
     <PosKiosk
       vendorName={resolvedVendorName}
+      settings={posSettings}
       products={products.map((p) => ({
         id: p.id,
         title: p.title,
         description: p.description,
         imageUrl: p.imageUrl,
         price: p.price,
+        isContainer: p.isContainer,
         variants: Array.isArray(p.variants)
           ? (p.variants as { id: string; name: string; priceCents: number }[])
           : [],

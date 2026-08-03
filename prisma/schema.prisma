@@ -58,6 +58,7 @@ model User {
   role             UserRole           @default(USER)
   sellerName       String?
   sellerBalanceCents Int       @default(0)
+  posSettings      Json?
   createdAt        DateTime           @default(now())
   orders           Order[]
   thirdPartyOrders ThirdPartyOrder[]
@@ -86,6 +87,7 @@ model Product {
   posVisible          Boolean              @default(true)
   posOnly             Boolean              @default(false)
   variants            Json?                 @default("[]")
+  isContainer         Boolean               @default(false)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   orders              Order[]
@@ -113,6 +115,8 @@ model Order {
   posCardId            String?
   variantId            String?
   variantName          String?
+  posContainerId       String?
+  posContainerName     String?
   quantity             Int          @default(1)
   notificationSentAt   DateTime?
   fulfilledAt          DateTime?
