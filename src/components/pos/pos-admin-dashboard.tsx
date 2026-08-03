@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatEuro } from "@/lib/format";
 import {
   parsePosSettings,
@@ -67,6 +67,68 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
   const [lockBusy, setLockBusy] = useState(false);
   const [lockError, setLockError] = useState("");
   const [lockSaved, setLockSaved] = useState(false);
+  const [orderSoundOn, setOrderSoundOn] = useState(true);
+  const seenGroupsRef = useRef<Set<string>>(new Set());
+  const seededRef = useRef(false);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("fyndo-pos-admin-sound");
+    if (stored !== null) setOrderSoundOn(stored === "1");
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("fyndo-pos-admin-sound", orderSoundOn ? "1" : "0");
+  }, [orderSoundOn]);
+
+  function playChime() {
+    if (!orderSoundOn || typeof window === "undefined") return;
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const now = ctx.currentTime;
+      const notes: [number, number][] = [
+        [880, 0],
+        [1318.51, 0.14],
+      ];
+      for (const [freq, t] of notes) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, now + t);
+        gain.gain.linearRampToValueAtTime(0.14, now + t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.55);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + t);
+        osc.stop(now + t + 0.6);
+      }
+      window.setTimeout(() => void ctx.close(), 1200);
+    } catch {
+      // audio not available, skip
+    }
+  }
+
+  function speakDynamic(text: string) {
+    if (!orderSoundOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const voices = window.speechSynthesis.getVoices();
+    const german = voices.find((v) => v.lang.toLowerCase().startsWith("de")) ?? null;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "de-DE";
+    utterance.rate = 1.05;
+    if (german) utterance.voice = german;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function alertNewOrder(group: PosGroup) {
+    playChime();
+    const parts: string[] = [];
+    if (group.posOrderNumber != null) parts.push(`Neue Bestellung Nummer ${group.posOrderNumber}.`);
+    else parts.push("Neue Bestellung.");
+    if (group.quantity > 1) parts.push(`${group.quantity} Artikel.`);
+    else parts.push("1 Artikel.");
+    parts.push(`${formatEuro(group.totalCents)}.`);
+    speakDynamic(parts.join(" "));
+  }
 
   async function loadLockSettings() {
     try {
@@ -136,6 +198,19 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
       const data = await res.json();
       setGroups(data);
       setError("");
+
+      if (!seededRef.current) {
+        seededRef.current = true;
+        seenGroupsRef.current = new Set(data.map((g: PosGroup) => g.posGroupId));
+        return;
+      }
+
+      for (const group of data as PosGroup[]) {
+        if (group.status !== "PENDING") continue;
+        if (seenGroupsRef.current.has(group.posGroupId)) continue;
+        seenGroupsRef.current.add(group.posGroupId);
+        alertNewOrder(group);
+      }
     } catch {
       setError("POS-Bestellungen konnten nicht geladen werden.");
     } finally {
@@ -254,7 +329,15 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
           <h1 className="text-3xl font-bold tracking-tight">POS-Kasse</h1>
           <p className="text-sm text-mute mt-1">{vendorName}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => setOrderSoundOn((s) => !s)}
+            className={`h-10 w-10 rounded-xl border flex items-center justify-center text-lg transition-colors ${orderSoundOn ? "border-accent text-accent" : "border-line text-mute"}`}
+            aria-label={orderSoundOn ? "Ton aus" : "Ton an"}
+            title={orderSoundOn ? "Ton bei neuer Bestellung aus" : "Ton bei neuer Bestellung an"}
+          >
+            <i className={`${orderSoundOn ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark"}`} />
+          </button>
           {(["open", "paid", "all"] as const).map((s) => (
             <button
               key={s}
