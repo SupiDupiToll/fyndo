@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { POS_PAYMENT_METHODS } from "@/lib/pos";
-import { getPosCardSecret } from "@/lib/env";
-import { decodeCardToken } from "@/lib/pos-cards";
 import { findVariant, parseVariants } from "@/lib/product-variants";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +9,6 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   let body: {
     vendor?: string;
-    cardToken?: string;
     items?: {
       productId: string;
       qty?: number;
@@ -27,14 +24,10 @@ export async function POST(request: NextRequest) {
   }
 
   const vendorName = String(body.vendor ?? "").trim();
-  const cardToken = String(body.cardToken ?? "").trim();
   const rawItems = Array.isArray(body.items) ? body.items : [];
 
   if (!vendorName) {
     return NextResponse.json({ error: "Verkäufer fehlt." }, { status: 400 });
-  }
-  if (!cardToken) {
-    return NextResponse.json({ error: "Bitte zuerst eine Bestellnummer-Karte scannen." }, { status: 400 });
   }
 
   const items = rawItems
@@ -122,27 +115,11 @@ export async function POST(request: NextRequest) {
     return sum + (variant ? variant.priceCents : product.price) * item.qty;
   }, 0);
 
-  const cardNumber = decodeCardToken(getPosCardSecret(), vendor.id, cardToken);
-  if (cardNumber === null) {
-    return NextResponse.json({ error: "Ungültige Karte." }, { status: 400 });
-  }
-
-  const card = await prisma.posNumberCard.findFirst({
-    where: { sellerId: vendor.id, number: cardNumber },
+  const maxOrder = await prisma.order.aggregate({
+    where: { product: { sellerId: vendor.id }, posOrderNumber: { not: null } },
+    _max: { posOrderNumber: true },
   });
-  if (!card) {
-    return NextResponse.json({ error: "Ungültige Karte." }, { status: 400 });
-  }
-
-  const claimed = await prisma.posNumberCard.updateMany({
-    where: { id: card.id, used: false },
-    data: { used: true, usedAt: new Date() },
-  });
-  if (claimed.count === 0) {
-    return NextResponse.json({ error: "Karte wurde bereits verwendet." }, { status: 409 });
-  }
-
-  const posOrderNumber = cardNumber;
+  const posOrderNumber = (maxOrder._max.posOrderNumber ?? 0) + 1;
 
   await prisma.order.createMany({
     data: items.map((item) => {
@@ -160,7 +137,6 @@ export async function POST(request: NextRequest) {
         posGroupId,
         posConfirmToken,
         posOrderNumber,
-        posCardId: card.id,
         variantId: variant?.id ?? null,
         variantName: variant?.name ?? null,
         posContainerId: item.containerKey,
@@ -168,18 +144,6 @@ export async function POST(request: NextRequest) {
       };
     }),
   });
-
-  const firstOrder = await prisma.order.findFirst({
-    where: { posGroupId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
-  if (firstOrder) {
-    await prisma.posNumberCard.update({
-      where: { id: card.id },
-      data: { orderId: firstOrder.id },
-    });
-  }
 
   return NextResponse.json({
     posGroupId,

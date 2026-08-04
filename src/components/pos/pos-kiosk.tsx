@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import dynamic from "next/dynamic";
 import QRCode from "qrcode";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -19,16 +18,6 @@ import { formatEuro } from "@/lib/format";
 import { LockScreen } from "@/components/pos/lock-screen";
 import { SuccessBurst } from "@/components/kokonutui/success-burst";
 import type { PosSettings } from "@/lib/pos-settings";
-
-const CardScanner = dynamic(
-  () => import("@/components/pos/card-scanner").then((m) => m.CardScanner),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-64 w-64 animate-pulse rounded-2xl border border-line bg-tile" />
-    ),
-  },
-);
 
 export type PosVariant = { id: string; name: string; priceCents: number };
 
@@ -66,7 +55,7 @@ const METHOD_LABELS: Record<
 > = {
   RBANK: {
     title: "RBank",
-    sub: "QR-Code scannen & im Handy zahlen",
+    sub: "Direkt am Bildschirm bezahlen",
     icon: "fa-solid fa-mobile-screen",
   },
   TIPPIE: {
@@ -116,10 +105,6 @@ export function PosKiosk({
   const [pickerProduct, setPickerProduct] = useState<PosProduct | null>(null);
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [method, setMethod] = useState<PosPaymentMethod | null>(null);
-  const [cardToken, setCardToken] = useState<string | null>(null);
-  const [cardNumber, setCardNumber] = useState<number | null>(null);
-  const [cardError, setCardError] = useState("");
-  const [cardBusy, setCardBusy] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -427,7 +412,6 @@ export function PosKiosk({
   async function startCheckout() {
     if (cart.size === 0 || cartTotal <= 0) return;
     setError("");
-    setCardError("");
     setCartOpen(false);
     setSummaryOpen(true);
     announce("checkout", "Zur Kasse. Bitte prüfen Sie Ihre Bestellung.");
@@ -436,16 +420,13 @@ export function PosKiosk({
   function openPayment() {
     setSummaryOpen(false);
     setCheckoutOpen(true);
-    announce(
-      "card-scanned",
-      "Bitte nehmen Sie eine Bestellnummer-Karte und scannen Sie den QR-Code an der Kamera.",
-    );
+    announce("checkout", "Zur Kasse. Ihre Bestellnummer wird gerade vergeben.");
+    void createOrder();
   }
 
   function backToSummary() {
     clearAnnouncements();
     void cancelPendingOrder();
-    resetCard();
     setCheckoutOpen(false);
     setSummaryOpen(true);
   }
@@ -460,82 +441,56 @@ export function PosKiosk({
     announce("new-order", "Neue Bestellung. Wählen Sie Ihre Produkte.");
   }
 
-  async function handleCardToken(token: string) {
-    setCardBusy(true);
-    setCardError("");
+  async function createOrder(): Promise<OrderInfo | null> {
+    if (order) return order;
+    if (cart.size === 0 || cartTotal <= 0) return null;
+    setError("");
+    setBusy(true);
     try {
-      const res = await fetch("/api/pos/cards/validate", {
+      const res = await fetch("/api/pos/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendor: vendorName, cardToken: token }),
+        body: JSON.stringify({
+          vendor: vendorName,
+          items: Array.from(cart.values()).map((i) => ({
+            productId: i.product.id,
+            qty: i.qty,
+            variantId: i.variant?.id ?? null,
+            containerKey: i.containerKey,
+            containerLabel: i.containerLabel,
+          })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setCardToken(null);
-        setCardNumber(null);
-        setCardError(data.error ?? "Ungültige Karte.");
-        return;
+        setError(data.error ?? "Bestellung konnte nicht gestartet werden.");
+        return null;
       }
-      setCardToken(token);
-      setCardNumber(data.number);
-      announce("card-scanned", `Ihre Bestellnummer ist ${data.number}.`);
+      setOrder(data);
+      announce("order-sent", `Ihre Bestellnummer ist ${data.posOrderNumber}.`);
+      return data as OrderInfo;
     } catch {
-      setCardError("Karte konnte nicht geprüft werden.");
+      setError("Bestellung konnte nicht gestartet werden.");
+      return null;
     } finally {
-      setCardBusy(false);
+      setBusy(false);
     }
-  }
-
-  function resetCard() {
-    setCardToken(null);
-    setCardNumber(null);
-    setCardError("");
   }
 
   async function selectMethod(m: PosPaymentMethod) {
     if (cart.size === 0 || cartTotal <= 0) return;
-    if (!cardToken || cardNumber === null) {
-      setError("Bitte zuerst eine Bestellnummer-Karte scannen.");
-      return;
-    }
     setError("");
+    let orderInfo = order;
+    if (!orderInfo) {
+      orderInfo = await createOrder();
+      if (!orderInfo) return;
+    }
     setBusy(true);
     setMethod(m);
     setPaymentUrl(null);
     setRbankStatus(null);
     try {
-      let orderInfo = order;
-      if (!orderInfo) {
-        const orderRes = await fetch("/api/pos/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vendor: vendorName,
-            cardToken,
-            items: Array.from(cart.values()).map((i) => ({
-              productId: i.product.id,
-              qty: i.qty,
-              variantId: i.variant?.id ?? null,
-              containerKey: i.containerKey,
-              containerLabel: i.containerLabel,
-            })),
-          }),
-        });
-        const orderData = await orderRes.json();
-        if (!orderRes.ok) {
-          setError(
-            orderData.error ?? "Bestellung konnte nicht gestartet werden.",
-          );
-          if (orderRes.status === 400 || orderRes.status === 409) resetCard();
-          setMethod(null);
-          setBusy(false);
-          return;
-        }
-        orderInfo = orderData;
-        setOrder(orderData);
-      }
-
-      const currentOrder = orderInfo!;
+      const currentOrder = orderInfo;
       const res = await fetch("/api/pos/orders/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -571,12 +526,12 @@ export function PosKiosk({
     if (m === "RBANK")
       announce(
         "rbank-qr",
-        `Bitte scannen Sie den QR-Code mit Ihrem Handy und zahlen Sie ${total}.`,
+        `Bitte bezahlen Sie direkt am Bildschirm. Ihre Nummer ist ${orderNumber}.`,
       );
     else if (m === "TIPPIE")
       announce(
         "tippie-qr",
-        `Bitte scannen Sie den QR-Code und zahlen Sie ${total} mit PayPal, Apple Pay oder Karte.`,
+        `Bitte scannen Sie den QR-Code und zahlen Sie ${total} mit PayPal, Apple Pay oder Karte. Ihre Nummer ist ${orderNumber}.`,
       );
     else if (m === "TERMINAL")
       announce(
@@ -654,7 +609,6 @@ export function PosKiosk({
     setError("");
     setDone(null);
     setRbankStatus(null);
-    resetCard();
   }
 
   function lockAfterOrder() {
@@ -944,16 +898,12 @@ export function PosKiosk({
             order={order}
             totalCents={cartTotal}
             method={method}
-            cardNumber={cardNumber}
-            cardError={cardError}
-            cardBusy={cardBusy}
             paymentUrl={paymentUrl}
             busy={busy}
             error={error}
             rbankStatus={rbankStatus}
             onSelectMethod={(m) => void selectMethod(m)}
-            onCardToken={(token) => void handleCardToken(token)}
-            onCardError={(message) => setCardError(message)}
+            onRetry={() => void createOrder()}
             onBack={
               method
                 ? () => {
@@ -962,9 +912,7 @@ export function PosKiosk({
                     setPaymentUrl(null);
                     setRbankStatus(null);
                   }
-                : cardNumber !== null
-                  ? resetCard
-                  : backToSummary
+                : backToSummary
             }
           />
         )}
@@ -1651,35 +1599,27 @@ function CheckoutOverlay({
   order,
   totalCents,
   method,
-  cardNumber,
-  cardError,
-  cardBusy,
   paymentUrl,
   busy,
   error,
   rbankStatus,
   onSelectMethod,
-  onCardToken,
-  onCardError,
+  onRetry,
   onBack,
 }: {
   vendorName: string;
   order: OrderInfo | null;
   totalCents: number;
   method: PosPaymentMethod | null;
-  cardNumber: number | null;
-  cardError: string;
-  cardBusy: boolean;
   paymentUrl: string | null;
   busy: boolean;
   error: string;
   rbankStatus: string | null;
   onSelectMethod: (m: PosPaymentMethod) => void;
-  onCardToken: (token: string) => void;
-  onCardError: (message: string) => void;
+  onRetry: () => void;
   onBack: () => void;
 }) {
-  const displayNumber = order?.posOrderNumber ?? cardNumber;
+  const displayNumber = order?.posOrderNumber ?? null;
   return (
     <motion.div
       className="fixed inset-0 z-40 bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8"
@@ -1703,9 +1643,7 @@ function CheckoutOverlay({
                 ? ` · Bestellnummer #${displayNumber}`
                 : ""}
             </p>
-            <h2 className="text-xl font-bold">
-              {cardNumber === null ? "Bestellnummer-Karte" : "Bezahlung"}
-            </h2>
+            <h2 className="text-xl font-bold">Bezahlung</h2>
           </div>
           <button
             onClick={onBack}
@@ -1717,10 +1655,22 @@ function CheckoutOverlay({
         </div>
 
         <div className="flex-1 p-6">
-          <div className="text-right mb-6">
-            <p className="text-4xl font-black tabular-nums">
-              {formatEuro(totalCents)}
-            </p>
+          <div className="flex items-center justify-between mb-6 gap-4">
+            <div className="text-right flex-1">
+              <p className="text-4xl font-black tabular-nums">
+                {formatEuro(totalCents)}
+              </p>
+            </div>
+            {displayNumber != null && (
+              <div className="rounded-2xl border-2 border-accent bg-accent/5 px-6 py-2.5 text-center shrink-0">
+                <p className="text-[11px] font-bold text-accent uppercase tracking-widest">
+                  Ihre Nummer
+                </p>
+                <p className="text-4xl font-black text-accent tabular-nums leading-none mt-0.5">
+                  {displayNumber}
+                </p>
+              </div>
+            )}
           </div>
 
           {error && (
@@ -1730,20 +1680,44 @@ function CheckoutOverlay({
           )}
 
           <AnimatePresence mode="wait">
-            {cardNumber === null ? (
+            {order === null ? (
               <motion.div
-                key="scan"
+                key="number"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.2 }}
               >
-                <CardScanStep
-                  cardError={cardError}
-                  cardBusy={cardBusy}
-                  onCardToken={onCardToken}
-                  onCardError={onCardError}
-                />
+                <div className="flex flex-col items-center text-center py-8">
+                  {busy ? (
+                    <>
+                      <div className="h-10 w-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                      <p className="mt-5 text-sm font-bold text-mute">
+                        Bestellnummer wird vergeben…
+                      </p>
+                    </>
+                  ) : error ? (
+                    <>
+                      <i className="fa-solid fa-triangle-exclamation text-4xl text-red-400" />
+                      <p className="mt-4 text-sm text-mute max-w-sm">
+                        Die Bestellung konnte nicht gestartet werden.
+                      </p>
+                      <button
+                        onClick={onRetry}
+                        className="mt-6 rounded-full bg-accent px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99]"
+                      >
+                        Erneut versuchen
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="h-10 w-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                      <p className="mt-5 text-sm font-bold text-mute">
+                        Bestellnummer wird vergeben…
+                      </p>
+                    </>
+                  )}
+                </div>
               </motion.div>
             ) : !method ? (
               <motion.div
@@ -1822,45 +1796,13 @@ function CheckoutOverlay({
                 exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.22 }}
               >
-                <CashView
-                  totalCents={totalCents}
-                  orderNumber={order?.posOrderNumber ?? null}
-                />
+                <CashView totalCents={totalCents} />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </motion.div>
     </motion.div>
-  );
-}
-
-function CardScanStep({
-  cardError,
-  cardBusy,
-  onCardToken,
-  onCardError,
-}: {
-  cardError: string;
-  cardBusy: boolean;
-  onCardToken: (token: string) => void;
-  onCardError: (message: string) => void;
-}) {
-  return (
-    <div className="flex flex-col items-center text-center">
-      <CardScanner onScan={onCardToken} onError={onCardError} />
-      {cardError && (
-        <div className="mt-4 w-full max-w-sm rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {cardError}
-        </div>
-      )}
-      {cardBusy && (
-        <div className="mt-4 flex items-center gap-3 text-mute">
-          <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Prüfe Karte…</span>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -1873,6 +1815,41 @@ function PaymentQrView({
   paymentUrl: string | null;
   rbankStatus: string | null;
 }) {
+  if (method === "RBANK") {
+    return (
+      <div className="flex flex-col items-center text-center">
+        <div className="w-full max-w-xl h-[520px] rounded-2xl border border-line bg-white overflow-hidden">
+          {paymentUrl ? (
+            <iframe
+              src={paymentUrl}
+              title="RBank Checkout"
+              className="w-full h-full border-0"
+              allow="payment"
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-mute">
+              <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold">Lädt Checkout…</span>
+            </div>
+          )}
+        </div>
+        <p className="mt-5 text-sm text-mute max-w-sm">
+          Bezahlen Sie direkt am Bildschirm. Die Bestellung wird automatisch
+          bestätigt.
+        </p>
+        {rbankStatus && rbankStatus !== "PENDING" && (
+          <p className="mt-2 text-xs font-bold text-mute uppercase tracking-wide">
+            {rbankStatus}
+          </p>
+        )}
+        <div className="mt-6 flex items-center gap-3 text-mute">
+          <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm font-medium">Warte auf Zahlung…</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center text-center">
       <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl border border-line bg-white p-3 flex items-center justify-center">
@@ -1886,21 +1863,12 @@ function PaymentQrView({
         )}
       </div>
       <p className="mt-5 text-sm text-mute max-w-sm">
-        {method === "RBANK"
-          ? "Mit dem Handy scannen und über die RBank-App bezahlen. Die Bestellung wird automatisch bestätigt."
-          : "Mit dem Handy scannen und mit PayPal, Apple Pay oder Karte bezahlen."}
+        Mit dem Handy scannen und mit PayPal, Apple Pay oder Karte bezahlen.
       </p>
-      {method === "RBANK" && rbankStatus && rbankStatus !== "PENDING" && (
-        <p className="mt-2 text-xs font-bold text-mute uppercase tracking-wide">
-          {rbankStatus}
-        </p>
-      )}
       <div className="mt-6 flex items-center gap-3 text-mute">
         <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
         <span className="text-sm font-medium">
-          {method === "RBANK"
-            ? "Warte auf Zahlung…"
-            : "Warte auf Bezahlung und Bestätigung…"}
+          Warte auf Bezahlung und Bestätigung…
         </span>
       </div>
     </div>
@@ -1967,13 +1935,7 @@ function TerminalView() {
   );
 }
 
-function CashView({
-  totalCents,
-  orderNumber,
-}: {
-  totalCents: number;
-  orderNumber: number | null;
-}) {
+function CashView({ totalCents }: { totalCents: number }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div className="mt-2 w-48 h-48 rounded-3xl border border-line bg-surf flex flex-col items-center justify-center">
@@ -1982,16 +1944,6 @@ function CashView({
           {formatEuro(totalCents)}
         </span>
       </div>
-      {orderNumber != null && (
-        <div className="mt-6 rounded-2xl border-2 border-accent bg-accent/5 px-10 py-6">
-          <p className="text-sm font-bold text-accent uppercase tracking-widest">
-            Ihre Nummer
-          </p>
-          <p className="mt-1 text-7xl sm:text-8xl font-black text-accent tabular-nums leading-none">
-            {orderNumber}
-          </p>
-        </div>
-      )}
       <p className="mt-5 text-sm text-mute max-w-sm">
         Bitte den Betrag an der Kasse bezahlen und Ihre Nummer nennen.
       </p>

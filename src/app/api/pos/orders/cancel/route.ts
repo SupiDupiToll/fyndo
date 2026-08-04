@@ -23,19 +23,5 @@ export async function POST(request: NextRequest) {
     data: { status: "CANCELLED" },
   });
 
-  if (updated.count > 0) {
-    const orders = await prisma.order.findMany({
-      where: { posGroupId },
-      select: { posCardId: true },
-    });
-    const cardIds = Array.from(new Set(orders.map((o) => o.posCardId).filter(Boolean))) as string[];
-    if (cardIds.length > 0) {
-      await prisma.posNumberCard.updateMany({
-        where: { id: { in: cardIds }, used: true },
-        data: { used: false, usedAt: null, orderId: null },
-      });
-    }
-  }
-
   return NextResponse.json({ ok: updated.count > 0 });
 }
