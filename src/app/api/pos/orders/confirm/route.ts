@@ -50,6 +50,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  if (method === "GUTSCHEIN") {
+    const totalCents = orders.reduce((sum, o) => sum + o.amountCents, 0);
+    if (totalCents > 0 || !orders.some((o) => o.giftCardCodeUsed && o.giftCardDeduction)) {
+      return NextResponse.json({
+        error: "Gutschein deckt den Betrag nicht vollständig. Bitte Restzahlung wählen.",
+      }, { status: 409 });
+    }
+  }
+
   const result = await finalizePosGroup(posGroupId, posConfirmToken, method);
 
   if (result.notFound) {

@@ -1,6 +1,6 @@
 import { getTippiePayBase } from "@/lib/env";
 
-export const POS_PAYMENT_METHODS = ["RBANK", "TIPPIE", "TERMINAL", "CASH"] as const;
+export const POS_PAYMENT_METHODS = ["RBANK", "TIPPIE", "TERMINAL", "CASH", "GUTSCHEIN"] as const;
 export type PosPaymentMethod = (typeof POS_PAYMENT_METHODS)[number];
 
 export const POS_MIN_DIGITAL_PAYMENT_CENTS = 50;

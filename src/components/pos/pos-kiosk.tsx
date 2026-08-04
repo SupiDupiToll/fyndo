@@ -74,6 +74,11 @@ const METHOD_LABELS: Record<
     sub: "Betrag an der Kasse bezahlen",
     icon: "fa-solid fa-money-bill-wave",
   },
+  GUTSCHEIN: {
+    title: "Fyndo-Gutschein",
+    sub: "Mit Gutschein ganz oder teilweise zahlen",
+    icon: "fa-solid fa-gift",
+  },
 };
 
 function itemPrice(product: PosProduct, variant: PosVariant | null) {
@@ -110,6 +115,7 @@ export function PosKiosk({
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [method, setMethod] = useState<PosPaymentMethod | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [giftApplied, setGiftApplied] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<{
@@ -467,6 +473,7 @@ export function PosKiosk({
     void cancelPendingOrder();
     setCheckoutOpen(false);
     setSummaryOpen(true);
+    setGiftApplied(0);
   }
 
   function resetForNewCustomer() {
@@ -531,8 +538,17 @@ export function PosKiosk({
     setMethod(m);
     setPaymentUrl(null);
     setRbankStatus(null);
+    if (m === "GUTSCHEIN") {
+      setBusy(false);
+      announce(
+        "select-payment",
+        "Fyndo-Gutschein. Bitte geben Sie den Gutscheincode ein.",
+      );
+      return;
+    }
     try {
       const currentOrder = orderInfo;
+      const payTotal = currentOrder.totalCents - giftApplied;
       const res = await fetch("/api/pos/orders/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -550,10 +566,66 @@ export function PosKiosk({
         return;
       }
       setPaymentUrl(data.paymentUrl ?? null);
-      announceByMethod(m, currentOrder.totalCents, currentOrder.posOrderNumber);
+      announceByMethod(m, payTotal, currentOrder.posOrderNumber);
     } catch {
       setError("Zahlungsstart fehlgeschlagen.");
       setMethod(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyGiftCard(code: string) {
+    if (!order) return null;
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/pos/orders/giftcard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          posGroupId: order.posGroupId,
+          posConfirmToken: order.posConfirmToken,
+          code,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Gutschein konnte nicht eingelöst werden.");
+        return null;
+      }
+      setGiftApplied((prev) => prev + data.deduction);
+      return { deduction: data.deduction, remainder: data.remainder };
+    } catch {
+      setError("Gutschein konnte nicht eingelöst werden.");
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmGiftCardFull() {
+    if (!order) return;
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/pos/orders/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          posGroupId: order.posGroupId,
+          posConfirmToken: order.posConfirmToken,
+          method: "GUTSCHEIN",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Bestätigung fehlgeschlagen.");
+        return;
+      }
+      onConfirmed(cartTotal, order.posOrderNumber);
+    } catch {
+      setError("Bestätigung fehlgeschlagen.");
     } finally {
       setBusy(false);
     }
@@ -584,6 +656,11 @@ export function PosKiosk({
       announce(
         "cash",
         `Bitte zahlen Sie ${total} in bar an der Kasse. Ihre Nummer ist ${orderNumber}.`,
+      );
+    else if (m === "GUTSCHEIN")
+      announce(
+        "select-payment",
+        `Bitte geben Sie den Gutscheincode ein. Ihre Nummer ist ${orderNumber}.`,
       );
   }
 
@@ -651,6 +728,7 @@ export function PosKiosk({
     setError("");
     setDone(null);
     setRbankStatus(null);
+    setGiftApplied(0);
   }
 
   function lockAfterOrder() {
@@ -959,13 +1037,16 @@ export function PosKiosk({
           <CheckoutOverlay
             vendorName={vendorName}
             order={order}
-            totalCents={cartTotal}
+            totalCents={cartTotal - giftApplied}
+            giftApplied={giftApplied}
             method={method}
             paymentUrl={paymentUrl}
             busy={busy}
             error={error}
             rbankStatus={rbankStatus}
             onSelectMethod={(m) => void selectMethod(m)}
+            onApplyGiftCard={(code) => applyGiftCard(code)}
+            onConfirmGiftCardFull={() => void confirmGiftCardFull()}
             onRetry={() => void createOrder()}
             onBack={
               method
@@ -2051,24 +2132,30 @@ function CheckoutOverlay({
   vendorName,
   order,
   totalCents,
+  giftApplied,
   method,
   paymentUrl,
   busy,
   error,
   rbankStatus,
   onSelectMethod,
+  onApplyGiftCard,
+  onConfirmGiftCardFull,
   onRetry,
   onBack,
 }: {
   vendorName: string;
   order: OrderInfo | null;
   totalCents: number;
+  giftApplied: number;
   method: PosPaymentMethod | null;
   paymentUrl: string | null;
   busy: boolean;
   error: string;
   rbankStatus: string | null;
   onSelectMethod: (m: PosPaymentMethod) => void;
+  onApplyGiftCard: (code: string) => Promise<{ deduction: number; remainder: number } | null>;
+  onConfirmGiftCardFull: () => void;
   onRetry: () => void;
   onBack: () => void;
 }) {
@@ -2231,6 +2318,24 @@ function CheckoutOverlay({
                   rbankStatus={rbankStatus}
                 />
               </motion.div>
+            ) : method === "GUTSCHEIN" ? (
+              <motion.div
+                key="giftcard"
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.22 }}
+              >
+                <GiftCardView
+                  totalCents={totalCents}
+                  giftApplied={giftApplied}
+                  busy={busy}
+                  error={error}
+                  onApply={onApplyGiftCard}
+                  onConfirmFull={onConfirmGiftCardFull}
+                  onPickMethod={onSelectMethod}
+                />
+              </motion.div>
             ) : method === "TERMINAL" ? (
               <motion.div
                 key="terminal"
@@ -2256,6 +2361,170 @@ function CheckoutOverlay({
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+function GiftCardView({
+  totalCents,
+  giftApplied,
+  busy,
+  error,
+  onApply,
+  onConfirmFull,
+  onPickMethod,
+}: {
+  totalCents: number;
+  giftApplied: number;
+  busy: boolean;
+  error: string;
+  onApply: (code: string) => Promise<{ deduction: number; remainder: number } | null>;
+  onConfirmFull: () => void;
+  onPickMethod: (m: PosPaymentMethod) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [result, setResult] = useState<{
+    deduction: number;
+    remainder: number;
+  } | null>(null);
+  const [localError, setLocalError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLocalError("");
+    if (!code.trim()) {
+      setLocalError("Bitte einen Gutscheincode eingeben.");
+      return;
+    }
+    const applied = await onApply(code.trim());
+    if (applied) setResult(applied);
+  }
+
+  const remainderMethods = POS_PAYMENT_METHODS.filter((m) => m !== "GUTSCHEIN");
+
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="w-full max-w-md rounded-2xl border border-line bg-surf/60 p-6">
+        {result ? (
+          <>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-green-50 text-green-600 text-2xl">
+                <i className="fa-solid fa-check" />
+              </div>
+              <p className="mt-3 font-bold">
+                Gutschein eingelöst
+              </p>
+              <p className="mt-1 text-sm text-mute">
+                {formatEuro(result.deduction)} abgezogen
+              </p>
+              <div className="mt-4 w-full flex items-center justify-between rounded-xl bg-white border border-line px-4 py-3">
+                <span className="text-sm font-medium text-mute">
+                  Restbetrag
+                </span>
+                <span className="text-2xl font-black tabular-nums">
+                  {formatEuro(result.remainder)}
+                </span>
+              </div>
+            </div>
+            {result.remainder === 0 ? (
+              <button
+                onClick={onConfirmFull}
+                disabled={busy}
+                className="mt-5 w-full rounded-full bg-accent px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
+              >
+                {busy ? "Wird bestätigt…" : "Bestellung abschließen"}
+              </button>
+            ) : (
+              <>
+                <p className="mt-5 text-xs font-bold text-mute uppercase tracking-widest">
+                  Restbetrag bezahlen mit
+                </p>
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {remainderMethods.map((m) => {
+                    const meta = METHOD_LABELS[m];
+                    return (
+                      <button
+                        key={m}
+                        onClick={() => onPickMethod(m)}
+                        disabled={busy}
+                        className="flex items-center gap-3 rounded-xl border border-line bg-white p-3 text-left transition-all hover:border-accent/50 hover:bg-surf active:scale-[0.98] disabled:opacity-50"
+                      >
+                        <span className="w-9 h-9 shrink-0 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                          <i className={meta.icon} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold truncate">
+                            {meta.title}
+                          </span>
+                          <span className="block text-[11px] text-mute truncate">
+                            {meta.sub}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => {
+                    setResult(null);
+                    setCode("");
+                    setLocalError("");
+                  }}
+                  className="mt-4 text-sm font-bold text-mute hover:text-ink transition-colors"
+                >
+                  <i className="fa-solid fa-gift mr-1.5" />
+                  Weiteren Gutschein einlösen
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-accent/10 text-accent text-2xl">
+              <i className="fa-solid fa-gift" />
+            </div>
+            <p className="mt-3 font-bold">Gutscheincode eingeben</p>
+            <p className="mt-1 text-sm text-mute">
+              {giftApplied > 0
+                ? `${formatEuro(giftApplied)} wurden bereits abgezogen.`
+                : `Deckt den Betrag von ${formatEuro(totalCents)} ganz oder teilweise ab.`}
+            </p>
+            <form onSubmit={(e) => void handleSubmit(e)} className="mt-4">
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="FYNDO-XXXX-XXXX"
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                disabled={busy}
+                className="w-full rounded-xl border border-line bg-white px-4 py-3.5 text-center font-black tracking-widest uppercase outline-none focus:border-accent transition-colors disabled:opacity-50"
+              />
+              {localError && (
+                <p className="mt-2 text-xs font-bold text-red-600">
+                  {localError}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={busy}
+                className="mt-3 w-full rounded-full bg-accent px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
+              >
+                {busy ? "Prüfe…" : "Einlösen"}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+      <p className="mt-5 text-sm text-mute max-w-sm">
+        Geben Sie den Code vom Fyndo-Gutschein ein. Der Betrag wird direkt von
+        Ihrer Bestellung abgezogen.
+      </p>
+      {error && (
+        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

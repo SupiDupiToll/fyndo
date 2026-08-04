@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
   if (!POS_PAYMENT_METHODS.includes(method)) {
     return NextResponse.json({ error: "Unbekannte Zahlungsart." }, { status: 400 });
   }
+  if (method === "GUTSCHEIN") {
+    return NextResponse.json(
+      { error: "Gutschein wird direkt beim Auschecken eingelöst." },
+      { status: 400 },
+    );
+  }
 
   const orders = await prisma.order.findMany({
     where: { posGroupId, posConfirmToken, status: "PENDING" },

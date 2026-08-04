@@ -18,6 +18,10 @@ export async function finalizePosGroup(
   if (orders.length === 0) return { notFound: true as const };
 
   const totalCents = orders.reduce((sum, o) => sum + o.amountCents, 0);
+  const grossTotalCents = orders.reduce(
+    (sum, o) => sum + o.amountCents + (o.giftCardDeduction ?? 0),
+    0,
+  );
 
   const updated = await prisma.order.updateMany({
     where: { posGroupId, posConfirmToken, status: "PENDING", notificationSentAt: null },
@@ -28,12 +32,26 @@ export async function finalizePosGroup(
     return { alreadyPaid: true as const, totalCents, itemCount: orders.length };
   }
 
-  if (method !== "CASH") {
-    for (const order of orders) {
-      await prisma.user.update({
-        where: { id: order.product.sellerId },
-        data: { sellerBalanceCents: { increment: order.amountCents } },
-      }).catch(() => {});
+  for (const order of orders) {
+    const deduction = order.giftCardDeduction ?? 0;
+
+    if (order.giftCardCodeUsed && deduction > 0) {
+      await prisma.giftCard
+        .update({
+          where: { code: order.giftCardCodeUsed },
+          data: { remainingBalance: { decrement: deduction } },
+        })
+        .catch((err) => console.error("POS GiftCard deduct failed:", err));
+    }
+
+    const credit = method === "CASH" ? deduction : order.amountCents + deduction;
+    if (credit > 0) {
+      await prisma.user
+        .update({
+          where: { id: order.product.sellerId },
+          data: { sellerBalanceCents: { increment: credit } },
+        })
+        .catch((err) => console.error("POS Seller balance update failed:", err));
     }
   }
 
@@ -43,9 +61,9 @@ export async function finalizePosGroup(
     items: orders.map((o) => ({
       productName: o.product.title,
       containerName: o.posContainerName,
-      amountCents: o.amountCents,
+      amountCents: o.amountCents + (o.giftCardDeduction ?? 0),
     })),
-    totalCents,
+    totalCents: grossTotalCents,
     method,
   }).catch((err) => console.error("POS NTFY failed:", err));
 

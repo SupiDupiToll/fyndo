@@ -143,6 +143,7 @@ const posMethodLabels: Record<string, string> = {
   TIPPIE: "QR (PayPal/Apple Pay/Karte)",
   TERMINAL: "Kartenterminal",
   CASH: "Bar",
+  GUTSCHEIN: "Fyndo-Gutschein",
 };
 
 export async function sendPosOrderNotification(args: NotifyPosOrderArgs) {
