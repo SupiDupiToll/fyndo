@@ -111,6 +111,9 @@ export function PosKiosk({
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [toppingOpen, setToppingOpen] = useState(false);
+  const [toppingContainer, setToppingContainer] = useState<Container | null>(
+    null,
+  );
   const [pickerProduct, setPickerProduct] = useState<PosProduct | null>(null);
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [method, setMethod] = useState<PosPaymentMethod | null>(null);
@@ -380,14 +383,7 @@ export function PosKiosk({
   }
 
   function advanceWizard() {
-    if (activeContainerIndex + 1 < containers.length) {
-      const nextIndex = activeContainerIndex + 1;
-      setActiveContainerIndex(nextIndex);
-      const c = containers[nextIndex];
-      if (c) announce("container", `${c.label}. Wählen Sie Ihre Kugeln.`);
-    } else {
-      void startCheckout();
-    }
+    openToppingsForActiveContainer();
   }
 
   function backWizard() {
@@ -426,11 +422,20 @@ export function PosKiosk({
     if (cart.size === 0 || cartTotal <= 0) return;
     setError("");
     setCartOpen(false);
+    if (
+      containerMode &&
+      wizardStep === "build" &&
+      containers[activeContainerIndex]
+    ) {
+      openToppingsForActiveContainer();
+      return;
+    }
     if (toppingProducts.length > 0) {
+      setToppingContainer(null);
       setToppingOpen(true);
       announce(
         "toppings",
-        "Noch etwas dazu? Wählen Sie Ihre Toppings oder tippen Sie auf Weiter.",
+        "Noch etwas dazu? Wählen Sie Ihre Toppings oder tippen Sie auf Nein Danke.",
       );
       return;
     }
@@ -438,8 +443,36 @@ export function PosKiosk({
     announce("checkout", "Zur Kasse. Bitte prüfen Sie Ihre Bestellung.");
   }
 
+  function openToppingsForActiveContainer() {
+    const c = containers[activeContainerIndex];
+    if (!c) return;
+    if (toppingProducts.length === 0) {
+      advanceAfterToppings();
+      return;
+    }
+    setToppingContainer(c);
+    setToppingOpen(true);
+    announce(
+      "toppings",
+      `${c.label}. Noch etwas dazu? Wählen Sie Ihre Toppings oder tippen Sie auf Nein Danke.`,
+    );
+  }
+
+  function advanceAfterToppings() {
+    if (activeContainerIndex + 1 < containers.length) {
+      const nextIndex = activeContainerIndex + 1;
+      setActiveContainerIndex(nextIndex);
+      const c = containers[nextIndex];
+      if (c) announce("container", `${c.label}. Wählen Sie Ihre Kugeln.`);
+    } else {
+      setSummaryOpen(true);
+      announce("checkout", "Zur Kasse. Bitte prüfen Sie Ihre Bestellung.");
+    }
+  }
+
   function applyToppings(
     selected: { product: PosProduct; variant: PosVariant | null; qty: number }[],
+    container: Container | null,
   ) {
     const byKey = new Map(
       selected.map((s) => [
@@ -449,16 +482,36 @@ export function PosKiosk({
     );
     for (const topping of toppingProducts) {
       if (topping.variants.length === 0) {
-        setQty(topping, null, byKey.get(topping.id)?.qty ?? 0);
+        setQty(topping, null, byKey.get(topping.id)?.qty ?? 0, container);
       } else {
         for (const variant of topping.variants) {
-          setQty(topping, variant, byKey.get(`${topping.id}:${variant.id}`)?.qty ?? 0);
+          setQty(
+            topping,
+            variant,
+            byKey.get(`${topping.id}:${variant.id}`)?.qty ?? 0,
+            container,
+          );
         }
       }
     }
     setToppingOpen(false);
-    setSummaryOpen(true);
-    announce("checkout", "Zur Kasse. Bitte prüfen Sie Ihre Bestellung.");
+    setToppingContainer(null);
+    advanceAfterToppings();
+  }
+
+  function skipToppings(container: Container | null) {
+    for (const topping of toppingProducts) {
+      if (topping.variants.length === 0) {
+        setQty(topping, null, 0, container);
+      } else {
+        for (const variant of topping.variants) {
+          setQty(topping, variant, 0, container);
+        }
+      }
+    }
+    setToppingOpen(false);
+    setToppingContainer(null);
+    advanceAfterToppings();
   }
 
   function openPayment() {
@@ -922,8 +975,8 @@ export function PosKiosk({
             >
               <span>
                 {activeContainerIndex === containers.length - 1
-                  ? "Fertig & bezahlen"
-                  : `Weiter: ${containers[activeContainerIndex + 1]?.label}`}
+                  ? "Extras & bezahlen"
+                  : `Weiter: Extras & ${containers[activeContainerIndex + 1]?.label}`}
               </span>
               <span className="tabular-nums">{formatEuro(cartTotal)}</span>
             </button>
@@ -990,19 +1043,26 @@ export function PosKiosk({
         {toppingOpen && (
           <ToppingOverlay
             toppings={toppingProducts}
+            containerLabel={toppingContainer?.label ?? null}
             currentQty={(productId, variantId) => {
               const topping = toppingProducts.find((t) => t.id === productId);
               if (!topping) return 0;
               const variant = variantId
                 ? (topping.variants.find((v) => v.id === variantId) ?? null)
                 : null;
-              return cart.get(cartKey(topping, variant))?.qty ?? 0;
+              return (
+                cart.get(
+                  cartKey(topping, variant, toppingContainer?.key ?? null),
+                )?.qty ?? 0
+              );
             }}
             onBack={() => {
               clearAnnouncements();
               setToppingOpen(false);
+              setToppingContainer(null);
             }}
-            onConfirm={(selected) => applyToppings(selected)}
+            onSkip={() => skipToppings(toppingContainer)}
+            onConfirm={(selected) => applyToppings(selected, toppingContainer)}
           />
         )}
       </AnimatePresence>
@@ -1450,13 +1510,17 @@ function VariantPickerOverlay({
 
 function ToppingOverlay({
   toppings,
+  containerLabel,
   currentQty,
   onBack,
+  onSkip,
   onConfirm,
 }: {
   toppings: PosProduct[];
+  containerLabel: string | null;
   currentQty: (productId: string, variantId: string | null) => number;
   onBack: () => void;
+  onSkip: () => void;
   onConfirm: (
     selected: { product: PosProduct; variant: PosVariant | null; qty: number }[],
   ) => void;
@@ -1541,7 +1605,7 @@ function ToppingOverlay({
         <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div className="min-w-0">
             <p className="text-xs text-mute uppercase tracking-widest">
-              Extras
+              Extras{containerLabel ? ` · ${containerLabel}` : ""}
             </p>
             <h2 className="text-xl font-bold truncate">
               {activeTopping
@@ -1759,19 +1823,25 @@ function ToppingOverlay({
               {formatEuro(selectedTotal)}
             </span>
           </div>
-          <button
-            onClick={() => onConfirm(buildSelection())}
-            className="w-full rounded-full bg-accent px-8 py-4 text-lg font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99]"
-          >
-            Weiter zur Bestellübersicht
-          </button>
-          <div className="mt-3 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
-              onClick={onBack}
-              className="text-sm font-bold text-mute hover:text-ink transition-colors"
+              onClick={onSkip}
+              className="w-full rounded-full border border-line px-8 py-4 text-base font-bold text-ink transition-colors hover:bg-surf active:scale-[0.99]"
             >
-              <i className="fa-solid fa-arrow-left mr-1.5" />
-              Weiter bestellen
+              <i className="fa-solid fa-xmark mr-2" />
+              Nein Danke
+            </button>
+            <button
+              onClick={() => onConfirm(buildSelection())}
+              disabled={selectedCount === 0}
+              className={`w-full rounded-full px-8 py-4 text-base font-bold transition-all active:scale-[0.99] ${
+                selectedCount > 0
+                  ? "bg-accent text-white hover:bg-accent-hover shadow-lg"
+                  : "bg-tile text-mute cursor-not-allowed"
+              }`}
+            >
+              <i className="fa-solid fa-check mr-2" />
+              Mit Toppings fortfahren
             </button>
           </div>
         </div>
