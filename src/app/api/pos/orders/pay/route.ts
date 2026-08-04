@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAppUrl } from "@/lib/env";
-import { createRbankPayment } from "@/lib/rbank";
+import { buildRbankEmbedCheckoutUrl, createRbankPayment } from "@/lib/rbank";
 import { buildTippieUrl, POS_MIN_DIGITAL_PAYMENT_CENTS, POS_PAYMENT_METHODS, type PosPaymentMethod } from "@/lib/pos";
 import { formatEuro } from "@/lib/format";
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       method,
-      paymentUrl: session.paymentUrl,
+      paymentUrl: buildRbankEmbedCheckoutUrl(session.token),
       token: session.token,
       totalCents,
     });

@@ -1,4 +1,4 @@
-import { getRbankConfig, type RBankConfig } from "./env";
+import { getRbankConfig, getRbankEmbedCheckoutKey, type RBankConfig } from "./env";
 
 interface CreatePaymentArgs {
   amount: number;
@@ -56,6 +56,12 @@ export async function createRbankPayment(
   }
 
   return res.json();
+}
+
+export function buildRbankEmbedCheckoutUrl(token: string, config?: RBankConfig): string {
+  const resolved = config ?? getRbankConfig();
+  const key = getRbankEmbedCheckoutKey();
+  return `${resolved.apiUrl}/embed/pay/${encodeURIComponent(token)}?key=${encodeURIComponent(key)}`;
 }
 
 export async function verifyRbankPayment(
