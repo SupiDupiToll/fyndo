@@ -14,19 +14,22 @@ import {
   getVoucherPaymentAmount,
   getVoucherSavingsLabel,
 } from "@/lib/shop";
+import { findVariant } from "@/lib/product-variants";
 
 export async function POST(request: NextRequest) {
   let productId = "";
   let amountCents = 0;
+  let variantId: string | undefined;
   let giftCardCode: string | undefined;
   const appUrl = getAppUrl();
   const configuredRedirectBase = `${appUrl}/checkout/complete`;
   const configuredCancelUrl = `${appUrl}?cancelled=1`;
 
   try {
-    const body = (await request.json()) as { productId?: string; amountCents?: number; giftCardCode?: string };
+    const body = (await request.json()) as { productId?: string; amountCents?: number; variantId?: string; giftCardCode?: string };
     productId = String(body.productId ?? "");
     amountCents = Number(body.amountCents ?? 0);
+    variantId = typeof body.variantId === "string" ? body.variantId.trim() || undefined : undefined;
     giftCardCode = typeof body.giftCardCode === "string" ? body.giftCardCode.trim() || undefined : undefined;
   } catch {
     return NextResponse.json({ error: "Ungueltige Eingabedaten." }, { status: 400 });
@@ -47,7 +50,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Produkt nicht gefunden." }, { status: 404 });
     }
 
-    const resolvedAmount = product.kind === "VOUCHER" ? amountCents : product.price;
+    const selectedVariant =
+      product.kind === "PRODUCT" ? findVariant(product, variantId ?? null) : null;
+
+    if (product.kind === "PRODUCT" && variantId && !selectedVariant) {
+      return NextResponse.json({ error: "Variante nicht gefunden." }, { status: 400 });
+    }
+
+    const resolvedAmount =
+      product.kind === "VOUCHER" ? amountCents : (selectedVariant?.priceCents ?? product.price);
 
     if (!Number.isInteger(resolvedAmount) || resolvedAmount <= 0) {
       return NextResponse.json({ error: "Ungueltiger Betrag." }, { status: 400 });
@@ -71,13 +82,17 @@ export async function POST(request: NextRequest) {
       if (discountAmount <= 0 || resolvedAmount <= discountAmount) {
         return NextResponse.json({ error: "Der Gutschein-Rabatt ist fuer diesen Betrag zu hoch." }, { status: 400 });
       }
+    } else if (selectedVariant) {
+      if (resolvedAmount !== selectedVariant.priceCents) {
+        return NextResponse.json({ error: "Variantenpreis stimmt nicht." }, { status: 400 });
+      }
     } else if (resolvedAmount !== product.price) {
       return NextResponse.json({ error: "Produktpreis stimmt nicht." }, { status: 400 });
     }
 
     let basePaymentAmount = product.kind === "VOUCHER"
       ? getVoucherPaymentAmount(resolvedAmount, product)
-      : product.price;
+      : resolvedAmount;
 
     let giftCardDeduction = 0;
 
@@ -98,6 +113,8 @@ export async function POST(request: NextRequest) {
       productId: product.id,
       amountCents: basePaymentAmount,
       voucherFaceValueCents: product.kind === "VOUCHER" ? resolvedAmount : null,
+      variantId: selectedVariant?.id ?? null,
+      variantName: selectedVariant?.name ?? null,
       buyerName: user.displayName,
       buyerEmail: user.email,
       giftCardCodeUsed: giftCardCode ? formatGiftCardCode(giftCardCode) : null,
@@ -132,6 +149,7 @@ export async function POST(request: NextRequest) {
         productId: product.id,
         status: "PENDING",
         amountCents: basePaymentAmount,
+        variantId: selectedVariant?.id ?? null,
       },
     });
 
@@ -144,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     const description = product.kind === "VOUCHER"
       ? `${product.title} ${formatEuro(resolvedAmount)} (${getVoucherSavingsLabel(resolvedAmount, product) ?? "kein Rabatt"}) - ${user.displayName}`
-      : `${product.title} - ${user.displayName}`;
+      : `${product.title}${selectedVariant ? ` (${selectedVariant.name})` : ""} - ${user.displayName}`;
 
     const session = await createRbankPayment({
       amount: basePaymentAmount,

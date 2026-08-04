@@ -13,6 +13,7 @@ type PurchaseButtonProps = {
   label: string;
   disabled?: boolean;
   isDemoUser?: boolean;
+  variantId?: string;
   fixedAmountCents?: number;
   amountOptions?: number[];
   voucherDiscountType?: "FIXED" | "PERCENT" | null;
@@ -27,6 +28,7 @@ export function PurchaseButton({
   label,
   disabled = false,
   isDemoUser = false,
+  variantId,
   fixedAmountCents,
   amountOptions = [],
   voucherDiscountType,
@@ -103,6 +105,7 @@ export function PurchaseButton({
         body: JSON.stringify({
           productId,
           amountCents: hasSelectableAmount ? selectedAmount : fixedAmountCents,
+          variantId: variantId || undefined,
           giftCardCode: giftCardCode || undefined,
         }),
       });

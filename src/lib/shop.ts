@@ -1,5 +1,6 @@
 import type { Product, VoucherDiscountType } from "@/generated/prisma/client";
 import { formatEuro } from "@/lib/format";
+import { minVariantPriceCents } from "@/lib/product-variants";
 
 export const DEFAULT_VOUCHER_STEP_CENTS = 100;
 
@@ -134,6 +135,11 @@ export function getProductPriceLabel(product: Product) {
     if (amounts.length > 0) {
       return `Gutschein ${formatEuro(minAmount)} bis ${formatEuro(maxAmount)}`;
     }
+  }
+
+  const variantMin = minVariantPriceCents(product.variants);
+  if (variantMin !== null) {
+    return `ab ${formatEuro(variantMin)}`;
   }
 
   return formatEuro(product.price);

@@ -57,21 +57,30 @@ export default async function PosPage({
   const resolvedVendorName = getVendorName(products[0].seller);
   const posSettings = parsePosSettings(seller.posSettings);
 
+  const toPosProduct = (p: (typeof products)[number]) => ({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    imageUrl: p.imageUrl,
+    price: p.price,
+    isContainer: p.isContainer,
+    isTopping: p.isTopping,
+    variants: Array.isArray(p.variants)
+      ? (p.variants as { id: string; name: string; priceCents: number }[])
+      : [],
+  });
+
+  const toppings = products.filter((p) => p.isTopping).map(toPosProduct);
+  const gridProducts = products.filter((p) => !p.isTopping).map(toPosProduct);
+
+  if (gridProducts.length === 0) notFound();
+
   return (
     <PosKiosk
       vendorName={resolvedVendorName}
       settings={posSettings}
-      products={products.map((p) => ({
-        id: p.id,
-        title: p.title,
-        description: p.description,
-        imageUrl: p.imageUrl,
-        price: p.price,
-        isContainer: p.isContainer,
-        variants: Array.isArray(p.variants)
-          ? (p.variants as { id: string; name: string; priceCents: number }[])
-          : [],
-      }))}
+      products={gridProducts}
+      toppings={toppings}
     />
   );
 }

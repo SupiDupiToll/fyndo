@@ -76,7 +76,10 @@ export default async function BestellungenPage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium truncate">{order.product.title}</p>
+                    <p className="font-medium truncate">
+                      {order.product.title}
+                      {order.variantName ? ` (${order.variantName})` : ""}
+                    </p>
                     <p className="text-sm text-mute">
                       {formatEuro(order.amountCents)}
                       {order.voucherFaceValueCents ? ` (Gutscheinwert: ${formatEuro(order.voucherFaceValueCents)})` : ""}

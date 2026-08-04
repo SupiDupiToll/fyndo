@@ -13,6 +13,7 @@ type ProductRow = {
   posVisible: boolean;
   posOnly: boolean;
   isContainer: boolean;
+  isTopping: boolean;
   ordersCount: number;
   sellerLabel?: string;
   showSeller?: boolean;
@@ -65,6 +66,11 @@ export function ProductListAdmin({ products, showSeller }: { products: ProductRo
           {p.isContainer && (
             <span className="text-xs font-bold rounded-full px-3 py-1 whitespace-nowrap bg-amber-50 text-amber-700">
               Becher
+            </span>
+          )}
+          {p.isTopping && (
+            <span className="text-xs font-bold rounded-full px-3 py-1 whitespace-nowrap bg-pink-50 text-pink-700">
+              Topping
             </span>
           )}
           <label className="flex items-center gap-2 cursor-pointer select-none" title="Kurzfristig ausblenden">

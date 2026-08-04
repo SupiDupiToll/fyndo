@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       variants,
       posOnly: Boolean(body.posOnly),
       isContainer: Boolean(body.isContainer),
+      isTopping: Boolean(body.isTopping),
       voucherMode: finalKind === "VOUCHER" ? voucherMode : null,
       voucherMinCents: finalKind === "VOUCHER" ? (voucherMinCents ? parseInt(voucherMinCents) : null) : null,
       voucherMaxCents: finalKind === "VOUCHER" ? (voucherMaxCents ? parseInt(voucherMaxCents) : null) : null,

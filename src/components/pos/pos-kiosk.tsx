@@ -28,6 +28,7 @@ export type PosProduct = {
   imageUrl: string | null;
   price: number;
   isContainer: boolean;
+  isTopping: boolean;
   variants: PosVariant[];
 };
 
@@ -92,16 +93,19 @@ function containerCount(containers: Container[], productId: string) {
 export function PosKiosk({
   vendorName,
   products,
+  toppings,
   settings,
 }: {
   vendorName: string;
   products: PosProduct[];
+  toppings: PosProduct[];
   settings: PosSettings;
 }) {
   const [cart, setCart] = useState<Map<string, CartItem>>(new Map());
   const [speakerOn, setSpeakerOn] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [toppingOpen, setToppingOpen] = useState(false);
   const [pickerProduct, setPickerProduct] = useState<PosProduct | null>(null);
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [method, setMethod] = useState<PosPaymentMethod | null>(null);
@@ -132,6 +136,7 @@ export function PosKiosk({
   const containerMode = products.some((p) => p.isContainer);
   const containerProducts = products.filter((p) => p.isContainer);
   const scoopProducts = products.filter((p) => !p.isContainer);
+  const toppingProducts = toppings;
   const activeContainer =
     wizardStep === "build" ? (containers[activeContainerIndex] ?? null) : null;
 
@@ -174,6 +179,7 @@ export function PosKiosk({
     if (
       checkoutOpen ||
       cartOpen ||
+      toppingOpen ||
       summaryOpen ||
       pickerProduct !== null ||
       done !== null
@@ -217,6 +223,7 @@ export function PosKiosk({
     countdownOpen,
     checkoutOpen,
     cartOpen,
+    toppingOpen,
     summaryOpen,
     pickerProduct,
     done,
@@ -413,6 +420,37 @@ export function PosKiosk({
     if (cart.size === 0 || cartTotal <= 0) return;
     setError("");
     setCartOpen(false);
+    if (toppingProducts.length > 0) {
+      setToppingOpen(true);
+      announce(
+        "toppings",
+        "Noch etwas dazu? Wählen Sie Ihre Toppings oder tippen Sie auf Weiter.",
+      );
+      return;
+    }
+    setSummaryOpen(true);
+    announce("checkout", "Zur Kasse. Bitte prüfen Sie Ihre Bestellung.");
+  }
+
+  function applyToppings(
+    selected: { product: PosProduct; variant: PosVariant | null; qty: number }[],
+  ) {
+    const byKey = new Map(
+      selected.map((s) => [
+        s.variant ? `${s.product.id}:${s.variant.id}` : s.product.id,
+        s,
+      ]),
+    );
+    for (const topping of toppingProducts) {
+      if (topping.variants.length === 0) {
+        setQty(topping, null, byKey.get(topping.id)?.qty ?? 0);
+      } else {
+        for (const variant of topping.variants) {
+          setQty(topping, variant, byKey.get(`${topping.id}:${variant.id}`)?.qty ?? 0);
+        }
+      }
+    }
+    setToppingOpen(false);
     setSummaryOpen(true);
     announce("checkout", "Zur Kasse. Bitte prüfen Sie Ihre Bestellung.");
   }
@@ -438,7 +476,11 @@ export function PosKiosk({
     closeCheckout();
     setSummaryOpen(false);
     setGridNonce((n) => n + 1);
-    announce("new-order", "Neue Bestellung. Wählen Sie Ihre Produkte.");
+    if (settings.lockScreenEnabled) {
+      setLockOpen(true);
+    } else {
+      announce("new-order", "Neue Bestellung. Wählen Sie Ihre Produkte.");
+    }
   }
 
   async function createOrder(): Promise<OrderInfo | null> {
@@ -862,6 +904,27 @@ export function PosKiosk({
                   : null,
               )
             }
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {toppingOpen && (
+          <ToppingOverlay
+            toppings={toppingProducts}
+            currentQty={(productId, variantId) => {
+              const topping = toppingProducts.find((t) => t.id === productId);
+              if (!topping) return 0;
+              const variant = variantId
+                ? (topping.variants.find((v) => v.id === variantId) ?? null)
+                : null;
+              return cart.get(cartKey(topping, variant))?.qty ?? 0;
+            }}
+            onBack={() => {
+              clearAnnouncements();
+              setToppingOpen(false);
+            }}
+            onConfirm={(selected) => applyToppings(selected)}
           />
         )}
       </AnimatePresence>
@@ -1304,6 +1367,338 @@ function VariantPickerOverlay({
   );
 }
 
+function ToppingOverlay({
+  toppings,
+  currentQty,
+  onBack,
+  onConfirm,
+}: {
+  toppings: PosProduct[];
+  currentQty: (productId: string, variantId: string | null) => number;
+  onBack: () => void;
+  onConfirm: (
+    selected: { product: PosProduct; variant: PosVariant | null; qty: number }[],
+  ) => void;
+}) {
+  const [qtys, setQtys] = useState<Map<string, number>>(
+    () =>
+      new Map(
+        toppings.flatMap((t) =>
+          t.variants.length > 0
+            ? t.variants.map((v) => [`${t.id}:${v.id}`, currentQty(t.id, v.id)])
+            : [[t.id, currentQty(t.id, null)]],
+        ),
+      ),
+  );
+  const [activeTopping, setActiveTopping] = useState<PosProduct | null>(null);
+
+  function priceFor(topping: PosProduct, variant: PosVariant | null) {
+    return variant ? variant.priceCents : topping.price;
+  }
+
+  const selectedTotal = toppings.reduce((sum, t) => {
+    if (t.variants.length > 0) {
+      return (
+        sum +
+        t.variants.reduce(
+          (s, v) => s + (qtys.get(`${t.id}:${v.id}`) ?? 0) * v.priceCents,
+          0,
+        )
+      );
+    }
+    return sum + (qtys.get(t.id) ?? 0) * t.price;
+  }, 0);
+  const selectedCount = Array.from(qtys.values()).reduce(
+    (sum, q) => sum + q,
+    0,
+  );
+
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") onBack();
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onBack]);
+
+  function buildSelection(): {
+    product: PosProduct;
+    variant: PosVariant | null;
+    qty: number;
+  }[] {
+    const out: { product: PosProduct; variant: PosVariant | null; qty: number }[] =
+      [];
+    for (const t of toppings) {
+      if (t.variants.length > 0) {
+        for (const v of t.variants) {
+          const qty = qtys.get(`${t.id}:${v.id}`) ?? 0;
+          if (qty > 0) out.push({ product: t, variant: v, qty });
+        }
+      } else {
+        const qty = qtys.get(t.id) ?? 0;
+        if (qty > 0) out.push({ product: t, variant: null, qty });
+      }
+    }
+    return out;
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-40 bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
+        className="w-full max-w-3xl max-h-full overflow-y-auto rounded-3xl border border-line bg-white shadow-xl flex flex-col"
+        initial={{ opacity: 0, scale: 0.94, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ type: "spring", stiffness: 280, damping: 26 }}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
+          <div className="min-w-0">
+            <p className="text-xs text-mute uppercase tracking-widest">
+              Extras
+            </p>
+            <h2 className="text-xl font-bold truncate">
+              {activeTopping
+                ? activeTopping.title
+                : "Noch etwas dazu?"}
+            </h2>
+          </div>
+          <button
+            onClick={onBack}
+            className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors"
+            aria-label="Schließen"
+          >
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        <div className="flex-1 p-6">
+          {activeTopping ? (
+            <div className="space-y-3">
+              <p className="text-sm text-mute">
+                Tippen Sie auf eine Variante, um sie hinzuzufügen.
+              </p>
+              {activeTopping.variants.map((variant) => {
+                const key = `${activeTopping.id}:${variant.id}`;
+                const qty = qtys.get(key) ?? 0;
+                return (
+                  <button
+                    key={variant.id}
+                    onClick={() =>
+                      setQtys((prev) => {
+                        const next = new Map(prev);
+                        next.set(key, (next.get(key) ?? 0) + 1);
+                        return next;
+                      })
+                    }
+                    className="flex w-full items-center justify-between gap-4 rounded-2xl border border-line bg-white p-4 text-left transition-all hover:border-accent/50 hover:bg-surf active:scale-[0.98]"
+                  >
+                    <span className="font-bold">{variant.name}</span>
+                    <div className="flex items-center gap-3">
+                      {qty > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQtys((prev) => {
+                              const next = new Map(prev);
+                              next.set(
+                                key,
+                                Math.max((next.get(key) ?? 0) - 1, 0),
+                              );
+                              return next;
+                            });
+                          }}
+                          className="w-8 h-8 rounded-lg border border-line text-ink font-black flex items-center justify-center hover:bg-surf transition-colors"
+                          aria-label={`${variant.name} verringern`}
+                        >
+                          −
+                        </button>
+                      )}
+                      {qty > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-7 h-7 rounded-full bg-accent px-2 text-xs font-black text-white tabular-nums">
+                          {qty}
+                        </span>
+                      )}
+                      <span className="text-xl font-black tabular-nums">
+                        {formatEuro(variant.priceCents)}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setActiveTopping(null)}
+                className="w-full rounded-full border border-line px-8 py-3.5 text-base font-bold text-ink hover:bg-surf transition-colors"
+              >
+                <i className="fa-solid fa-arrow-left mr-2" />
+                Zurück zu den Extras
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {toppings.map((topping) => {
+                const hasVariants = topping.variants.length > 0;
+                const qty = hasVariants
+                  ? topping.variants.reduce(
+                      (s, v) => s + (qtys.get(`${topping.id}:${v.id}`) ?? 0),
+                      0,
+                    )
+                  : (qtys.get(topping.id) ?? 0);
+                const minPrice = hasVariants
+                  ? Math.min(...topping.variants.map((v) => v.priceCents))
+                  : topping.price;
+                return (
+                  <div
+                    key={topping.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (hasVariants) {
+                        setActiveTopping(topping);
+                        return;
+                      }
+                      setQtys((prev) => {
+                        const next = new Map(prev);
+                        next.set(topping.id, (next.get(topping.id) ?? 0) + 1);
+                        return next;
+                      });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        if (hasVariants) setActiveTopping(topping);
+                        else {
+                          const key = topping.id;
+                          setQtys((prev) => {
+                            const next = new Map(prev);
+                            next.set(key, (next.get(key) ?? 0) + 1);
+                            return next;
+                          });
+                        }
+                      }
+                    }}
+                    className="group flex h-full flex-col items-stretch rounded-2xl border border-line bg-white p-3 sm:p-4 text-left transition-all hover:border-accent/50 hover:shadow-lg active:scale-[0.97] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <div className="aspect-square w-full overflow-hidden rounded-xl bg-surf mb-3">
+                      {topping.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={topping.imageUrl}
+                          alt={topping.title}
+                          className="h-full w-full object-contain p-2 transition-transform group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-mute text-xl">
+                          <i className="fa-solid fa-mug-saucer" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-auto">
+                      <h3 className="font-bold text-sm sm:text-base leading-tight line-clamp-2">
+                        {topping.title}
+                      </h3>
+                      <p className="mt-1 text-lg sm:text-xl font-black text-ink tabular-nums">
+                        {hasVariants
+                          ? `ab ${formatEuro(minPrice)}`
+                          : formatEuro(topping.price)}
+                      </p>
+                      {hasVariants && (
+                        <span className="mt-1 inline-block rounded-full bg-accent/10 px-2.5 py-0.5 text-[11px] font-bold text-accent">
+                          {topping.variants.length} Varianten
+                        </span>
+                      )}
+                    </div>
+                    {qty > 0 && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-3 flex items-center justify-between rounded-xl bg-accent/10 px-2 py-1.5"
+                      >
+                        <button
+                          onClick={() => {
+                            if (hasVariants) {
+                              setActiveTopping(topping);
+                              return;
+                            }
+                            setQtys((prev) => {
+                              const next = new Map(prev);
+                              next.set(
+                                topping.id,
+                                Math.max((next.get(topping.id) ?? 0) - 1, 0),
+                              );
+                              return next;
+                            });
+                          }}
+                          className="w-9 h-9 rounded-lg bg-white text-accent font-black flex items-center justify-center shadow-sm hover:bg-accent hover:text-white transition-colors"
+                          aria-label="Menge verringern"
+                        >
+                          −
+                        </button>
+                        <span className="text-sm font-black text-accent tabular-nums">
+                          {qty}
+                        </span>
+                        <button
+                          onClick={() => {
+                            if (hasVariants) {
+                              setActiveTopping(topping);
+                              return;
+                            }
+                            setQtys((prev) => {
+                              const next = new Map(prev);
+                              next.set(topping.id, (next.get(topping.id) ?? 0) + 1);
+                              return next;
+                            });
+                          }}
+                          className="w-9 h-9 rounded-lg bg-white text-accent font-black flex items-center justify-center shadow-sm hover:bg-accent hover:text-white transition-colors"
+                          aria-label="Menge erhöhen"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-5 border-t border-line">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-mute font-medium">
+              {selectedCount > 0
+                ? `${selectedCount} extra`
+                : "Keine Extras ausgewählt"}
+            </span>
+            <span className="text-2xl font-black tabular-nums">
+              {formatEuro(selectedTotal)}
+            </span>
+          </div>
+          <button
+            onClick={() => onConfirm(buildSelection())}
+            className="w-full rounded-full bg-accent px-8 py-4 text-lg font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99]"
+          >
+            Weiter zur Bestellübersicht
+          </button>
+          <div className="mt-3 text-center">
+            <button
+              onClick={onBack}
+              className="text-sm font-bold text-mute hover:text-ink transition-colors"
+            >
+              <i className="fa-solid fa-arrow-left mr-1.5" />
+              Weiter bestellen
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function OrderSummaryOverlay({
   items,
   totalCents,
@@ -1325,15 +1720,42 @@ function OrderSummaryOverlay({
     else groups.push({ label, items: [item] });
   }
 
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") onBack();
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onBack]);
+
+  const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
+
   return (
-    <div className="fixed inset-0 z-[45] bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8">
-      <div className="w-full max-w-lg max-h-full overflow-y-auto rounded-3xl border border-line bg-white shadow-xl flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
+    <motion.div
+      className="fixed inset-0 z-[45] bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
+        className="w-full max-w-xl max-h-full overflow-hidden rounded-3xl border border-line bg-white shadow-xl flex flex-col"
+        initial={{ opacity: 0, scale: 0.94, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ type: "spring", stiffness: 280, damping: 26 }}
+      >
+        <div className="flex items-center justify-between px-6 py-5 border-b border-line">
           <div>
             <p className="text-xs text-mute uppercase tracking-widest">
               Bestellübersicht
             </p>
             <h2 className="text-xl font-bold">Bitte prüfen</h2>
+            {itemCount > 0 && (
+              <p className="text-xs text-mute mt-0.5 tabular-nums">
+                {itemCount} Artikel
+              </p>
+            )}
           </div>
           <button
             onClick={onBack}
@@ -1344,88 +1766,119 @@ function OrderSummaryOverlay({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {items.length === 0 ? (
-            <div className="text-center py-16 text-mute">
-              Ihr Warenkorb ist leer.
+        {items.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-tile flex items-center justify-center text-mute text-2xl">
+              <i className="fa-solid fa-basket-shopping" />
             </div>
-          ) : (
-            groups.map((group) => (
+            <p className="font-bold">Ihr Warenkorb ist leer</p>
+            <p className="text-sm text-mute max-w-xs">
+              Fügen Sie zuerst ein Produkt hinzu, dann erscheint es hier.
+            </p>
+            <button
+              onClick={onBack}
+              className="mt-4 rounded-full bg-accent px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-accent-hover"
+            >
+              Weiter bestellen
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-6 py-2">
+            {groups.map((group) => (
               <div
                 key={group.label ?? "plain"}
-                className="rounded-2xl border border-line p-4"
+                className={group.label ? "py-4" : "py-2"}
               >
                 {group.label && (
-                  <p className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-accent">
+                  <p className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-accent">
                     <i className="fa-solid fa-cup-togo" />
                     {group.label}
                   </p>
                 )}
-                <div className="space-y-2.5">
-                  {group.items.map((item) => (
-                    <div
-                      key={`${item.product.id}:${item.variant?.id ?? ""}:${item.containerKey ?? ""}`}
-                      className="flex items-center gap-3"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate">
-                          {itemLabel(item)}
-                        </p>
-                        <p className="text-xs text-mute tabular-nums">
-                          {formatEuro(itemPrice(item.product, item.variant))}
-                        </p>
-                      </div>
-                      {item.qty > 1 && (
-                        <span className="inline-flex items-center justify-center min-w-7 h-7 rounded-full bg-accent/10 px-2 text-xs font-black text-accent tabular-nums">
-                          ×{item.qty}
+                <ul className="divide-y divide-line">
+                  {group.items.map((item) => {
+                    const unit = itemPrice(item.product, item.variant);
+                    return (
+                      <li
+                        key={`${item.product.id}:${item.variant?.id ?? ""}:${item.containerKey ?? ""}`}
+                        className="flex items-center gap-4 py-3"
+                      >
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-tile">
+                          {item.product.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.product.imageUrl}
+                              alt=""
+                              className="h-full w-full object-contain p-1.5"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-mute text-xs">
+                              <i className="fa-solid fa-cube" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm truncate">
+                              {itemLabel(item)}
+                            </p>
+                            {item.product.isTopping && (
+                              <span className="shrink-0 rounded-full bg-pink-50 px-2 py-0.5 text-[10px] font-bold text-pink-600 uppercase tracking-wide">
+                                Extra
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-mute tabular-nums">
+                            {formatEuro(unit)}
+                            {item.qty > 1 ? ` × ${item.qty}` : ""}
+                          </p>
+                        </div>
+                        <span className="font-black tabular-nums text-sm">
+                          {formatEuro(unit * item.qty)}
                         </span>
-                      )}
-                      <span className="font-black tabular-nums text-sm">
-                        {formatEuro(
-                          itemPrice(item.product, item.variant) * item.qty,
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
 
-        <div className="px-6 py-5 border-t border-line">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-mute font-medium">Summe</span>
-            <span className="text-3xl font-black tabular-nums">
-              {formatEuro(totalCents)}
-            </span>
-          </div>
-          <button
-            onClick={onPay}
-            disabled={items.length === 0}
-            className="w-full rounded-full bg-accent px-8 py-4 text-lg font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99] disabled:bg-tile disabled:text-mute"
-          >
-            Weiter zur Bezahlung
-          </button>
-          <div className="mt-3 flex items-center justify-between">
+        {items.length > 0 && (
+          <div className="px-6 py-5 border-t border-line bg-surf/60">
+            <div className="flex items-end justify-between mb-4">
+              <span className="font-medium text-mute">Summe</span>
+              <span className="text-3xl font-black tabular-nums leading-none">
+                {formatEuro(totalCents)}
+              </span>
+            </div>
             <button
-              onClick={onBack}
-              className="text-sm font-bold text-mute hover:text-ink transition-colors"
+              onClick={onPay}
+              className="w-full rounded-full bg-accent px-8 py-4 text-lg font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99]"
             >
-              <i className="fa-solid fa-arrow-left mr-1.5" />
-              Weiter bestellen
+              Weiter zur Bezahlung
             </button>
-            <button
-              onClick={onNewCustomer}
-              className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-100"
-            >
-              <i className="fa-solid fa-rotate-left mr-1.5" />
-              Alles löschen
-            </button>
+            <div className="mt-3 flex items-center justify-between">
+              <button
+                onClick={onBack}
+                className="text-sm font-bold text-mute hover:text-ink transition-colors"
+              >
+                <i className="fa-solid fa-arrow-left mr-1.5" />
+                Weiter bestellen
+              </button>
+              <button
+                onClick={onNewCustomer}
+                className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-100"
+              >
+                <i className="fa-solid fa-rotate-left mr-1.5" />
+                Alles löschen
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        )}
+      </motion.div>
+    </motion.div>
   );
 }
 

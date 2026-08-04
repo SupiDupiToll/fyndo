@@ -111,6 +111,7 @@ export const ProductScalarFieldEnum = {
   posOnly: 'posOnly',
   variants: 'variants',
   isContainer: 'isContainer',
+  isTopping: 'isTopping',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

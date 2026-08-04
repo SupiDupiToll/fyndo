@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { PurchaseButton } from "@/components/purchase-button";
 import { formatEuro } from "@/lib/format";
+import { parseVariants, type ProductVariant } from "@/lib/product-variants";
 import Link from "next/link";
 
 interface Product {
@@ -22,6 +23,7 @@ interface Product {
   voucherDiscountType: "FIXED" | "PERCENT" | null;
   voucherDiscountValue: number | null;
   voucherNoticeText: string | null;
+  variants: ProductVariant[] | null;
 }
 
 export default function CheckoutPage() {
@@ -36,6 +38,7 @@ export default function CheckoutPage() {
   const [gcBalance, setGcBalance] = useState(0);
   const [gcChecking, setGcChecking] = useState(false);
   const [gcError, setGcError] = useState("");
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   const productId = params?.productId;
 
@@ -44,12 +47,26 @@ export default function CheckoutPage() {
       setPageLoading(false);
       return;
     }
+    const variantParam =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("variant")
+        : null;
+    if (variantParam) setSelectedVariantId(variantParam);
     fetch(`/api/products/${productId}`)
       .then((res) => {
         if (!res.ok) throw new Error("Produkt nicht gefunden");
         return res.json();
       })
-      .then((data) => setProduct(data))
+      .then((data) => {
+        setProduct(data);
+        const variants = parseVariants(data.variants) ?? [];
+        if (variants.length > 0) {
+          setSelectedVariantId((prev) => {
+            if (prev && variants.some((v) => v.id === prev)) return prev;
+            return variants[0].id;
+          });
+        }
+      })
       .catch(() => setError("Produkt nicht gefunden"))
       .finally(() => setPageLoading(false));
   }, [productId]);
@@ -94,6 +111,12 @@ export default function CheckoutPage() {
   const voucherAmounts = product.kind === "VOUCHER" && Array.isArray(product.voucherAmounts)
     ? product.voucherAmounts
     : [];
+
+  const productVariants = parseVariants(product.variants) ?? [];
+  const selectedVariant =
+    productVariants.find((v) => v.id === selectedVariantId) ?? null;
+  const effectiveAmountCents =
+    selectedVariant?.priceCents ?? product.price;
 
   async function checkGiftCard() {
     const code = giftCardCode.trim();
@@ -167,15 +190,44 @@ export default function CheckoutPage() {
       </div>
 
       <div className="mt-8">
+        {product.kind === "PRODUCT" && productVariants.length > 0 && (
+          <div className="mb-5">
+            <span className="block text-sm font-bold text-ink mb-2">Variante wählen</span>
+            <div className="flex flex-wrap gap-2">
+              {productVariants.map((v) => {
+                const active = v.id === selectedVariantId;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setSelectedVariantId(v.id)}
+                    aria-pressed={active}
+                    className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${
+                      active
+                        ? "border-accent bg-accent text-white"
+                        : "border-line bg-white text-ink hover:border-accent"
+                    }`}
+                  >
+                    {v.name}
+                    <span className={`ml-1.5 text-xs ${active ? "text-white/80" : "text-mute"}`}>
+                      {formatEuro(v.priceCents)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <PurchaseButton
           productId={product.id}
           label={product.kind === "VOUCHER" ? "Jetzt Gutschein kaufen" : "Jetzt kaufen"}
+          variantId={selectedVariant?.id}
           amountOptions={voucherAmounts}
           isVoucher={product.kind === "VOUCHER"}
           voucherDiscountType={product.voucherDiscountType}
           voucherDiscountValue={product.voucherDiscountValue ?? 0}
           voucherNoticeText={product.voucherNoticeText}
-          fixedAmountCents={product.kind === "PRODUCT" ? product.price : undefined}
+          fixedAmountCents={product.kind === "PRODUCT" ? effectiveAmountCents : undefined}
           giftCardCode={gcValid ? giftCardCode : undefined}
         />
       </div>

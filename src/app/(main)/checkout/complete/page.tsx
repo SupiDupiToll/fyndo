@@ -116,7 +116,9 @@ export default async function CheckoutCompletePage({
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <h1 className="text-3xl font-bold tracking-tight">
-        {orders.length > 1 ? `${orders.length} Bestellungen` : firstOrder.product.title}
+        {orders.length > 1
+          ? `${orders.length} Bestellungen`
+          : `${firstOrder.product.title}${firstOrder.variantName ? ` (${firstOrder.variantName})` : ""}`}
       </h1>
       <div className="mt-8 p-8 bg-white rounded-3xl border border-line shadow-sm max-w-md">
         <p className="text-mute">{message}</p>

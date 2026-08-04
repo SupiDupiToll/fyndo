@@ -8,6 +8,8 @@ import {
 } from "@/lib/shop";
 import Link from "next/link";
 import { getVendorHref, getVendorName } from "@/lib/vendor";
+import { parseVariants, type ProductVariant } from "@/lib/product-variants";
+import { ProductVariantPicker } from "@/components/product-variant-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,8 @@ export default async function ProductPage({
   if (!product || !product.isActive || product.posOnly) notFound();
 
   const priceLabel = getProductPriceLabel(product);
+  const variants: ProductVariant[] =
+    product.kind === "PRODUCT" ? (parseVariants(product.variants) ?? []) : [];
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8 sm:py-10">
@@ -51,22 +55,33 @@ export default async function ProductPage({
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{product.title}</h1>
           <p className="mt-4 sm:mt-6 text-mute leading-relaxed">{product.description}</p>
-          <p className="mt-6 sm:mt-8 text-3xl font-black">{priceLabel}</p>
 
-          {user ? (
-            <Link
-              href={`/checkout/${product.id}`}
-              className="mt-8 inline-flex items-center justify-center bg-accent text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-accent-hover transition-all w-full sm:w-auto"
-            >
-              Jetzt kaufen
-            </Link>
+          {variants.length > 0 ? (
+            <ProductVariantPicker
+              productId={product.id}
+              variants={variants}
+              basePriceCents={product.price}
+              loggedIn={!!user}
+            />
           ) : (
-            <a
-              href="/handler/sign-in"
-              className="mt-8 inline-flex items-center justify-center bg-accent text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-accent-hover transition-all w-full sm:w-auto"
-            >
-              Einloggen und kaufen
-            </a>
+            <>
+              <p className="mt-6 sm:mt-8 text-3xl font-black">{priceLabel}</p>
+              {user ? (
+                <Link
+                  href={`/checkout/${product.id}`}
+                  className="mt-8 inline-flex items-center justify-center bg-accent text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-accent-hover transition-all w-full sm:w-auto"
+                >
+                  Jetzt kaufen
+                </Link>
+              ) : (
+                <a
+                  href="/handler/sign-in"
+                  className="mt-8 inline-flex items-center justify-center bg-accent text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-accent-hover transition-all w-full sm:w-auto"
+                >
+                  Einloggen und kaufen
+                </a>
+              )}
+            </>
           )}
         </div>
       </div>

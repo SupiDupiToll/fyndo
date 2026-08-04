@@ -5,6 +5,7 @@ export const POS_ANNOUNCEMENT_KEYS = [
   "container",
   "cart",
   "checkout",
+  "toppings",
   "select-payment",
   "card-scanned",
   "rbank-qr",

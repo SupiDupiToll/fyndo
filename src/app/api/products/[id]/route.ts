@@ -55,6 +55,7 @@ export async function PUT(
   if (body.posVisible !== undefined) updateData.posVisible = Boolean(body.posVisible);
   if (body.posOnly !== undefined) updateData.posOnly = Boolean(body.posOnly);
   if (body.isContainer !== undefined) updateData.isContainer = Boolean(body.isContainer);
+  if (body.isTopping !== undefined) updateData.isTopping = Boolean(body.isTopping);
   if (body.variants !== undefined) {
     updateData.variants =
       finalKind === "PRODUCT" ? (parseVariants(body.variants) ?? null) : null;
