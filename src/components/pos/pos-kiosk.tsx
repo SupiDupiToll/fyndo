@@ -645,13 +645,7 @@ export function PosKiosk({
           : null,
       );
       announceByMethod(m, payTotal, currentOrder.posOrderNumber);
-      if (demoConfirmTimerRef.current !== null) {
-        window.clearTimeout(demoConfirmTimerRef.current);
-      }
-      demoConfirmTimerRef.current = window.setTimeout(() => {
-        demoConfirmTimerRef.current = null;
-        onConfirmed(currentOrder.totalCents - giftApplied, currentOrder.posOrderNumber);
-      }, 4200);
+      onConfirmed(currentOrder.totalCents - giftApplied, currentOrder.posOrderNumber);
       return;
     }
     try {
