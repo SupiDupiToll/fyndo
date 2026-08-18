@@ -1,0 +1,74 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { formatEuro } from "@/lib/format";
+import type { DemoVariant } from "@/lib/demo-data";
+
+export function DemoVariantPicker({
+  productId,
+  variants,
+  basePriceCents,
+}: {
+  productId: string;
+  variants: DemoVariant[];
+  basePriceCents: number;
+}) {
+  const hasVariants = variants.length > 0;
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    hasVariants ? variants[0].id : null,
+  );
+
+  const selected = useMemo(
+    () => variants.find((v) => v.id === selectedId) ?? null,
+    [variants, selectedId],
+  );
+
+  const price = selected ? selected.priceCents : basePriceCents;
+  const href = `/demos/marketplace/checkout/${productId}`;
+
+  return (
+    <div className="mt-6 sm:mt-8">
+      {hasVariants && (
+        <div className="mb-4">
+          <span className="block text-sm font-bold text-ink mb-2">Variante wählen</span>
+          <div className="flex flex-wrap gap-2">
+            {variants.map((v) => {
+              const active = v.id === selectedId;
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setSelectedId(v.id)}
+                  aria-pressed={active}
+                  className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${
+                    active
+                      ? "border-accent bg-accent text-white"
+                      : "border-line bg-white text-ink hover:border-accent"
+                  }`}
+                >
+                  {v.name}
+                  <span className={`ml-1.5 text-xs ${active ? "text-white/80" : "text-mute"}`}>
+                    {formatEuro(v.priceCents)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <p className="text-3xl font-black">{formatEuro(price)}</p>
+
+      <Link
+        href={href}
+        className="mt-6 inline-flex w-full sm:w-auto items-center justify-center bg-accent px-10 py-4 rounded-xl font-bold text-lg text-white hover:bg-accent-hover transition-all"
+      >
+        Jetzt kaufen
+      </Link>
+      <p className="mt-3 text-xs text-mute">
+        Demo-Modus: Es wird keine echte Bestellung ausgelöst.
+      </p>
+    </div>
+  );
+}

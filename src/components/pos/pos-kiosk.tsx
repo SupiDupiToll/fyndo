@@ -100,14 +100,16 @@ export function PosKiosk({
   products,
   toppings,
   settings,
+  demo = false,
 }: {
   vendorName: string;
   products: PosProduct[];
   toppings: PosProduct[];
   settings: PosSettings;
+  demo?: boolean;
 }) {
   const [cart, setCart] = useState<Map<string, CartItem>>(new Map());
-  const [speakerOn, setSpeakerOn] = useState(true);
+  const [speakerOn, setSpeakerOn] = useState(() => !demo);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [toppingOpen, setToppingOpen] = useState(false);
@@ -141,6 +143,22 @@ export function PosKiosk({
   );
   const [gridNonce, setGridNonce] = useState(0);
   const initialAnnounceRef = useRef(false);
+  const demoConfirmTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (demoConfirmTimerRef.current !== null) {
+        window.clearTimeout(demoConfirmTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!method && demoConfirmTimerRef.current !== null) {
+      window.clearTimeout(demoConfirmTimerRef.current);
+      demoConfirmTimerRef.current = null;
+    }
+  }, [method]);
 
   const containerMode = products.some((p) => p.isContainer);
   const containerProducts = products.filter((p) => p.isContainer);
@@ -150,18 +168,23 @@ export function PosKiosk({
     wizardStep === "build" ? (containers[activeContainerIndex] ?? null) : null;
 
   useEffect(() => {
+    if (demo) {
+      setSpeechEnabled(false);
+      return;
+    }
     const stored = window.localStorage.getItem("fyndo-pos-speaker");
     if (stored !== null) {
       const on = stored === "1";
       setSpeakerOn(on);
       setSpeechEnabled(on);
     }
-  }, []);
+  }, [demo]);
 
   useEffect(() => {
+    if (demo) return;
     window.localStorage.setItem("fyndo-pos-speaker", speakerOn ? "1" : "0");
     setSpeechEnabled(speakerOn);
-  }, [speakerOn]);
+  }, [speakerOn, demo]);
 
   useEffect(() => {
     if (initialAnnounceRef.current) return;
@@ -548,6 +571,19 @@ export function PosKiosk({
     if (cart.size === 0 || cartTotal <= 0) return null;
     setError("");
     setBusy(true);
+    if (demo) {
+      const info: OrderInfo = {
+        posGroupId: `demo-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        posConfirmToken: `demo-token-${Math.random().toString(36).slice(2, 10)}`,
+        posOrderNumber: 100 + Math.floor(Math.random() * 9000),
+        totalCents: cartTotal,
+        itemCount: cartCount,
+      };
+      setOrder(info);
+      announce("order-sent", `Ihre Bestellnummer ist ${info.posOrderNumber}.`);
+      setBusy(false);
+      return info;
+    }
     try {
       const res = await fetch("/api/pos/orders", {
         method: "POST",
@@ -599,6 +635,25 @@ export function PosKiosk({
       );
       return;
     }
+    if (demo) {
+      const currentOrder = orderInfo;
+      const payTotal = currentOrder.totalCents - giftApplied;
+      setBusy(false);
+      setPaymentUrl(
+        m === "TIPPIE"
+          ? `https://pay.tippie.de/business-pay/3763235/EUR/${Math.max(payTotal, 0)}`
+          : null,
+      );
+      announceByMethod(m, payTotal, currentOrder.posOrderNumber);
+      if (demoConfirmTimerRef.current !== null) {
+        window.clearTimeout(demoConfirmTimerRef.current);
+      }
+      demoConfirmTimerRef.current = window.setTimeout(() => {
+        demoConfirmTimerRef.current = null;
+        onConfirmed(currentOrder.totalCents - giftApplied, currentOrder.posOrderNumber);
+      }, 4200);
+      return;
+    }
     try {
       const currentOrder = orderInfo;
       const payTotal = currentOrder.totalCents - giftApplied;
@@ -632,6 +687,12 @@ export function PosKiosk({
     if (!order) return null;
     setError("");
     setBusy(true);
+    if (demo) {
+      setBusy(false);
+      const remaining = Math.max(order.totalCents - giftApplied, 0);
+      setGiftApplied((prev) => prev + remaining);
+      return { deduction: remaining, remainder: 0 };
+    }
     try {
       const res = await fetch("/api/pos/orders/giftcard", {
         method: "POST",
@@ -661,6 +722,11 @@ export function PosKiosk({
     if (!order) return;
     setError("");
     setBusy(true);
+    if (demo) {
+      setBusy(false);
+      onConfirmed(cartTotal, order.posOrderNumber);
+      return;
+    }
     try {
       const res = await fetch("/api/pos/orders/confirm", {
         method: "POST",
@@ -726,6 +792,7 @@ export function PosKiosk({
   }
 
   useEffect(() => {
+    if (demo) return;
     if (!checkoutOpen || !order || done !== null) return;
     const current = order;
     let cancelled = false;
@@ -755,24 +822,30 @@ export function PosKiosk({
       window.clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkoutOpen, order, done, method]);
+  }, [checkoutOpen, order, done, method, demo]);
 
   async function cancelPendingOrder() {
     if (!order) return;
     const current = order;
-    await fetch("/api/pos/orders/cancel", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        posGroupId: current.posGroupId,
-        posConfirmToken: current.posConfirmToken,
-      }),
-    }).catch(() => {});
+    if (!demo) {
+      await fetch("/api/pos/orders/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          posGroupId: current.posGroupId,
+          posConfirmToken: current.posConfirmToken,
+        }),
+      }).catch(() => {});
+    }
     setOrder((prev) => (prev?.posGroupId === current.posGroupId ? null : prev));
   }
 
   function closeCheckout() {
     clearAnnouncements();
+    if (demoConfirmTimerRef.current !== null) {
+      window.clearTimeout(demoConfirmTimerRef.current);
+      demoConfirmTimerRef.current = null;
+    }
     setCheckoutOpen(false);
     setSummaryOpen(false);
     setOrder(null);
@@ -841,15 +914,17 @@ export function PosKiosk({
             <p className="text-xs text-mute -mt-0.5">Tippen & Bestellen</p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSpeakerOn((s) => !s)}
-              className={`w-11 h-11 rounded-full border flex items-center justify-center text-lg transition-colors ${speakerOn ? "border-accent text-accent" : "border-line text-mute"}`}
-              aria-label={speakerOn ? "Ton aus" : "Ton an"}
-            >
-              <i
-                className={`${speakerOn ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark"}`}
-              />
-            </button>
+            {!demo && (
+              <button
+                onClick={() => setSpeakerOn((s) => !s)}
+                className={`w-11 h-11 rounded-full border flex items-center justify-center text-lg transition-colors ${speakerOn ? "border-accent text-accent" : "border-line text-mute"}`}
+                aria-label={speakerOn ? "Ton aus" : "Ton an"}
+              >
+                <i
+                  className={`${speakerOn ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark"}`}
+                />
+              </button>
+            )}
             <button
               onClick={resetForNewCustomer}
               className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${cartCount > 0 ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100" : "border-red-100 text-red-400 hover:bg-red-50"}`}

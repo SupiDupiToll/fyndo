@@ -12,6 +12,7 @@ Fyndo ist ein smarter Online-Marktplatz, auf dem Händler Produkte verkaufen und
 - **POS-System** – Kassensystem pro Verkäufer: Kiosk-Modus, Bestellgruppen, Nummern-Karten, Lock-Screen, Containers & Toppings, Varianten, Audio-Ansagen (Speech), Zahlungsarten (RBank, QR/Tippie, Terminal, Bar, Gutschein).
 - **Admin-Bereich** – Verwaltung von Verkäufern, Produkten, Concierge-Bestellungen, Auszahlungsanträgen und Einstellungen.
 - **Benachrichtigungen** – Push-Benachrichtigungen über **ntfy.sh** bei bezahlten Bestellungen, Drittshop-Anfragen und POS-Zahlungen.
+- **Demo-Modus** – Vorschau der App unter `/demos` mit Beispieldaten und ohne echtes Checkout: Fyndo-Marktplatz (inkl. Admin) und Fyndo-POS. Ein Umschalter ganz oben wechselt zwischen den beiden Bereichen; die Seiten sind nur anschaubar, alle Aktionen sind deaktiviert.
 
 ## Tech-Stack
 
@@ -86,6 +87,7 @@ src/app/
                              Gutscheine, Concierge, Admin, POS, Verkäufer)
   api/                       Route-Handler (checkout, gift-cards, pos, products,
                              rabatt, third-party-orders, user, admin)
+  demos/                     Demo-Modus (Marktplatz + POS, nur Beispieldaten)
   gate/                      Gate-Seite (z. B. POS-Eingang)
   handler/                   Hexclave-Auth-Handler (sign-in/sign-up)
   pos/[vendor]/              POS-Seite pro Verkäufer
