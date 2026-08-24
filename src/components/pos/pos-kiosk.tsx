@@ -566,6 +566,47 @@ export function PosKiosk({
     }
   }
 
+  // Demo: bestellte Bestellungen in localStorage ablegen, damit sie auf dem
+  // Demo-Board (/demos/pos-board) live auftauchen.
+  function saveDemoPosOrder(info: OrderInfo, method: string | null) {
+    if (typeof window === "undefined") return;
+    try {
+      const items = Array.from(cart.values()).map((i) => ({
+        title: i.product.title,
+        variantName: i.variant?.name ?? null,
+        containerName: i.containerLabel,
+        amountCents: itemPrice(i.product, i.variant),
+        qty: i.qty,
+      }));
+      const entry = {
+        posGroupId: info.posGroupId,
+        posOrderNumber: info.posOrderNumber,
+        totalCents: info.totalCents,
+        quantity: cartCount,
+        itemCount: items.length,
+        method,
+        status: "PAID",
+        createdAt: new Date().toISOString(),
+        fulfilledAt: null,
+        items,
+      };
+      const key = "fyndo-demo-pos-orders";
+      let list: unknown[] = [];
+      try {
+        list = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown[];
+      } catch {
+        list = [];
+      }
+      const filtered = list.filter(
+        (e) => (e as { posGroupId?: string }).posGroupId !== info.posGroupId,
+      );
+      filtered.push(entry);
+      window.localStorage.setItem(key, JSON.stringify(filtered.slice(-15)));
+    } catch {
+      // localStorage nicht verfügbar – ignorieren
+    }
+  }
+
   async function createOrder(): Promise<OrderInfo | null> {
     if (order) return order;
     if (cart.size === 0 || cartTotal <= 0) return null;
@@ -639,6 +680,7 @@ export function PosKiosk({
       const currentOrder = orderInfo;
       const payTotal = currentOrder.totalCents - giftApplied;
       setBusy(false);
+      saveDemoPosOrder(currentOrder, m);
       setPaymentUrl(
         m === "TIPPIE"
           ? `https://pay.tippie.de/business-pay/3763235/EUR/${Math.max(payTotal, 0)}`
@@ -718,6 +760,7 @@ export function PosKiosk({
     setBusy(true);
     if (demo) {
       setBusy(false);
+      saveDemoPosOrder(order, "GUTSCHEIN");
       onConfirmed(cartTotal, order.posOrderNumber);
       return;
     }

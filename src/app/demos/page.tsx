@@ -14,8 +14,8 @@ export default function DemosIndexPage() {
             Fyndo<span className="text-accent">.</span>
           </h1>
           <p className="text-mute mt-4 max-w-xl mx-auto leading-relaxed">
-            Entdecke den Marktplatz und das POS-Kassensystem als interaktive Vorschau –
-            komplett mit Beispieldaten und ohne echtes Checkout.
+            Entdecke den Marktplatz, das POS-Kassensystem und die Bestellübersicht als
+            interaktive Vorschau – komplett mit Beispieldaten und ohne echtes Checkout.
           </p>
         </div>
 
@@ -68,6 +68,38 @@ export default function DemosIndexPage() {
               POS öffnen
               <i className="fa-solid fa-arrow-right" />
             </span>
+          </Link>
+
+          <Link
+            href="/demos/pos-board"
+            className="group rounded-3xl border border-line bg-white p-8 sm:p-10 hover:shadow-xl hover:border-accent/30 transition-all flex flex-col lg:col-span-2"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="flex items-center gap-5">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-accent text-2xl shrink-0">
+                  <i className="fa-solid fa-tv" />
+                </span>
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight group-hover:text-accent transition-colors">
+                    Fyndo POS Bestellübersicht
+                  </h2>
+                  <p className="mt-2 text-mute leading-relaxed">
+                    Das McDonald's-ähnliche Bestell-Board: In Bearbeitung links, zur Abholung
+                    bereit rechts. Neue Bestellungen ploppen groß auf und wandern klein in die
+                    Spalte – abholbereite Bestellungen verschwinden nach Ablauf der Zeit.
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-bold text-white group-hover:bg-accent-hover transition-colors w-fit shrink-0">
+                Board öffnen
+                <i className="fa-solid fa-arrow-right" />
+              </span>
+            </div>
+            <p className="mt-6 rounded-2xl bg-tile px-4 py-3 text-sm text-mute">
+              <i className="fa-solid fa-circle-info mr-2 text-accent" />
+              Live-Simulation: Bestellungen aus dem POS-Kiosk („Fyndo POS“) erscheinen
+              automatisch auf dem Board – am besten in zwei Tabs nebeneinander öffnen.
+            </p>
           </Link>
         </div>
 

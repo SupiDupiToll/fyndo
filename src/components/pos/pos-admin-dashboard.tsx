@@ -44,8 +44,8 @@ const statusLabels: Record<string, string> = {
 };
 
 export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
-  const [scope, setScope] = useState<"open" | "paid" | "all">("open");
   const [groups, setGroups] = useState<PosGroup[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -66,6 +66,15 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
   useEffect(() => {
     window.localStorage.setItem("fyndo-pos-admin-sound", orderSoundOn ? "1" : "0");
   }, [orderSoundOn]);
+
+  useEffect(() => {
+    if (!showAll) return;
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowAll(false);
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showAll]);
 
   function playChime() {
     if (!orderSoundOn || typeof window === "undefined") return;
@@ -170,7 +179,7 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
 
   async function load() {
     try {
-      const res = await fetch(`/api/pos/groups?scope=${scope}`);
+      const res = await fetch("/api/pos/groups?scope=all");
       if (!res.ok) throw new Error("Fehler beim Laden");
       const data = await res.json();
       setGroups(data);
@@ -202,7 +211,7 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
     const interval = window.setInterval(() => void load(), 5000);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope]);
+  }, []);
 
   async function confirm(group: PosGroup) {
     setBusyId(group.posGroupId);
@@ -270,10 +279,9 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
     }
   }
 
-  const openCount = groups.filter((g) => g.status === "PENDING" || g.status === "DONE").length;
-  const paidTotal = groups
-    .filter((g) => g.status === "PAID")
-    .reduce((s, g) => s + g.totalCents, 0);
+  const pendingGroups = groups.filter((g) => g.status === "PENDING");
+  const paidGroups = groups.filter((g) => g.status === "PAID");
+  const paidTotal = paidGroups.reduce((s, g) => s + g.totalCents, 0);
 
   return (
     <div className="space-y-6">
@@ -282,7 +290,26 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
           <h1 className="text-3xl font-bold tracking-tight">POS-Kasse</h1>
           <p className="text-sm text-mute mt-1">{vendorName}</p>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
+          <a
+            href={`/pos/${encodeURIComponent(vendorName)}/board`}
+            className="flex items-center gap-2 rounded-xl bg-ink text-white px-4 py-2 text-sm font-bold hover:bg-ink/90 transition-colors"
+            title="Bestellübersicht (Board) als Vollbild öffnen"
+          >
+            <i className="fa-solid fa-tv" />
+            <span className="hidden md:inline">Bestellübersicht</span>
+          </a>
+          <button
+            onClick={() => setShowAll(true)}
+            className="flex items-center gap-2 rounded-xl border border-line px-4 py-2 text-sm font-bold text-ink hover:bg-surf transition-colors"
+            title="Alle Bestellungen in einem Popup anzeigen"
+          >
+            <i className="fa-solid fa-list" />
+            <span className="hidden md:inline">Alle anzeigen</span>
+            <span className="flex items-center justify-center min-w-5 h-5 rounded-full bg-accent/10 px-1.5 text-xs font-black text-accent tabular-nums">
+              {groups.length}
+            </span>
+          </button>
           <button
             onClick={() => setOrderSoundOn((s) => !s)}
             className={`h-10 w-10 rounded-xl border flex items-center justify-center text-lg transition-colors ${orderSoundOn ? "border-accent text-accent" : "border-line text-mute"}`}
@@ -291,28 +318,18 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
           >
             <i className={`${orderSoundOn ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark"}`} />
           </button>
-          {(["open", "paid", "all"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setScope(s)}
-              className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
-                scope === s ? "bg-accent text-white" : "border border-line hover:bg-surf"
-              }`}
-            >
-              {s === "open" ? "Offen" : s === "paid" ? "Bezahlt" : "Alle"}
-            </button>
-          ))}
         </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-sm text-mute font-medium">Offene Bestellungen</p>
-          <p className="text-3xl font-bold mt-1">{openCount}</p>
+          <p className="text-sm text-mute font-medium">Zu bestätigen</p>
+          <p className="text-3xl font-bold mt-1">{pendingGroups.length}</p>
         </div>
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-sm text-mute font-medium">Bezahlt (Auswahl)</p>
-          <p className="text-3xl font-bold mt-1">{formatEuro(paidTotal)}</p>
+          <p className="text-sm text-mute font-medium">Bezahlt – in Bearbeitung</p>
+          <p className="text-3xl font-bold mt-1">{paidGroups.length}</p>
+          <p className="text-xs text-mute mt-0.5">Summe {formatEuro(paidTotal)}</p>
         </div>
         <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-sm text-mute font-medium">Live-Aktualisierung</p>
@@ -326,121 +343,103 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
 
       {loading && groups.length === 0 ? (
         <div className="text-center py-16 text-mute">Lade Bestellungen…</div>
-      ) : groups.length === 0 ? (
-        <div className="text-center py-16 text-mute">Keine Bestellungen in dieser Ansicht.</div>
       ) : (
-        <div className="space-y-3">
-          {groups.map((group) => {
-            const time = new Date(group.createdAt);
-            return (
-              <div key={group.posGroupId} className="rounded-2xl border border-line bg-white p-4">
-                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {group.posOrderNumber && (
-                        <span className="inline-flex items-center justify-center min-w-8 h-8 rounded-lg bg-accent text-white px-2 text-sm font-black tabular-nums">
-                          #{group.posOrderNumber}
-                        </span>
-                      )}
-                      <span className={`inline-block rounded-full border px-3 py-1 text-xs font-bold ${statusStyles[group.status]}`}>
-                        {statusLabels[group.status]}
-                      </span>
-                      {group.method && (
-                        <span className="inline-block rounded-full bg-tile px-3 py-1 text-xs font-bold text-mute">
-                          {METHOD_LABELS[group.method] ?? group.method}
-                        </span>
-                      )}
-                      <span className="text-xs text-mute">
-                        {time.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} ·{" "}
-                        {time.toLocaleDateString("de-DE")}
-                      </span>
-                    </div>
-                    <div className="mt-3 space-y-1">
-                      {(() => {
-                        const itemGroups: { name: string | null; items: typeof group.items }[] = [];
-                        for (const item of group.items) {
-                          const existing = itemGroups.find((g) => g.name === item.containerName);
-                          if (existing) existing.items.push(item);
-                          else itemGroups.push({ name: item.containerName, items: [item] });
-                        }
-                        return itemGroups.map((ig, igIdx) => (
-                          <div key={igIdx}>
-                            {ig.name && (
-                              <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-accent">
-                                {ig.name}
-                              </p>
-                            )}
-                            {ig.items.map((item, idx) => (
-                              <div key={idx} className="flex items-center justify-between gap-3 text-sm">
-                                <span className="text-ink truncate">
-                                  {item.title}
-                                  {item.variantName && (
-                                    <span className="text-mute"> ({item.variantName})</span>
-                                  )}
-                                  {item.qty > 1 && (
-                                    <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 rounded-full bg-accent/10 px-2 text-xs font-bold text-accent tabular-nums">
-                                      ×{item.qty}
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="text-mute tabular-nums shrink-0">{formatEuro(item.amountCents)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section>
+            <ColumnHeader
+              title="Zu bestätigen"
+              subtitle="noch nicht bezahlt"
+              count={pendingGroups.length}
+              dotClass="bg-yellow-500"
+              textClass="text-yellow-700"
+            />
+            <div className="mt-3 space-y-3">
+              {pendingGroups.length === 0 ? (
+                <EmptyState text="Keine unbezahlten Bestellungen." />
+              ) : (
+                pendingGroups.map((group) => (
+                  <OrderCard
+                    key={group.posGroupId}
+                    group={group}
+                    busyId={busyId}
+                    method={methods[group.posGroupId] ?? group.method ?? "CASH"}
+                    onMethodChange={(m) => setMethods((prev) => ({ ...prev, [group.posGroupId]: m }))}
+                    onConfirm={() => void confirm(group)}
+                    onFulfill={() => void fulfill(group)}
+                    onCancel={() => void cancel(group)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
 
-                  <div className="flex flex-row lg:flex-col items-center lg:items-end gap-3 lg:gap-2 shrink-0">
-                    <div className="lg:text-right">
-                      <div className="text-2xl font-black tabular-nums">{formatEuro(group.totalCents)}</div>
-                      <div className="text-xs text-mute">{group.quantity} Artikel</div>
-                    </div>
-                    {group.status === "PENDING" && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <select
-                          value={methods[group.posGroupId] ?? group.method ?? "CASH"}
-                          onChange={(e) => setMethods((m) => ({ ...m, [group.posGroupId]: e.target.value }))}
-                          className="rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold text-ink outline-none"
-                        >
-                          <option value="CASH">Bar</option>
-                          <option value="TERMINAL">Kartenterminal</option>
-                          <option value="TIPPIE">QR (PayPal/Apple Pay/Karte)</option>
-                          <option value="RBANK">RBank</option>
-                        </select>
-                        <button
-                          onClick={() => void confirm(group)}
-                          disabled={busyId === group.posGroupId}
-                          className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-                        >
-                          Bezahlt ✓
-                        </button>
-                        <button
-                          onClick={() => void cancel(group)}
-                          disabled={busyId === group.posGroupId}
-                          className="rounded-xl border border-line px-4 py-2 text-sm font-bold text-mute hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                        >
-                          Stornieren
-                        </button>
-                      </div>
-                    )}
-                    {group.status === "PAID" && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={() => void fulfill(group)}
-                          disabled={busyId === group.posGroupId}
-                          className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                        >
-                          Ausgeführt ✓
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          <section>
+            <ColumnHeader
+              title="In Bearbeitung"
+              subtitle="bezahlt, noch nicht ausgeführt"
+              count={paidGroups.length}
+              dotClass="bg-green-600"
+              textClass="text-green-700"
+            />
+            <div className="mt-3 space-y-3">
+              {paidGroups.length === 0 ? (
+                <EmptyState text="Keine bezahlten Bestellungen in Bearbeitung." />
+              ) : (
+                paidGroups.map((group) => (
+                  <OrderCard
+                    key={group.posGroupId}
+                    group={group}
+                    busyId={busyId}
+                    method={methods[group.posGroupId] ?? group.method ?? "CASH"}
+                    onMethodChange={(m) => setMethods((prev) => ({ ...prev, [group.posGroupId]: m }))}
+                    onConfirm={() => void confirm(group)}
+                    onFulfill={() => void fulfill(group)}
+                    onCancel={() => void cancel(group)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showAll && (
+        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-line shrink-0">
+              <h2 className="text-xl font-bold tracking-tight">
+                Alle Bestellungen{" "}
+                <span className="text-mute text-base font-medium">({groups.length})</span>
+              </h2>
+              <button
+                onClick={() => setShowAll(false)}
+                className="h-10 w-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors"
+                aria-label="Schließen"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+              {groups.length === 0 ? (
+                <EmptyState text="Keine Bestellungen vorhanden." />
+              ) : (
+                [...groups]
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((group) => (
+                    <OrderCard
+                      key={group.posGroupId}
+                      group={group}
+                      busyId={busyId}
+                      method={methods[group.posGroupId] ?? group.method ?? "CASH"}
+                      onMethodChange={(m) => setMethods((prev) => ({ ...prev, [group.posGroupId]: m }))}
+                      onConfirm={() => void confirm(group)}
+                      onFulfill={() => void fulfill(group)}
+                      onCancel={() => void cancel(group)}
+                    />
+                  ))
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -622,6 +621,171 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
           {lockError && <span className="text-sm font-bold text-red-500">{lockError}</span>}
         </div>
       </section>
+    </div>
+  );
+}
+
+function ColumnHeader({
+  title,
+  subtitle,
+  count,
+  dotClass,
+  textClass,
+}: {
+  title: string;
+  subtitle: string;
+  count: number;
+  dotClass: string;
+  textClass: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-3">
+      <div className="min-w-0">
+        <h2 className={`flex items-center gap-2 text-sm font-black uppercase tracking-widest ${textClass}`}>
+          <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+          {title}
+        </h2>
+        <p className="text-[11px] text-mute mt-0.5">{subtitle}</p>
+      </div>
+      <span className="flex items-center justify-center min-w-8 h-8 rounded-full bg-tile px-2 text-sm font-black tabular-nums">
+        {count}
+      </span>
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-line bg-white/60 px-4 py-10 text-center text-sm text-mute">
+      {text}
+    </div>
+  );
+}
+
+function OrderCard({
+  group,
+  busyId,
+  method,
+  onMethodChange,
+  onConfirm,
+  onFulfill,
+  onCancel,
+}: {
+  group: PosGroup;
+  busyId: string | null;
+  method: string;
+  onMethodChange: (method: string) => void;
+  onConfirm: () => void;
+  onFulfill: () => void;
+  onCancel: () => void;
+}) {
+  const time = new Date(group.createdAt);
+  return (
+    <div className="rounded-2xl border border-line bg-white p-4">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {group.posOrderNumber && (
+              <span className="inline-flex items-center justify-center min-w-8 h-8 rounded-lg bg-accent text-white px-2 text-sm font-black tabular-nums">
+                #{group.posOrderNumber}
+              </span>
+            )}
+            <span className={`inline-block rounded-full border px-3 py-1 text-xs font-bold ${statusStyles[group.status]}`}>
+              {statusLabels[group.status]}
+            </span>
+            {group.method && (
+              <span className="inline-block rounded-full bg-tile px-3 py-1 text-xs font-bold text-mute">
+                {METHOD_LABELS[group.method] ?? group.method}
+              </span>
+            )}
+            <span className="text-xs text-mute">
+              {time.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} ·{" "}
+              {time.toLocaleDateString("de-DE")}
+            </span>
+          </div>
+          <div className="mt-3 space-y-1">
+            {(() => {
+              const itemGroups: { name: string | null; items: typeof group.items }[] = [];
+              for (const item of group.items) {
+                const existing = itemGroups.find((g) => g.name === item.containerName);
+                if (existing) existing.items.push(item);
+                else itemGroups.push({ name: item.containerName, items: [item] });
+              }
+              return itemGroups.map((ig, igIdx) => (
+                <div key={igIdx}>
+                  {ig.name && (
+                    <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-accent">
+                      {ig.name}
+                    </p>
+                  )}
+                  {ig.items.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-ink truncate">
+                        {item.title}
+                        {item.variantName && (
+                          <span className="text-mute"> ({item.variantName})</span>
+                        )}
+                        {item.qty > 1 && (
+                          <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 rounded-full bg-accent/10 px-2 text-xs font-bold text-accent tabular-nums">
+                            ×{item.qty}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-mute tabular-nums shrink-0">{formatEuro(item.amountCents)}</span>
+                    </div>
+                  ))}
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+
+        <div className="flex flex-row lg:flex-col items-center lg:items-end gap-3 lg:gap-2 shrink-0">
+          <div className="lg:text-right">
+            <div className="text-2xl font-black tabular-nums">{formatEuro(group.totalCents)}</div>
+            <div className="text-xs text-mute">{group.quantity} Artikel</div>
+          </div>
+          {group.status === "PENDING" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={method}
+                onChange={(e) => onMethodChange(e.target.value)}
+                className="rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold text-ink outline-none"
+              >
+                <option value="CASH">Bar</option>
+                <option value="TERMINAL">Kartenterminal</option>
+                <option value="TIPPIE">QR (PayPal/Apple Pay/Karte)</option>
+                <option value="RBANK">RBank</option>
+              </select>
+              <button
+                onClick={onConfirm}
+                disabled={busyId === group.posGroupId}
+                className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                Bezahlt ✓
+              </button>
+              <button
+                onClick={onCancel}
+                disabled={busyId === group.posGroupId}
+                className="rounded-xl border border-line px-4 py-2 text-sm font-bold text-mute hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                Stornieren
+              </button>
+            </div>
+          )}
+          {group.status === "PAID" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={onFulfill}
+                disabled={busyId === group.posGroupId}
+                className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+              >
+                Ausgeführt ✓
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

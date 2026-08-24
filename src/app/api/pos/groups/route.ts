@@ -62,6 +62,10 @@ export async function GET(request: Request) {
           : sorted.some((o) => o.status === "DONE")
             ? "DONE"
             : "PAID";
+      const fulfilledAt = sorted.reduce<Date | null>((acc, o) => {
+        if (!o.fulfilledAt) return acc;
+        return !acc || o.fulfilledAt > acc ? o.fulfilledAt : acc;
+      }, null);
 
       return {
         posGroupId,
@@ -73,6 +77,7 @@ export async function GET(request: Request) {
         itemCount: sorted.length,
         quantity: sorted.reduce((s, o) => s + (o.quantity || 1), 0),
         createdAt: first.createdAt.toISOString(),
+        fulfilledAt: fulfilledAt?.toISOString() ?? null,
         items: sorted.map((o) => ({
           title: o.product.title,
           variantName: o.variantName ?? null,

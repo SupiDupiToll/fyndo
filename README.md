@@ -10,9 +10,10 @@ Fyndo ist ein smarter Online-Marktplatz, auf dem Händler Produkte verkaufen und
 - **Geschenkkarten (Gift Cards)** – Käufliche Fyndo-Gutscheine mit Betrag und persönlicher Nachricht; Status-Lebenszyklus `PENDING → ACTIVE → REDEEMED/EXPIRED`, einsetzbar als Zahlungsmittel im Checkout und POS.
 - **Concierge / Drittshop-Bestellungen** – Bestellung eines beliebigen Produkts aus einem externen Shop per URL. Die App ruft die Shop-Metadaten (Name, Favicon, Host) ab und wickelt Anfrage → Angebot → Bestellung → Erfüllung ab.
 - **POS-System** – Kassensystem pro Verkäufer: Kiosk-Modus, Bestellgruppen, Nummern-Karten, Lock-Screen, Containers & Toppings, Varianten, Audio-Ansagen (Speech), Zahlungsarten (RBank, QR/Tippie, Terminal, Bar, Gutschein).
+- **POS-Bestellübersicht (Board)** – McDonald's-ähnlicher Vollbild-Bildschirm unter `/pos/[vendor]/board`: links „In Bearbeitung“, rechts „Zur Abholung bereit“. Es werden nur **bezahlte** Bestellungen angezeigt (unbezahlte werden ausgeblendet), dargestellt als große **Bestellnummern** ohne Artikel-Details. Neue Bestellungen ploppen groß auf und wandern klein in die linke Spalte; beim Wechsel auf „Ausgeführt“ kommt erneut ein großes Pop-up („Zur Abholung bereit“), die Nummer fliegt nach rechts und verschwindet nach **10 Minuten** (Countdown + Fortschrittsbalken) automatisch. Öffnen lässt sich das Board über den Button „Bestellübersicht“ im POS-Admin-Bereich.
 - **Admin-Bereich** – Verwaltung von Verkäufern, Produkten, Concierge-Bestellungen, Auszahlungsanträgen und Einstellungen.
 - **Benachrichtigungen** – Push-Benachrichtigungen über **ntfy.sh** bei bezahlten Bestellungen, Drittshop-Anfragen und POS-Zahlungen.
-- **Demo-Modus** – Vorschau der App unter `/demos` mit Beispieldaten und ohne echtes Checkout: Fyndo-Marktplatz (inkl. Admin) und Fyndo-POS. Ein Umschalter ganz oben wechselt zwischen den beiden Bereichen; die Seiten sind nur anschaubar, alle Aktionen sind deaktiviert.
+- **Demo-Modus** – Vorschau der App unter `/demos` mit Beispieldaten und ohne echtes Checkout: Fyndo-Marktplatz (inkl. Admin), Fyndo-POS und die **Bestellübersicht** unter `/demos/pos-board` (Live-Simulation mit verkürzter Abholzeit, damit der komplette Zyklus sofort sichtbar ist). Bestellungen, die im POS-Kiosk-Demo aufgegeben werden, erscheinen automatisch auf dem Demo-Board (am besten in zwei Tabs nebeneinander öffnen). Ein Umschalter ganz oben wechselt zwischen den Bereichen; die Seiten sind nur anschaubar, alle Aktionen sind deaktiviert.
 
 ## Tech-Stack
 
@@ -90,7 +91,7 @@ src/app/
   demos/                     Demo-Modus (Marktplatz + POS, nur Beispieldaten)
   gate/                      Gate-Seite (z. B. POS-Eingang)
   handler/                   Hexclave-Auth-Handler (sign-in/sign-up)
-  pos/[vendor]/              POS-Seite pro Verkäufer
+  pos/[vendor]/              POS-Seite pro Verkäufer (Kiosk + Bestellübersicht/Board)
 src/components/              UI-Komponenten (Nav, Footer, POS-Kiosk, Picker, ...)
 src/generated/prisma/        Generierter Prisma-Client
 src/hexclave/                Hexclave-Server-App-Setup
