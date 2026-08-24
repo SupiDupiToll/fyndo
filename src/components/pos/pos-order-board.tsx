@@ -212,7 +212,7 @@ export function PosOrderBoard({
             side: isDone ? "right" : "left",
             readyAt,
             expiresAt,
-            inColumn: isDone,
+            inColumn: !popupNew || isDone,
           };
           next.set(g.posGroupId, order);
           if (popupNew) popups.push({ order, kind: isDone ? "ready" : "new" });
