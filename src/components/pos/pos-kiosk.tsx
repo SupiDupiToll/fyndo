@@ -18,6 +18,7 @@ import { formatEuro } from "@/lib/format";
 import { LockScreen } from "@/components/pos/lock-screen";
 import { SuccessBurst } from "@/components/kokonutui/success-burst";
 import type { PosSettings } from "@/lib/pos-settings";
+import { PosDebugMenu } from "@/components/pos/pos-debug-menu";
 
 export type PosVariant = { id: string; name: string; priceCents: number };
 
@@ -144,14 +145,32 @@ export function PosKiosk({
   const [gridNonce, setGridNonce] = useState(0);
   const initialAnnounceRef = useRef(false);
   const demoConfirmTimerRef = useRef<number | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const debugTimerRef = useRef<number | null>(null);
+  const debugTapRef = useRef(0);
 
   useEffect(() => {
     return () => {
       if (demoConfirmTimerRef.current !== null) {
         window.clearTimeout(demoConfirmTimerRef.current);
       }
+      if (debugTimerRef.current !== null) {
+        window.clearTimeout(debugTimerRef.current);
+      }
     };
   }, []);
+
+  function handleLogoClick() {
+    debugTapRef.current += 1;
+    if (debugTimerRef.current !== null) window.clearTimeout(debugTimerRef.current);
+    debugTimerRef.current = window.setTimeout(() => {
+      debugTapRef.current = 0;
+    }, 1800);
+    if (debugTapRef.current >= 10) {
+      debugTapRef.current = 0;
+      setDebugOpen(true);
+    }
+  }
 
   useEffect(() => {
     if (!method && demoConfirmTimerRef.current !== null) {
@@ -977,10 +996,17 @@ export function PosKiosk({
       <header className="sticky top-0 z-30 bg-white border-b border-line">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight truncate">
-              {vendorName}
-              <span className="text-accent">.</span>
-            </h1>
+            <button
+              type="button"
+              onClick={handleLogoClick}
+              className="block max-w-full text-left select-none"
+              aria-label={settings.adminEnabled ? "Einstellungen" : vendorName}
+            >
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight truncate">
+                {vendorName}
+                <span className="text-accent">.</span>
+              </h1>
+            </button>
             <p className="text-xs text-mute -mt-0.5">Tippen & Bestellen</p>
           </div>
           <div className="flex items-center gap-3">
@@ -1296,6 +1322,14 @@ export function PosKiosk({
           />
         )}
       </AnimatePresence>
+
+      {debugOpen && (
+        <PosDebugMenu
+          vendorName={vendorName}
+          adminEnabled={settings.adminEnabled && settings.adminCodeHash !== ""}
+          onClose={() => setDebugOpen(false)}
+        />
+      )}
     </div>
   );
 }

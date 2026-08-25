@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSellerOrSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parsePosSettings, POS_SETTINGS_DEFAULTS, type PosSettings } from "@/lib/pos-settings";
+import { hashAdminCode } from "@/lib/admin-code";
 
 export const dynamic = "force-dynamic";
 
@@ -62,9 +63,19 @@ export async function PUT(request: Request) {
   }
 
   const settings = parsePosSettings(body);
+  const bodyRaw = (body ?? {}) as Record<string, unknown>;
+
+  let adminCodeHash = settings.adminCodeHash;
+  if (typeof bodyRaw.adminCode === "string" && bodyRaw.adminCode.trim() !== "") {
+    adminCodeHash = await hashAdminCode(bodyRaw.adminCode);
+  } else if (bodyRaw.clearAdminCode === true) {
+    adminCodeHash = "";
+  }
+
   const trimmed: PosSettings = {
     ...POS_SETTINGS_DEFAULTS,
     ...settings,
+    adminCodeHash,
     idleTimeoutSeconds: Math.max(5, Math.min(settings.idleTimeoutSeconds, 600)),
     lockWarningSeconds: Math.max(1, Math.min(settings.lockWarningSeconds, 60)),
     successAutoLockSeconds: Math.max(0, Math.min(settings.successAutoLockSeconds, 120)),

@@ -10,6 +10,8 @@ export type PosSettings = {
   showOnLoad: boolean;
   successAutoLockSeconds: number;
   media: PosLockMedia[];
+  adminEnabled: boolean;
+  adminCodeHash: string;
 };
 
 export const POS_SETTINGS_DEFAULTS: PosSettings = {
@@ -19,6 +21,8 @@ export const POS_SETTINGS_DEFAULTS: PosSettings = {
   showOnLoad: true,
   successAutoLockSeconds: 15,
   media: [],
+  adminEnabled: false,
+  adminCodeHash: "",
 };
 
 export function parsePosSettings(raw: unknown): PosSettings {
@@ -61,5 +65,11 @@ export function parsePosSettings(raw: unknown): PosSettings {
         ? Math.round(obj.successAutoLockSeconds)
         : POS_SETTINGS_DEFAULTS.successAutoLockSeconds,
     media,
+    adminEnabled:
+      typeof obj.adminEnabled === "boolean" ? obj.adminEnabled : POS_SETTINGS_DEFAULTS.adminEnabled,
+    adminCodeHash:
+      typeof obj.adminCodeHash === "string"
+        ? obj.adminCodeHash
+        : POS_SETTINGS_DEFAULTS.adminCodeHash,
   };
 }

@@ -51,6 +51,8 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [methods, setMethods] = useState<Record<string, string>>({});
   const [lockSettings, setLockSettings] = useState<PosSettings>({ ...POS_SETTINGS_DEFAULTS });
+  const [adminCodeDraft, setAdminCodeDraft] = useState("");
+  const [adminClear, setAdminClear] = useState(false);
   const [lockBusy, setLockBusy] = useState(false);
   const [lockError, setLockError] = useState("");
   const [lockSaved, setLockSaved] = useState(false);
@@ -144,7 +146,12 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
       const res = await fetch("/api/pos/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...lockSettings, vendor: vendorName }),
+        body: JSON.stringify({
+          ...lockSettings,
+          vendor: vendorName,
+          adminCode: adminCodeDraft,
+          clearAdminCode: adminClear,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -152,6 +159,8 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
         return;
       }
       setLockSettings(parsePosSettings(data));
+      setAdminCodeDraft("");
+      setAdminClear(false);
       setLockSaved(true);
       window.setTimeout(() => setLockSaved(false), 2500);
     } catch {
@@ -532,6 +541,69 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
                 />
               </button>
               <span>{lockSettings.showOnLoad ? "Ja" : "Nein"}</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-dashed border-accent/40 bg-accent/[0.03] p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-mute uppercase tracking-wider">
+                Verstecktes Admin-/Debug-Menü
+              </h3>
+              <p className="mt-1 text-xs text-mute max-w-2xl">
+                Im POS 10-mal auf den Shop-Namen tippen, dann nach dem hinterlegten Code zu
+                fragen. Mit dem Code lässt sich ein verstecktes Menü zum Neuladen und Debuggen
+                freischalten.
+              </p>
+            </div>
+            <label className="flex items-center gap-3 text-sm font-bold shrink-0">
+              <span className={lockSettings.adminEnabled ? "text-accent" : "text-mute"}>
+                {lockSettings.adminEnabled ? "Aktiv" : "Aus"}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={lockSettings.adminEnabled}
+                onClick={() =>
+                  setLockSettings((s) => ({ ...s, adminEnabled: !s.adminEnabled }))
+                }
+                className={`relative h-8 w-14 rounded-full transition-colors ${lockSettings.adminEnabled ? "bg-accent" : "bg-tile"}`}
+              >
+                <span
+                  className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${lockSettings.adminEnabled ? "left-7" : "left-1"}`}
+                />
+              </button>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block">
+              <span className="text-xs font-bold text-mute uppercase tracking-wider">
+                Neuen Code festlegen
+              </span>
+              <input
+                type="password"
+                value={adminCodeDraft}
+                onChange={(e) => setAdminCodeDraft(e.target.value)}
+                placeholder={lockSettings.adminCodeHash ? "•••••• (bereits gesetzt)" : "Code zum Entsperren"}
+                className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-bold outline-none focus:border-accent"
+              />
+              <span className="mt-1 block text-xs text-mute">
+                Wird beim Speichern gehasht gespeichert.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2 pt-7">
+              <input
+                type="checkbox"
+                checked={adminClear}
+                onChange={(e) => setAdminClear(e.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <span className="text-xs text-mute">
+                Vorhandenen Code entfernen (Admin-Menü deaktivieren, bis ein neuer Code gesetzt wird)
+              </span>
             </label>
           </div>
         </div>
