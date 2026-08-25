@@ -719,6 +719,39 @@ export function PosKiosk({
     }
   }
 
+  async function confirmCash() {
+    if (!order) return;
+    setError("");
+    setBusy(true);
+    if (demo) {
+      setBusy(false);
+      saveDemoPosOrder(order, "CASH");
+      onConfirmed(cartTotal, order.posOrderNumber);
+      return;
+    }
+    try {
+      const res = await fetch("/api/pos/orders/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          posGroupId: order.posGroupId,
+          posConfirmToken: order.posConfirmToken,
+          method: "CASH",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Bestätigung fehlgeschlagen.");
+        return;
+      }
+      onConfirmed(cartTotal, order.posOrderNumber);
+    } catch {
+      setError("Bestätigung fehlgeschlagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function applyGiftCard(code: string) {
     if (!order) return null;
     setError("");
@@ -1219,6 +1252,7 @@ export function PosKiosk({
             onSelectMethod={(m) => void selectMethod(m)}
             onApplyGiftCard={(code) => applyGiftCard(code)}
             onConfirmGiftCardFull={() => void confirmGiftCardFull()}
+            onConfirmCash={() => void confirmCash()}
             onRetry={() => void createOrder()}
             onBack={
               method
@@ -2323,6 +2357,7 @@ function CheckoutOverlay({
   onSelectMethod,
   onApplyGiftCard,
   onConfirmGiftCardFull,
+  onConfirmCash,
   onRetry,
   onBack,
 }: {
@@ -2338,10 +2373,10 @@ function CheckoutOverlay({
   onSelectMethod: (m: PosPaymentMethod) => void;
   onApplyGiftCard: (code: string) => Promise<{ deduction: number; remainder: number } | null>;
   onConfirmGiftCardFull: () => void;
+  onConfirmCash: () => void;
   onRetry: () => void;
   onBack: () => void;
-}) {
-  const displayNumber = order?.posOrderNumber ?? null;
+}) {  const displayNumber = order?.posOrderNumber ?? null;
   return (
     <motion.div
       className="fixed inset-0 z-40 bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8"
@@ -2536,7 +2571,12 @@ function CheckoutOverlay({
                 exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.22 }}
               >
-                <CashView totalCents={totalCents} />
+                <CashView
+                  totalCents={totalCents}
+                  busy={busy}
+                  error={error}
+                  onConfirm={onConfirmCash}
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -2839,7 +2879,17 @@ function TerminalView() {
   );
 }
 
-function CashView({ totalCents }: { totalCents: number }) {
+function CashView({
+  totalCents,
+  busy,
+  error,
+  onConfirm,
+}: {
+  totalCents: number;
+  busy: boolean;
+  error: string;
+  onConfirm: () => void;
+}) {
   return (
     <div className="flex flex-col items-center text-center">
       <div className="mt-2 w-48 h-48 rounded-3xl border border-line bg-surf flex flex-col items-center justify-center">
@@ -2849,14 +2899,21 @@ function CashView({ totalCents }: { totalCents: number }) {
         </span>
       </div>
       <p className="mt-5 text-sm text-mute max-w-sm">
-        Bitte den Betrag an der Kasse bezahlen und Ihre Nummer nennen.
+        Bitte im Geschäft abholen und an der Kasse bezahlen. Sobald Sie
+        bestätigen, wird Ihre Bestellung an den Marktstand übertragen.
       </p>
-      <div className="mt-6 flex items-center gap-3 text-mute">
-        <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm font-medium">
-          Warte auf Bezahlung und Bestätigung…
-        </span>
-      </div>
+      {error && (
+        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">
+          {error}
+        </p>
+      )}
+      <button
+        onClick={onConfirm}
+        disabled={busy}
+        className="mt-6 w-full max-w-sm rounded-full bg-accent px-8 py-4 text-base font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
+      >
+        {busy ? "Wird gesendet…" : "Beim Abholen bezahlen"}
+      </button>
     </div>
   );
 }
