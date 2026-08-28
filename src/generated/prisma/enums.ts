@@ -71,3 +71,12 @@ export const GiftCardStatus = {
 } as const
 
 export type GiftCardStatus = (typeof GiftCardStatus)[keyof typeof GiftCardStatus]
+
+
+export const PayoutStatus = {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+} as const
+
+export type PayoutStatus = (typeof PayoutStatus)[keyof typeof PayoutStatus]

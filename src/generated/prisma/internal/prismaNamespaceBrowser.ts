@@ -52,6 +52,7 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   User: 'User',
+  Payout: 'Payout',
   Product: 'Product',
   Order: 'Order',
   PosNumberCard: 'PosNumberCard',
@@ -88,6 +89,23 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const PayoutScalarFieldEnum = {
+  id: 'id',
+  sellerId: 'sellerId',
+  amountCents: 'amountCents',
+  feeCents: 'feeCents',
+  note: 'note',
+  idempotencyKey: 'idempotencyKey',
+  status: 'status',
+  rbankPayoutId: 'rbankPayoutId',
+  error: 'error',
+  createdAt: 'createdAt',
+  completedAt: 'completedAt'
+} as const
+
+export type PayoutScalarFieldEnum = (typeof PayoutScalarFieldEnum)[keyof typeof PayoutScalarFieldEnum]
 
 
 export const ProductScalarFieldEnum = {

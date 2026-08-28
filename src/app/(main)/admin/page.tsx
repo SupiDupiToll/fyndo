@@ -85,11 +85,11 @@ export default async function AdminDashboardPage() {
         <section className="rounded-3xl border border-line bg-white p-6 sm:p-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
-              <h2 className="text-xl font-bold">Auszahlung beantragen</h2>
+              <h2 className="text-xl font-bold">Auszahlung</h2>
               <p className="mt-2 text-sm text-mute">
                 Dein Guthaben beträgt <strong>{formatEuro(user.sellerBalanceCents)}</strong>.
                 Bei einer Auszahlung wird eine Gebühr von 5% + 55&nbsp;Cent erhoben.
-                Nach der Anfrage wird der Betrag zurückgesetzt und der Admin per E-Mail benachrichtigt.
+                Der Betrag wird direkt auf dein RBank-Konto überwiesen (E-Mail-Adresse wird dafür aufgelöst).
               </p>
             </div>
             <VendorPayoutRequestButton />

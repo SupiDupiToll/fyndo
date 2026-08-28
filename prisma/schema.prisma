@@ -50,6 +50,12 @@ enum GiftCardStatus {
   EXPIRED
 }
 
+enum PayoutStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id               String             @id @default(cuid())
   stackUserId      String             @unique
@@ -64,6 +70,24 @@ model User {
   thirdPartyOrders ThirdPartyOrder[]
   products         Product[]
   giftCards        GiftCard[]
+  payouts          Payout[]
+}
+
+model Payout {
+  id             String       @id @default(cuid())
+  sellerId       String
+  seller         User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  amountCents    Int
+  feeCents       Int
+  note           String?
+  idempotencyKey String       @unique
+  status         PayoutStatus @default(PENDING)
+  rbankPayoutId  String?
+  error          String?
+  createdAt      DateTime     @default(now())
+  completedAt    DateTime?
+
+  @@index([sellerId, status])
 }
 
 model Product {

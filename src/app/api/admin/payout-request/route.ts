@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hexclaveServerApp } from "@/hexclave/server";
-import { getAdminEmailList, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/format";
-import type { Prisma } from "@/generated/prisma/client";
+import { createRbankPayout, RbankPayoutError } from "@/lib/rbank";
+import { isDemoUser } from "@/lib/demo";
 
 export async function POST(request: NextRequest) {
   let note = "";
@@ -13,6 +13,10 @@ export async function POST(request: NextRequest) {
 
     if (user.role !== "SELLER") {
       return NextResponse.json({ error: "Nur Verkäufer können eine Auszahlung beantragen." }, { status: 403 });
+    }
+
+    if (isDemoUser(user)) {
+      return NextResponse.json({ error: "Demo-Nutzer können keine Auszahlung anfordern." }, { status: 403 });
     }
 
     try {
@@ -30,70 +34,91 @@ export async function POST(request: NextRequest) {
     const feeCents = Math.round(balanceCents * 0.05) + 55;
     const netCents = Math.max(balanceCents - feeCents, 0);
 
-    const adminEmails = getAdminEmailList();
-    const admins = adminEmails.length > 0
-      ? await prisma.user.findMany({
-          where: { email: { in: adminEmails } },
-          select: { stackUserId: true, email: true, displayName: true },
-        })
-      : [];
-
-    if (admins.length === 0) {
-      return NextResponse.json({ error: "Kein Admin für die Auszahlung gefunden." }, { status: 500 });
+    if (netCents <= 0) {
+      return NextResponse.json({ error: "Nach Abzug der Gebühr bleibt kein Auszahlungsbetrag übrig." }, { status: 400 });
     }
 
-    const recentOrders = await prisma.order.findMany({
-      where: {
-        status: { in: ["PAID", "DONE"] as const },
-        product: { sellerId: user.id },
-      },
-      include: { product: { select: { title: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }) as Prisma.OrderGetPayload<{ include: { product: { select: { title: true } } } }>[];
-
     const sellerName = user.sellerName?.trim() || user.displayName;
-    const subject = `Auszahlungsanfrage von ${sellerName}`;
-    const orderLines = recentOrders.length > 0
-      ? recentOrders.map((order) => {
-          const grossOrderAmount = order.amountCents + (order.giftCardDeduction ?? 0);
-          return `${order.product.title}: ${formatEuro(grossOrderAmount)}${order.giftCardDeduction ? ` (Gutschein ${formatEuro(order.giftCardDeduction)})` : ""}`;
-        }).join("<br/>")
-      : "Keine Detailposten vorhanden.";
+    const description = `Fyndo Auszahlung ${sellerName}${note ? ` – ${note}` : ""}`.slice(0, 120);
 
-    await hexclaveServerApp().sendEmail({
-      userIds: admins.map((admin) => admin.stackUserId),
-      subject,
-      notificationCategoryName: "Transactional",
-      html: `<div style="font-family:sans-serif;max-width:640px;margin:0 auto;padding:24px">
-        <h2 style="margin:0 0 12px">${subject}</h2>
-        <p style="color:#475569;line-height:1.6">
-          Verkäufer: <strong>${sellerName}</strong><br/>
-          E-Mail: <strong>${user.email}</strong><br/>
-          Brutto: <strong>${formatEuro(balanceCents)}</strong><br/>
-          Gebühr (5%+55ct): <strong>${formatEuro(feeCents)}</strong><br/>
-          Auszahlungsbetrag: <strong>${formatEuro(netCents)}</strong>
-        </p>
-        ${note ? `<p style="color:#475569;line-height:1.6"><strong>Notiz:</strong> ${note}</p>` : ""}
-        <div style="margin-top:20px;padding:16px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc">
-          <p style="margin:0 0 8px;font-weight:700">Letzte bezahlte Bestellungen</p>
-          <p style="margin:0;color:#475569;line-height:1.7">${orderLines}</p>
-        </div>
-      </div>`,
+    // Offene Auszahlung finden oder anlegen. Der Row-Lock in der Transaktion stellt
+    // sicher, dass parallele Anfragen nicht zwei Auszahlungen für denselben Verkäufer starten.
+    const payout = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "User" WHERE id = ${user.id} FOR UPDATE`;
+
+      const existing = await tx.payout.findFirst({
+        where: { sellerId: user.id, status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+      });
+      if (existing) return existing;
+
+      return tx.payout.create({
+        data: {
+          sellerId: user.id,
+          amountCents: netCents,
+          feeCents,
+          note: note || null,
+          idempotencyKey: `fyndo-payout-${user.id}-${crypto.randomUUID()}`,
+        },
+      });
     });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { sellerBalanceCents: 0 },
-    });
+    try {
+      // Bei einem erneuten Versuch (z. B. nach Timeout) wird derselbe idempotencyKey an
+      // RBank gesendet – RBank liefert dann die ursprüngliche Auszahlung statt doppelt zu zahlen.
+      const result = await createRbankPayout({
+        amount: payout.amountCents,
+        currency: "EUR",
+        email: user.email,
+        description,
+        metadata: {
+          sellerId: user.id,
+          sellerEmail: user.email,
+          payoutId: payout.id,
+        },
+        idempotencyKey: payout.idempotencyKey,
+      });
 
-    return NextResponse.json({ message: `Auszahlung von ${formatEuro(netCents)} (netto nach Gebühr) wurde beantragt.` });
+      await prisma.$transaction([
+        prisma.payout.update({
+          where: { id: payout.id },
+          data: { status: "COMPLETED", rbankPayoutId: result.id, error: null, completedAt: new Date() },
+        }),
+        prisma.user.update({
+          where: { id: user.id },
+          data: { sellerBalanceCents: { decrement: payout.amountCents + payout.feeCents } },
+        }),
+      ]);
+
+      return NextResponse.json({
+        message: `Auszahlung von ${formatEuro(payout.amountCents)} wurde auf dein RBank-Konto überwiesen.`,
+        payoutId: result.id,
+      });
+    } catch (error) {
+      // Nur definitive Ablehnungen von RBank als fehlgeschlagen markieren – dann startet
+      // ein neuer Versuch mit frischem idempotencyKey. Bei Netzwerk-/Timeout-Fehlern bleibt
+      // der Status PENDING, damit der Retry denselben Key verwendet und nicht doppelt zahlt.
+      if (error instanceof RbankPayoutError && [400, 401, 404, 422].includes(error.status)) {
+        await prisma.payout
+          .update({
+            where: { id: payout.id },
+            data: { status: "FAILED", error: error.message },
+          })
+          .catch(() => {});
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
       return NextResponse.json({ error: "Bitte zuerst einloggen." }, { status: 401 });
     }
 
+    if (error instanceof RbankPayoutError) {
+      const status = error.status === 400 || error.status === 404 || error.status === 422 ? error.status : 500;
+      return NextResponse.json({ error: error.message }, { status });
+    }
+
     console.error("Payout request failed:", error);
-    return NextResponse.json({ error: "Auszahlungsanfrage konnte nicht gesendet werden." }, { status: 500 });
+    return NextResponse.json({ error: "Auszahlung konnte nicht ausgeführt werden." }, { status: 500 });
   }
 }
