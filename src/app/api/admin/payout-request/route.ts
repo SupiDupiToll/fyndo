@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Dein Guthaben beträgt 0 €." }, { status: 400 });
     }
 
-    const feeCents = Math.round(balanceCents * 0.03) + 15;
+    const feeCents = Math.round(balanceCents * 0.05) + 55;
     const netCents = Math.max(balanceCents - feeCents, 0);
 
     const adminEmails = getAdminEmailList();
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
           Verkäufer: <strong>${sellerName}</strong><br/>
           E-Mail: <strong>${user.email}</strong><br/>
           Brutto: <strong>${formatEuro(balanceCents)}</strong><br/>
-          Gebühr (3%+15ct): <strong>${formatEuro(feeCents)}</strong><br/>
+          Gebühr (5%+55ct): <strong>${formatEuro(feeCents)}</strong><br/>
           Auszahlungsbetrag: <strong>${formatEuro(netCents)}</strong>
         </p>
         ${note ? `<p style="color:#475569;line-height:1.6"><strong>Notiz:</strong> ${note}</p>` : ""}
