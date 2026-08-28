@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAppUrl } from "@/lib/env";
+import { getAppUrl, getRbankEmbedCheckoutKey } from "@/lib/env";
 import { buildRbankEmbedCheckoutUrl, createRbankPayment } from "@/lib/rbank";
 import { buildTippieUrl, POS_MIN_DIGITAL_PAYMENT_CENTS, POS_PAYMENT_METHODS, type PosPaymentMethod } from "@/lib/pos";
 import { formatEuro } from "@/lib/format";
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       method,
       paymentUrl: buildRbankEmbedCheckoutUrl(session.token),
       token: session.token,
+      embedKey: getRbankEmbedCheckoutKey(),
       totalCents,
     });
   }

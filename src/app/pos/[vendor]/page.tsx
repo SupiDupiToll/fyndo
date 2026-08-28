@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { PosKiosk } from "@/components/pos/pos-kiosk";
 import { getVendorName } from "@/lib/vendor";
 import { getCurrentUser } from "@/lib/auth";
+import { getRbankConfig } from "@/lib/env";
 import { parsePosSettings } from "@/lib/pos-settings";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,7 @@ export default async function PosPage({
       settings={posSettings}
       products={gridProducts}
       toppings={toppings}
+      rbankBaseUrl={getRbankConfig().apiUrl}
     />
   );
 }

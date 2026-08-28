@@ -102,12 +102,14 @@ export function PosKiosk({
   toppings,
   settings,
   demo = false,
+  rbankBaseUrl,
 }: {
   vendorName: string;
   products: PosProduct[];
   toppings: PosProduct[];
   settings: PosSettings;
   demo?: boolean;
+  rbankBaseUrl?: string;
 }) {
   const [cart, setCart] = useState<Map<string, CartItem>>(new Map());
   const [speakerOn, setSpeakerOn] = useState(() => !demo);
@@ -121,6 +123,8 @@ export function PosKiosk({
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [method, setMethod] = useState<PosPaymentMethod | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [rbankToken, setRbankToken] = useState<string | null>(null);
+  const [rbankKey, setRbankKey] = useState<string | null>(null);
   const [giftApplied, setGiftApplied] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -686,6 +690,8 @@ export function PosKiosk({
     setBusy(true);
     setMethod(m);
     setPaymentUrl(null);
+    setRbankToken(null);
+    setRbankKey(null);
     setRbankStatus(null);
     if (m === "GUTSCHEIN") {
       setBusy(false);
@@ -729,6 +735,8 @@ export function PosKiosk({
         return;
       }
       setPaymentUrl(data.paymentUrl ?? null);
+      setRbankToken(data.token ?? null);
+      setRbankKey(data.embedKey ?? null);
       announceByMethod(m, payTotal, currentOrder.posOrderNumber);
     } catch {
       setError("Zahlungsstart fehlgeschlagen.");
@@ -940,6 +948,8 @@ export function PosKiosk({
     setOrder(null);
     setMethod(null);
     setPaymentUrl(null);
+    setRbankToken(null);
+    setRbankKey(null);
     setError("");
     setDone(null);
     setRbankStatus(null);
@@ -1272,9 +1282,13 @@ export function PosKiosk({
             giftApplied={giftApplied}
             method={method}
             paymentUrl={paymentUrl}
+            rbankToken={rbankToken}
+            rbankKey={rbankKey}
+            rbankBaseUrl={rbankBaseUrl}
             busy={busy}
             error={error}
             rbankStatus={rbankStatus}
+            onRbankStatus={setRbankStatus}
             onSelectMethod={(m) => void selectMethod(m)}
             onApplyGiftCard={(code) => applyGiftCard(code)}
             onConfirmGiftCardFull={() => void confirmGiftCardFull()}
@@ -1286,6 +1300,8 @@ export function PosKiosk({
                     clearAnnouncements();
                     setMethod(null);
                     setPaymentUrl(null);
+                    setRbankToken(null);
+                    setRbankKey(null);
                     setRbankStatus(null);
                   }
                 : backToSummary
@@ -2385,9 +2401,13 @@ function CheckoutOverlay({
   giftApplied,
   method,
   paymentUrl,
+  rbankToken,
+  rbankKey,
+  rbankBaseUrl,
   busy,
   error,
   rbankStatus,
+  onRbankStatus,
   onSelectMethod,
   onApplyGiftCard,
   onConfirmGiftCardFull,
@@ -2401,9 +2421,13 @@ function CheckoutOverlay({
   giftApplied: number;
   method: PosPaymentMethod | null;
   paymentUrl: string | null;
+  rbankToken: string | null;
+  rbankKey: string | null;
+  rbankBaseUrl?: string;
   busy: boolean;
   error: string;
   rbankStatus: string | null;
+  onRbankStatus: (status: string | null) => void;
   onSelectMethod: (m: PosPaymentMethod) => void;
   onApplyGiftCard: (code: string) => Promise<{ deduction: number; remainder: number } | null>;
   onConfirmGiftCardFull: () => void;
@@ -2566,7 +2590,11 @@ function CheckoutOverlay({
                 <PaymentQrView
                   method={method}
                   paymentUrl={paymentUrl}
+                  rbankToken={rbankToken}
+                  rbankKey={rbankKey}
+                  rbankBaseUrl={rbankBaseUrl}
                   rbankStatus={rbankStatus}
+                  onRbankStatus={onRbankStatus}
                 />
               </motion.div>
             ) : method === "GUTSCHEIN" ? (
@@ -2784,28 +2812,160 @@ function GiftCardView({
   );
 }
 
+type RBankCheckoutInstance = { start: () => void; unmount: () => void };
+
+type RBankCheckoutSdk = {
+  mount: (options: {
+    token: string;
+    key?: string;
+    container: HTMLElement | string;
+    baseUrl?: string;
+    lazy?: boolean;
+    height?: number;
+    onReady?: () => void;
+    onHeight?: (px: number) => void;
+    onStatus?: (status: string) => void;
+    onSuccess?: (result: { redirectUrl: string }) => void;
+  }) => RBankCheckoutInstance;
+};
+
+declare global {
+  interface Window {
+    RBankCheckout?: RBankCheckoutSdk;
+  }
+}
+
+let sdkLoadPromise: Promise<void> | null = null;
+
+function loadRbankCheckoutSdk(baseUrl: string): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Kein Browser-Kontext."));
+  }
+  if (window.RBankCheckout) return Promise.resolve();
+  if (!sdkLoadPromise) {
+    sdkLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = `${baseUrl.replace(/\/+$/, "")}/rbank-checkout.js`;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        sdkLoadPromise = null;
+        reject(new Error("RBank-Checkout-SDK konnte nicht geladen werden."));
+      };
+      document.head.appendChild(script);
+    });
+  }
+  return sdkLoadPromise;
+}
+
+function RbankEmbedCheckout({
+  token,
+  embedKey,
+  baseUrl,
+  onStatus,
+}: {
+  token: string;
+  embedKey: string;
+  baseUrl: string;
+  onStatus?: (status: string) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const instanceRef = useRef<RBankCheckoutInstance | null>(null);
+  const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  useEffect(() => {
+    let disposed = false;
+    setPhase("loading");
+    loadRbankCheckoutSdk(baseUrl)
+      .then(() => {
+        if (disposed || !containerRef.current || !window.RBankCheckout) return;
+        const instance = window.RBankCheckout.mount({
+          token,
+          key: embedKey,
+          container: containerRef.current,
+          baseUrl,
+          lazy: false,
+          height: 520,
+          onReady: () => {
+            if (!disposed) setPhase("ready");
+          },
+          onStatus: (status) => {
+            if (!disposed) onStatus?.(status);
+          },
+        });
+        instanceRef.current = instance;
+      })
+      .catch(() => {
+        if (!disposed) setPhase("error");
+      });
+    return () => {
+      disposed = true;
+      instanceRef.current?.unmount();
+      instanceRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, embedKey, baseUrl, retryNonce]);
+
+  return (
+    <div className="relative min-h-[520px]">
+      <div ref={containerRef} className="w-full" />
+      {phase !== "ready" && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white text-mute">
+          {phase === "error" ? (
+            <>
+              <span className="text-sm font-medium">
+                Checkout konnte nicht geladen werden.
+              </span>
+              <button
+                onClick={() => setRetryNonce((n) => n + 1)}
+                className="rounded-full bg-accent px-5 py-2 text-sm font-bold text-white transition-all hover:bg-accent-hover"
+              >
+                Erneut versuchen
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold">Lädt Checkout…</span>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PaymentQrView({
   method,
   paymentUrl,
+  rbankToken,
+  rbankKey,
+  rbankBaseUrl,
   rbankStatus,
+  onRbankStatus,
 }: {
   method: "RBANK" | "TIPPIE";
   paymentUrl: string | null;
+  rbankToken: string | null;
+  rbankKey: string | null;
+  rbankBaseUrl?: string;
   rbankStatus: string | null;
+  onRbankStatus: (status: string | null) => void;
 }) {
   if (method === "RBANK") {
     return (
       <div className="flex flex-col items-center text-center">
-        <div className="w-full max-w-xl h-[520px] rounded-2xl border border-line bg-white overflow-hidden">
-          {paymentUrl ? (
-            <iframe
-              src={paymentUrl}
-              title="RBank Checkout"
-              className="w-full h-full border-0"
-              allow="payment"
+        <div className="w-full max-w-xl min-h-[520px] rounded-2xl border border-line bg-white overflow-hidden">
+          {rbankToken && rbankKey && rbankBaseUrl ? (
+            <RbankEmbedCheckout
+              token={rbankToken}
+              embedKey={rbankKey}
+              baseUrl={rbankBaseUrl}
+              onStatus={onRbankStatus}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center gap-3 text-mute">
+            <div className="h-[520px] flex flex-col items-center justify-center gap-3 text-mute">
               <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
               <span className="text-xs font-bold">Lädt Checkout…</span>
             </div>
