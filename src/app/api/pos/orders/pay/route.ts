@@ -53,6 +53,25 @@ export async function POST(request: NextRequest) {
   }
 
   if (method === "RBANK") {
+    // Session wurde evtl. schon bei der Bestell-Erstellung vorbereitet – dann
+    // direkt wiederverwenden statt erneut auf RBank warten. Nur frische Orders
+    // (Session könnte sonst abgelaufen sein); sonst neue Session erzeugen.
+    const precreatedToken = orders[0].paymentToken?.split("__")[0];
+    const orderAgeMs = Date.now() - orders[0].createdAt.getTime();
+    if (precreatedToken && orderAgeMs < 10 * 60 * 1000) {
+      await prisma.order.updateMany({
+        where: { posGroupId, posConfirmToken },
+        data: { paymentMethod: "RBANK" },
+      });
+      return NextResponse.json({
+        method,
+        paymentUrl: buildRbankEmbedCheckoutUrl(precreatedToken),
+        token: precreatedToken,
+        embedKey: getRbankEmbedCheckoutKey(),
+        totalCents,
+      });
+    }
+
     const appUrl = getAppUrl();
     const redirectUrl = `${appUrl}/pos/${encodeURIComponent(seller.sellerName ?? seller.displayName)}?payed=1`;
     const cancelUrl = `${appUrl}/pos/${encodeURIComponent(seller.sellerName ?? seller.displayName)}?cancelled=1`;

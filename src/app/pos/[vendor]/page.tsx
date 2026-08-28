@@ -76,13 +76,19 @@ export default async function PosPage({
 
   if (gridProducts.length === 0) notFound();
 
+  const rbankBaseUrl = getRbankConfig().apiUrl;
+
   return (
-    <PosKiosk
-      vendorName={resolvedVendorName}
-      settings={posSettings}
-      products={gridProducts}
-      toppings={toppings}
-      rbankBaseUrl={getRbankConfig().apiUrl}
-    />
+    <>
+      <link rel="preconnect" href={rbankBaseUrl} crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href={rbankBaseUrl} />
+      <PosKiosk
+        vendorName={resolvedVendorName}
+        settings={posSettings}
+        products={gridProducts}
+        toppings={toppings}
+        rbankBaseUrl={rbankBaseUrl}
+      />
+    </>
   );
 }

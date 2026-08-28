@@ -164,6 +164,12 @@ export function PosKiosk({
     };
   }, []);
 
+  // SDK früh laden, damit der Checkout beim Klick sofort startet.
+  useEffect(() => {
+    if (demo || !rbankBaseUrl) return;
+    loadRbankCheckoutSdk(rbankBaseUrl).catch(() => {});
+  }, [demo, rbankBaseUrl]);
+
   function handleLogoClick() {
     debugTapRef.current += 1;
     if (debugTimerRef.current !== null) window.clearTimeout(debugTimerRef.current);
@@ -2871,12 +2877,12 @@ function RbankEmbedCheckout({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<RBankCheckoutInstance | null>(null);
-  const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
+  const [loadFailed, setLoadFailed] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let disposed = false;
-    setPhase("loading");
+    setLoadFailed(false);
     loadRbankCheckoutSdk(baseUrl)
       .then(() => {
         if (disposed || !containerRef.current || !window.RBankCheckout) return;
@@ -2887,17 +2893,17 @@ function RbankEmbedCheckout({
           baseUrl,
           lazy: false,
           height: 520,
-          onReady: () => {
-            if (!disposed) setPhase("ready");
-          },
           onStatus: (status) => {
             if (!disposed) onStatus?.(status);
           },
         });
         instanceRef.current = instance;
+        // Das SDK setzt loading="lazy" – im POS sofort laden.
+        const iframe = containerRef.current.querySelector("iframe");
+        if (iframe) iframe.loading = "eager";
       })
       .catch(() => {
-        if (!disposed) setPhase("error");
+        if (!disposed) setLoadFailed(true);
       });
     return () => {
       disposed = true;
@@ -2909,29 +2915,27 @@ function RbankEmbedCheckout({
 
   return (
     <div className="relative min-h-[520px]">
-      <div ref={containerRef} className="w-full" />
-      {phase !== "ready" && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white text-mute">
-          {phase === "error" ? (
-            <>
-              <span className="text-sm font-medium">
-                Checkout konnte nicht geladen werden.
-              </span>
-              <button
-                onClick={() => setRetryNonce((n) => n + 1)}
-                className="rounded-full bg-accent px-5 py-2 text-sm font-bold text-white transition-all hover:bg-accent-hover"
-              >
-                Erneut versuchen
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-bold">Lädt Checkout…</span>
-            </>
-          )}
+      {/* Spinner liegt hinter dem iframe – sobald die Embed-Seite irgendetwas
+          malt, ist sie sichtbar, ohne auf load/ready zu warten. */}
+      {loadFailed ? (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-white text-mute">
+          <span className="text-sm font-medium">
+            Checkout konnte nicht geladen werden.
+          </span>
+          <button
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="rounded-full bg-accent px-5 py-2 text-sm font-bold text-white transition-all hover:bg-accent-hover"
+          >
+            Erneut versuchen
+          </button>
+        </div>
+      ) : (
+        <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 bg-white text-mute">
+          <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-bold">Lädt Checkout…</span>
         </div>
       )}
+      <div ref={containerRef} className="relative z-10 w-full" />
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { getAppUrl } from "@/lib/env";
+import { createRbankPayment } from "@/lib/rbank";
 import { POS_PAYMENT_METHODS } from "@/lib/pos";
 import { findVariant, parseVariants } from "@/lib/product-variants";
 
@@ -115,6 +117,25 @@ export async function POST(request: NextRequest) {
     return sum + (variant ? variant.priceCents : product.price) * item.qty;
   }, 0);
 
+  // RBank-Session bereits bei der Bestell-Erstellung vorbereiten, damit der
+  // Checkout beim Zahlungsart-Klick sofort startet (kein Warten auf die
+  // Session-Erzeugung). Schlägt das fehl, bleibt die Order trotzdem bestehen
+  // und die Pay-Route erzeugt die Session bei Bedarf nach.
+  let rbankToken: string | null = null;
+  try {
+    const sellerName = vendor.sellerName ?? vendor.displayName;
+    const session = await createRbankPayment({
+      amount: totalCents,
+      description: `${products.map((p) => p.title).join(", ")} – POS ${sellerName}`,
+      redirectUrl: `${getAppUrl()}/pos/${encodeURIComponent(sellerName)}?payed=1`,
+      cancelUrl: `${getAppUrl()}/pos/${encodeURIComponent(sellerName)}?cancelled=1`,
+      metadata: { posGroupId, sellerId: vendor.id, pos: "1" },
+    });
+    rbankToken = session.token;
+  } catch (error) {
+    console.error("RBank POS session pre-creation failed:", error);
+  }
+
   const maxOrder = await prisma.order.aggregate({
     where: { product: { sellerId: vendor.id }, posOrderNumber: { not: null } },
     _max: { posOrderNumber: true },
@@ -134,6 +155,7 @@ export async function POST(request: NextRequest) {
         buyerEmail: vendor.email,
         status: "PENDING",
         paymentMethod: null,
+        paymentToken: rbankToken ? `${rbankToken}__${randomUUID()}` : null,
         posGroupId,
         posConfirmToken,
         posOrderNumber,
