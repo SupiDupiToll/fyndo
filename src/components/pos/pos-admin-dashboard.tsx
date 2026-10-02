@@ -59,6 +59,10 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
   const [orderSoundOn, setOrderSoundOn] = useState(true);
   const seenGroupsRef = useRef<Set<string>>(new Set());
   const seededRef = useRef(false);
+  const showAllRef = useRef(false);
+  const versionRef = useRef<string | null>(null);
+  const loadingRef = useRef(false);
+  const errorBackoffRef = useRef(0);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("fyndo-pos-admin-sound");
@@ -186,10 +190,24 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
     setLockMedia(next);
   }
 
-  async function load() {
+  async function load(opts?: { force?: boolean }) {
+    // Keine überlappenden Requests und kein Pollen im Hintergrund-Tab.
+    // Hintergrund-Tabs haben die Vercel-/Neon-Kosten verursacht, ohne Nutzen.
+    if (loadingRef.current) return;
+    if (!opts?.force && typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    loadingRef.current = true;
     try {
-      const res = await fetch("/api/pos/groups?scope=all");
+      const scope = showAllRef.current ? "all" : "active";
+      const since = !opts?.force && versionRef.current ? `&since=${encodeURIComponent(versionRef.current)}` : "";
+      const res = await fetch(`/api/pos/groups?scope=${scope}${since}`);
+      if (res.status === 304) {
+        setError("");
+        errorBackoffRef.current = 0;
+        return;
+      }
       if (!res.ok) throw new Error("Fehler beim Laden");
+      const version = res.headers.get("x-pos-version");
+      if (version) versionRef.current = version;
       const data = await res.json();
       setGroups(data);
       setError("");
@@ -208,17 +226,44 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
       }
     } catch {
       setError("POS-Bestellungen konnten nicht geladen werden.");
+      errorBackoffRef.current = Math.min(errorBackoffRef.current + 1, 4);
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }
 
   useEffect(() => {
+    showAllRef.current = showAll;
+    // Beim Öffnen von "Alle anzeigen" einmal voll laden (anderer Scope),
+    // beim Schließen zurück auf den sparsamen Scope.
+    versionRef.current = null;
+    void load({ force: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAll]);
+
+  useEffect(() => {
     setLoading(true);
-    void load();
+    void load({ force: true });
     void loadLockSettings();
-    const interval = window.setInterval(() => void load(), 5000);
-    return () => window.clearInterval(interval);
+    // 10s statt 5s: halbiert die Requests; dank ?since=/304 kostet ein
+    // Poll ohne Änderung fast nichts mehr. Kein Poll im Hintergrund-Tab.
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      if (errorBackoffRef.current > 0) {
+        // Bei Fehlern exponentiell aussetzen statt stur weiter zu hämmern.
+        if (Math.random() > 1 / (errorBackoffRef.current + 1)) return;
+      }
+      void load();
+    }, 10000);
+    function onVisible() {
+      if (document.visibilityState === "visible") void load();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -242,7 +287,7 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
       setError("Bestätigung fehlgeschlagen.");
     } finally {
       setBusyId(null);
-      void load();
+      void load({ force: true });
     }
   }
 
@@ -265,7 +310,7 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
       setError("Markieren fehlgeschlagen.");
     } finally {
       setBusyId(null);
-      void load();
+      void load({ force: true });
     }
   }
 
@@ -284,7 +329,7 @@ export function PosAdminDashboard({ vendorName }: { vendorName: string }) {
       setError("Stornierung fehlgeschlagen.");
     } finally {
       setBusyId(null);
-      void load();
+      void load({ force: true });
     }
   }
 

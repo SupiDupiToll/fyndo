@@ -149,6 +149,8 @@ model Order {
   updatedAt            DateTime     @updatedAt
 
   @@index([posGroupId])
+  @@index([status, updatedAt])
+  @@index([updatedAt])
 }
 
 model PosNumberCard {

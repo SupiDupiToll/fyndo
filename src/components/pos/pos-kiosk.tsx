@@ -899,8 +899,19 @@ export function PosKiosk({
     if (!checkoutOpen || !order || done !== null) return;
     const current = order;
     let cancelled = false;
+    const startedAt = Date.now();
+    const MAX_POLL_MS = 5 * 60 * 1000;
+    let inFlight = false;
     async function poll() {
-      if (cancelled) return;
+      if (cancelled || inFlight) return;
+      // Verwaister Checkout (Kunde geht weg): nach 5 Min. nicht mehr pollen,
+      // sonst läuft der 2s-Takt ewig weiter und verbrennt Function-CPU + DB.
+      if (Date.now() - startedAt > MAX_POLL_MS) {
+        cancelled = true;
+        return;
+      }
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      inFlight = true;
       try {
         const res = await fetch(
           `/api/pos/orders/status?posGroupId=${encodeURIComponent(current.posGroupId)}&posConfirmToken=${encodeURIComponent(current.posConfirmToken)}`,
@@ -916,10 +927,12 @@ export function PosKiosk({
         }
       } catch {
         // ignore, retry on next tick
+      } finally {
+        inFlight = false;
       }
     }
     void poll();
-    const interval = window.setInterval(() => void poll(), 2000);
+    const interval = window.setInterval(() => void poll(), 2500);
     return () => {
       cancelled = true;
       window.clearInterval(interval);

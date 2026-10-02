@@ -247,10 +247,22 @@ export function PosOrderBoard({
     if (demo) return;
     let alive = true;
     let firstLoad = true;
+    let inFlight = false;
+    let since: string | null = null;
     async function load() {
+      if (!alive || inFlight) return;
+      if (document.visibilityState === "hidden") return;
+      inFlight = true;
       try {
-        const res = await fetch("/api/pos/groups?scope=all");
+        const res = await fetch(`/api/pos/groups?scope=board${since ? `&since=${encodeURIComponent(since)}` : ""}`);
+        if (!alive) return;
+        if (res.status === 304) {
+          setError("");
+          return;
+        }
         if (!res.ok) return;
+        const v = res.headers.get("x-pos-version");
+        if (v) since = v;
         const data = (await res.json()) as RawGroup[];
         if (!alive) return;
         reconcile(data, !firstLoad);
@@ -258,13 +270,22 @@ export function PosOrderBoard({
         setError("");
       } catch {
         setError("Bestellübersicht konnte nicht geladen werden.");
+      } finally {
+        inFlight = false;
       }
     }
     void load();
-    const interval = window.setInterval(() => void load(), 4000);
+    // 10s statt 4s + kein Poll im Hintergrund-Tab + 304 bei "nichts Neues".
+    // Ein Always-on-Board mit 4s-Intervall erzeugt sonst ~650k Requests/Monat.
+    const interval = window.setInterval(() => void load(), 10000);
+    function onVisible() {
+      if (document.visibilityState === "visible") void load();
+    }
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demo]);

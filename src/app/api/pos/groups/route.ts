@@ -4,6 +4,29 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+// Kurzzeit-Cache pro User+Scope, damit mehrere offene Tabs/Displays auf
+// derselben Fluid-Instanz nicht je eine volle DB-Abfrage auslösen.
+const CACHE_TTL_MS = 5000;
+type GroupsCacheEntry = { expires: number; version: string; body: string };
+const globalForGroupsCache = globalThis as unknown & {
+  __posGroupsCache?: Map<string, GroupsCacheEntry>;
+};
+function getGroupsCache() {
+  if (!globalForGroupsCache.__posGroupsCache) {
+    globalForGroupsCache.__posGroupsCache = new Map();
+  }
+  return globalForGroupsCache.__posGroupsCache;
+}
+
+const SCOPE_STATUS: Record<string, ("PENDING" | "PAID" | "DONE" | "CANCELLED")[]> = {
+  // legacy: unverändert lassen (falls extern referenziert)
+  open: ["PENDING", "DONE"],
+  paid: ["PAID", "DONE"],
+  // neu, sparsam: nur das, was die jeweilige Ansicht wirklich anzeigt
+  active: ["PENDING", "PAID"],
+  board: ["PAID", "DONE"],
+};
+
 export async function GET(request: Request) {
   let user;
   try {
@@ -21,22 +44,77 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const scope = url.searchParams.get("scope") ?? "open";
+  const sinceRaw = url.searchParams.get("since");
+  let sinceDate: Date | null = null;
+  if (sinceRaw) {
+    const parsed = new Date(sinceRaw);
+    if (!Number.isNaN(parsed.getTime())) sinceDate = parsed;
+  }
+
+  const statuses = SCOPE_STATUS[scope];
+  const statusFilter = statuses ? { status: { in: statuses } } : {};
+  const take = scope === "all" ? 200 : 100;
+
+  const where = {
+    posGroupId: { not: null },
+    ...(isSuperAdmin ? {} : { product: { sellerId: user.id } }),
+    ...statusFilter,
+  };
+
+  const cache = getGroupsCache();
+  const cacheKey = `${user.id}:${scope}`;
+  const nowMs = Date.now();
+  const cached = cache.get(cacheKey);
+  if (cached && cached.expires > nowMs) {
+    // Frischer Cache: ohne DB antworten. "since" deckt den Normalfall ab
+    // (nichts hat sich geändert -> 304).
+    if (sinceRaw && sinceRaw >= cached.version) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: { "x-pos-version": cached.version },
+      });
+    }
+    if (!sinceDate) {
+      return new NextResponse(cached.body, {
+        headers: {
+          "Content-Type": "application/json",
+          "x-pos-version": cached.version,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+    // Mit "since", das älter als der Cache ist: unten per DB prüfen, ob sich
+    // seit "since" wirklich etwas geändert hat (billige findFirst statt 200er-Join).
+  }
+
+  // Billiger Change-Check: nur 1 Zeile statt 200 + Product-Join + Gruppierung.
+  // Der Client sendet nach dem ersten Voll-Load ?since=<x-pos-version>.
+  // Solange nichts geändert wurde, kostet der Poll nur diese eine Abfrage
+  // und es gibt 304 ohne Body zurück.
+  if (sinceDate) {
+    const latest = await prisma.order.findFirst({
+      where: { ...where, updatedAt: { gt: sinceDate } },
+      select: { updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!latest) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          "x-pos-version": sinceRaw as string,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+  }
 
   const orders = await prisma.order.findMany({
-    where: {
-      posGroupId: { not: null },
-      ...(isSuperAdmin ? {} : { product: { sellerId: user.id } }),
-      ...(scope === "open"
-        ? { status: { in: ["PENDING", "DONE"] } }
-        : scope === "paid"
-          ? { status: { in: ["PAID", "DONE"] } }
-          : {}),
-    },
+    where,
     include: {
       product: { select: { title: true, price: true } },
     },
     orderBy: { createdAt: "desc" },
-    take: 200,
+    take,
   });
 
   const groups = new Map<string, (typeof orders)[number][]>();
@@ -90,5 +168,22 @@ export async function GET(request: Request) {
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  return NextResponse.json(result);
+  // Version = neueste Änderung im Ergebnis; der Client nutzt sie als ?since=.
+  let version = sinceRaw ?? new Date(0).toISOString();
+  for (const o of orders) {
+    const iso = o.updatedAt.toISOString();
+    if (iso > version) version = iso;
+  }
+  if (orders.length === 0 && !sinceRaw) version = new Date().toISOString();
+
+  const body = JSON.stringify(result);
+  cache.set(cacheKey, { expires: Date.now() + CACHE_TTL_MS, version, body });
+
+  return new NextResponse(body, {
+    headers: {
+      "Content-Type": "application/json",
+      "x-pos-version": version,
+      "Cache-Control": "private, no-store",
+    },
+  });
 }
