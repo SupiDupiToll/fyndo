@@ -15,6 +15,7 @@ import {
   type PosPaymentMethod,
 } from "@/lib/pos";
 import { formatEuro } from "@/lib/format";
+import { printReceipt } from "@/lib/pos-print-client";
 import { LockScreen } from "@/components/pos/lock-screen";
 import { SuccessBurst } from "@/components/kokonutui/success-burst";
 import type { PosSettings } from "@/lib/pos-settings";
@@ -149,6 +150,7 @@ export function PosKiosk({
   const [gridNonce, setGridNonce] = useState(0);
   const initialAnnounceRef = useRef(false);
   const demoConfirmTimerRef = useRef<number | null>(null);
+  const printedOrdersRef = useRef<Set<string>>(new Set());
   const [debugOpen, setDebugOpen] = useState(false);
   const debugTimerRef = useRef<number | null>(null);
   const debugTapRef = useRef(0);
@@ -886,12 +888,43 @@ export function PosKiosk({
       );
   }
 
+  function printOrderReceipt(totalCents: number, orderNumber: number) {
+    if (demo) return;
+    const groupId = order?.posGroupId ?? `num-${orderNumber}`;
+    if (printedOrdersRef.current.has(groupId)) return;
+    printedOrdersRef.current.add(groupId);
+
+    const items = Array.from(cart.values()).map((item) => {
+      const label = item.containerLabel
+        ? `${item.containerLabel} · ${itemLabel(item)}`
+        : itemLabel(item);
+      return {
+        qty: item.qty,
+        name: label,
+        amountCents: itemPrice(item.product, item.variant) * item.qty,
+      };
+    });
+
+    void printReceipt({
+      vendorName,
+      orderNumber,
+      date: new Date().toISOString(),
+      items,
+      subtotalCents: cartTotal,
+      totalCents,
+      giftCardCents: Math.max(0, cartTotal - totalCents),
+      paymentMethod: method ?? undefined,
+      footer: "Vielen Dank für Ihren Einkauf!",
+    }).catch(() => {});
+  }
+
   function onConfirmed(totalCents: number, orderNumber: number) {
     setDone({ totalCents, orderNumber });
     announce(
       "payment-confirmed",
       `Vielen Dank! Ihre Bestellung ist raus. Ihre Nummer ist ${orderNumber}.`,
     );
+    printOrderReceipt(totalCents, orderNumber);
   }
 
   useEffect(() => {

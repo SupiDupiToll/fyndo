@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  checkPrintServer,
+  getPrintServerUrl,
+  printTestReceipt,
+  setPrintServerUrl,
+} from "@/lib/pos-print-client";
 
 function simpleHash(str: string): string {
   let h = 5381;
@@ -46,6 +52,13 @@ export function PosDebugMenu({
   const [checking, setChecking] = useState(false);
   const [warning, setWarning] = useState("");
   const [copied, setCopied] = useState("");
+  const [printUrl, setPrintUrl] = useState("");
+  const [printMsg, setPrintMsg] = useState("");
+  const [printBusy, setPrintBusy] = useState(false);
+
+  useEffect(() => {
+    setPrintUrl(getPrintServerUrl());
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -108,6 +121,31 @@ export function PosDebugMenu({
       setCopied(text.slice(0, 8));
       window.setTimeout(() => setCopied(""), 1500);
     });
+  }
+
+  function savePrintUrl() {
+    setPrintServerUrl(printUrl);
+    setPrintUrl(getPrintServerUrl());
+    setPrintMsg("Druckserver-Adresse gespeichert.");
+    window.setTimeout(() => setPrintMsg(""), 3000);
+  }
+
+  async function handleTestPrint() {
+    setPrintBusy(true);
+    setPrintMsg("");
+    const res = await printTestReceipt(vendorName);
+    setPrintBusy(false);
+    setPrintMsg(res.ok ? "Testbon gesendet ✓" : `Fehler: ${res.error}`);
+    window.setTimeout(() => setPrintMsg(""), 6000);
+  }
+
+  async function handleCheckPrint() {
+    setPrintBusy(true);
+    setPrintMsg("");
+    const res = await checkPrintServer();
+    setPrintBusy(false);
+    setPrintMsg(res.ok ? "Druckserver erreichbar ✓" : `Nicht erreichbar: ${res.error}`);
+    window.setTimeout(() => setPrintMsg(""), 6000);
   }
 
   return (
@@ -233,6 +271,63 @@ export function PosDebugMenu({
                   <i className="fa-solid fa-arrow-left text-xl" />
                   <span className="text-xs font-bold">Schließen</span>
                 </button>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-xs font-black uppercase tracking-wider text-mute mb-2">
+                Bondrucker
+              </h3>
+              <div className="rounded-xl border border-line p-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-mute mb-1">
+                    Druckserver-Adresse
+                  </label>
+                  <input
+                    type="text"
+                    value={printUrl}
+                    onChange={(e) => setPrintUrl(e.target.value)}
+                    placeholder="http://localhost:8787"
+                    className="w-full rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-accent"
+                  />
+                  <p className="mt-1 text-[11px] text-mute">
+                    Läuft der Druckserver auf einem anderen Rechner, hier die
+                    lokale IP eintragen, z.&nbsp;B.{" "}
+                    <span className="font-bold">http://192.168.1.50:8787</span>
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={savePrintUrl}
+                    className="rounded-xl border border-line px-4 py-2 text-sm font-bold hover:border-accent hover:text-accent"
+                  >
+                    Speichern
+                  </button>
+                  <button
+                    onClick={handleCheckPrint}
+                    disabled={printBusy}
+                    className="rounded-xl border border-line px-4 py-2 text-sm font-bold hover:border-accent hover:text-accent disabled:opacity-50"
+                  >
+                    Verbindung testen
+                  </button>
+                  <button
+                    onClick={handleTestPrint}
+                    disabled={printBusy}
+                    className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {printBusy ? "Sende…" : "Testbon drucken"}
+                  </button>
+                </div>
+                <p className="text-[11px] text-mute">
+                  Aktiv:{" "}
+                  <span className="font-bold text-ink/70">
+                    {printUrl.trim() || "http://localhost:8787"}
+                  </span>{" "}
+                  (Browser → Druckserver)
+                </p>
+                <p className="text-xs font-bold text-accent h-4" aria-live="polite">
+                  {printMsg}
+                </p>
               </div>
             </section>
 

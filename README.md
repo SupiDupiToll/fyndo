@@ -10,7 +10,8 @@ Fyndo ist ein smarter Online-Marktplatz, auf dem Händler Produkte verkaufen und
 - **Geschenkkarten (Gift Cards)** – Käufliche Fyndo-Gutscheine mit Betrag und persönlicher Nachricht; Status-Lebenszyklus `PENDING → ACTIVE → REDEEMED/EXPIRED`, einsetzbar als Zahlungsmittel im Checkout und POS.
 - **Concierge / Drittshop-Bestellungen** – Bestellung eines beliebigen Produkts aus einem externen Shop per URL. Die App ruft die Shop-Metadaten (Name, Favicon, Host) ab und wickelt Anfrage → Angebot → Bestellung → Erfüllung ab.
 - **POS-System** – Kassensystem pro Verkäufer: Kiosk-Modus, Bestellgruppen, Nummern-Karten, Lock-Screen, Containers & Toppings, Varianten, Audio-Ansagen (Speech), Zahlungsarten (RBank, QR/Tippie, Terminal, Bar, Gutschein).
-- **POS-Bestellübersicht (Board)** – McDonald's-ähnlicher Vollbild-Bildschirm unter `/pos/[vendor]/board`: links „In Bearbeitung“, rechts „Zur Abholung bereit“. Es werden nur **bezahlte** Bestellungen angezeigt (unbezahlte werden ausgeblendet), dargestellt als große **Bestellnummern** ohne Artikel-Details. Neue Bestellungen ploppen groß auf und wandern klein in die linke Spalte; beim Wechsel auf „Ausgeführt“ kommt erneut ein großes Pop-up („Zur Abholung bereit“), die Nummer fliegt nach rechts und verschwindet nach **10 Minuten** (Countdown + Fortschrittsbalken) automatisch. Öffnen lässt sich das Board über den Button „Bestellübersicht“ im POS-Admin-Bereich.
+- **POS-Bestellübersicht (Board)** – McDonald's-ähnlicher Vollbild-Bildschirm unter `/pos/[vendor]/board`: links „In Bearbeitung", rechts „Zur Abholung bereit". Es werden nur **bezahlte** Bestellungen angezeigt (unbezahlte werden ausgeblendet), dargestellt als große **Bestellnummern** ohne Artikel-Details. Neue Bestellungen ploppen groß auf und wandern klein in die linke Spalte; beim Wechsel auf „Ausgeführt" kommt erneut ein großes Pop-up („Zur Abholung bereit"), die Nummer fliegt nach rechts und verschwindet nach **10 Minuten** (Countdown + Fortschrittsbalken) automatisch. Öffnen lässt sich das Board über den Button „Bestellübersicht" im POS-Admin-Bereich.
+- **Bon-Drucker** – Nach bestätigter POS-Zahlung druckt das POS automatisch einen Kassenbon an einen USB-Thermodrucker (ESC/POS, **Autocut**): Bestellnummer groß oben, Positionen, Zusammenfassung, Zahlungsart. Der Druck läuft über den kleinen lokalen Druckserver unter [`printer/`](printer/README.md); die Verbindung lässt sich im POS-Debug-Menü konfigurieren und testen.
 - **Admin-Bereich** – Verwaltung von Verkäufern, Produkten, Concierge-Bestellungen, Auszahlungsanträgen und Einstellungen.
 - **Benachrichtigungen** – Push-Benachrichtigungen über **ntfy.sh** bei bezahlten Bestellungen, Drittshop-Anfragen und POS-Zahlungen.
 - **Demo-Modus** – Vorschau der App unter `/demos` mit Beispieldaten und ohne echtes Checkout: Fyndo-Marktplatz (inkl. Admin), Fyndo-POS und die **Bestellübersicht** unter `/demos/pos-board` (Live-Simulation mit verkürzter Abholzeit, damit der komplette Zyklus sofort sichtbar ist). Bestellungen, die im POS-Kiosk-Demo aufgegeben werden, erscheinen automatisch auf dem Demo-Board (am besten in zwei Tabs nebeneinander öffnen). Ein Umschalter ganz oben wechselt zwischen den Bereichen; die Seiten sind nur anschaubar, alle Aktionen sind deaktiviert.
@@ -69,6 +70,7 @@ Kopiere `.env.example` zu `.env` und fülle die Werte aus. Die `.env` ist per `.
 | `NTFY_WEBHOOK_URL` | ntfy.sh-Webhook-URL für Bestell-Benachrichtigungen |
 | `TIPPIE_PAY_BASE` | Basis-URL für Tippie-Pay-Transaktionen (QR-Codes im POS) |
 | `POS_CARD_SECRET` | Secret für die POS-Zugangskarten |
+| `NEXT_PUBLIC_POS_PRINT_URL` | Adresse des Bon-Druckservers, die der Browser des Tablets direkt aufruft (leer = `http://localhost:8787`; im POS-Debug-Menü änderbar) |
 
 ## Skripte
 
@@ -83,6 +85,7 @@ Kopiere `.env.example` zu `.env` und fülle die Werte aus. Die `.env` ist per `.
 
 ```
 prisma/                     Prisma-Schema und Migrationen
+printer/                    Lokaler Bon-Druckserver (ESC/POS → USB-Thermodrucker)
 src/app/
   (main)/                    Öffentliche Seiten (Marktplatz, Checkout, Bestellungen,
                              Gutscheine, Concierge, Admin, POS, Verkäufer)
@@ -123,6 +126,34 @@ Der Prisma-Client wird nach `src/generated/prisma` generiert und wird durch `pos
 1. Server erstellt eine Zahlung via `createRbankPayment` (`src/lib/rbank.ts`).
 2. Der Kunde wird auf den RBank-`paymentUrl` oder das eingebettete Checkout (`buildRbankEmbedCheckoutUrl`) geleitet.
 3. Nach der Rückkehr verifiziert der Server die Zahlung mit `verifyRbankPayment` und markiert die Bestellung als `PAID` – die Einlösung (Gutschein-Link, Geschenkkarte, POS-Erfüllung) wird anschließend ausgelöst.
+
+## Bon-Drucker (POS)
+
+Nach einer bestätigten POS-Zahlung druckt das POS automatisch einen Bon an den
+USB-Thermodrucker. Der eigentliche Druck läuft über den kleinen lokalen
+Druckserver unter [`printer/`](printer/README.md):
+
+```bash
+cd printer
+python3 server.py          # lauscht auf http://0.0.0.0:8787
+```
+
+Das **Tablet (Browser) ruft den Druckserver direkt** auf – die Adresse ist im
+POS-Debug-Menü (10× auf das Logo tippen → „Bondrucker") einstellbar und lässt
+sich dort per „Testbon drucken" prüfen. Standard ist `http://localhost:8787`;
+läuft der Druckserver auf einem anderen Rechner, die lokale IP eintragen
+(z. B. `http://192.168.1.50:8787`). Alternativ per `NEXT_PUBLIC_POS_PRINT_URL`.
+
+> Hinweis: Wird das POS über **HTTPS** geladen, erlaubt der Browser direkte
+> Aufrufe nur zu `http://localhost` – nicht zu einer LAN-IP (Mixed Content).
+> Für eine LAN-IP das POS über HTTP laden (z. B. `http://192.168.1.50:3000`).
+
+Der Bon enthält die **Bestellnummer groß oben**, Datum, Positionen, die
+**Zusammenfassung** (Summe, ggf. Gutschein), die Zahlungsart und wird am Ende
+automatisch abgeschnitten (Autocut). Für 58-mm-Papier ist die Breite auf 32
+Zeichen voreingestellt; Umlaute werden standardmäßig nach ASCII übertragen
+(ä→ae, ö→oe, ü→ue, ß→ss, €→EUR), damit sie auf jedem Drucker korrekt erscheinen.
+Alle Optionen siehe [`printer/README.md`](printer/README.md).
 
 ## License
 
