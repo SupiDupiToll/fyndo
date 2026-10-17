@@ -12,6 +12,7 @@ Fyndo ist ein smarter Online-Marktplatz, auf dem Händler Produkte verkaufen und
 - **POS-System** – Kassensystem pro Verkäufer: Kiosk-Modus, Bestellgruppen, Nummern-Karten, Lock-Screen, Containers & Toppings, Varianten, Audio-Ansagen (Speech), Zahlungsarten (RBank, QR/Tippie, Terminal, Bar, Gutschein).
 - **POS-Bestellübersicht (Board)** – McDonald's-ähnlicher Vollbild-Bildschirm unter `/pos/[vendor]/board`: links „In Bearbeitung", rechts „Zur Abholung bereit". Es werden nur **bezahlte** Bestellungen angezeigt (unbezahlte werden ausgeblendet), dargestellt als große **Bestellnummern** ohne Artikel-Details. Neue Bestellungen ploppen groß auf und wandern klein in die linke Spalte; beim Wechsel auf „Ausgeführt" kommt erneut ein großes Pop-up („Zur Abholung bereit"), die Nummer fliegt nach rechts und verschwindet nach **10 Minuten** (Countdown + Fortschrittsbalken) automatisch. Öffnen lässt sich das Board über den Button „Bestellübersicht" im POS-Admin-Bereich.
 - **Bon-Drucker** – Nach bestätigter POS-Zahlung druckt das POS automatisch einen Kassenbon an einen USB-Thermodrucker (ESC/POS, **Autocut**): Bestellnummer groß oben, Positionen, Zusammenfassung, Zahlungsart. Der Druck läuft über den kleinen lokalen Druckserver unter [`printer/`](printer/README.md); die Verbindung lässt sich im POS-Debug-Menü konfigurieren und testen.
+- **Bon-Designer** – Eigenständiges HTML-Werkzeug ([`printer/bon-designer.html`](printer/bon-designer.html), keine fyndo-Integration), um Bons visuell zu gestalten und zu drucken: Text, 2 Spalten, Trenner, **QR-Codes**, **Barcodes**, Vorlagen, Live-Vorschau, JSON-Export/Import.
 - **Admin-Bereich** – Verwaltung von Verkäufern, Produkten, Concierge-Bestellungen, Auszahlungsanträgen und Einstellungen.
 - **Benachrichtigungen** – Push-Benachrichtigungen über **ntfy.sh** bei bezahlten Bestellungen, Drittshop-Anfragen und POS-Zahlungen.
 - **Demo-Modus** – Vorschau der App unter `/demos` mit Beispieldaten und ohne echtes Checkout: Fyndo-Marktplatz (inkl. Admin), Fyndo-POS und die **Bestellübersicht** unter `/demos/pos-board` (Live-Simulation mit verkürzter Abholzeit, damit der komplette Zyklus sofort sichtbar ist). Bestellungen, die im POS-Kiosk-Demo aufgegeben werden, erscheinen automatisch auf dem Demo-Board (am besten in zwei Tabs nebeneinander öffnen). Ein Umschalter ganz oben wechselt zwischen den Bereichen; die Seiten sind nur anschaubar, alle Aktionen sind deaktiviert.
@@ -218,6 +219,25 @@ automatisch abgeschnitten (Autocut). Für 58-mm-Papier ist die Breite auf 32
 Zeichen voreingestellt; Umlaute werden standardmäßig nach ASCII übertragen
 (ä→ae, ö→oe, ü→ue, ß→ss, €→EUR), damit sie auf jedem Drucker korrekt erscheinen.
 Alle Optionen siehe [`printer/README.md`](printer/README.md).
+
+### Bon-Designer (eigenständige HTML-Datei)
+
+Zum Gestalten eigener Bons gibt es [`printer/bon-designer.html`](printer/bon-designer.html)
+– eine **eigenständige** HTML-Datei (keine fyndo-Integration). Damit lassen sich
+Bons aus Bausteinen zusammenbauen (Text, 2 Spalten, Trenner, **QR-Code**,
+**Barcode**, Leerzeile, Schnitt), mit Live-Vorschau ansehen und über den
+Druckserver ausdrucken. Vorlagen (Kassenbon, Bestellbon, Gutschein),
+JSON-Export/-Import und automatisches Speichern im Browser sind enthalten.
+
+Öffnen entweder direkt im Browser oder über den Druckserver:
+
+```
+http://localhost:8787/designer
+```
+
+Der Designer spricht den Druckserver direkt an (`/print/blocks` zum Drucken,
+`/qr.png` für die QR-Vorschau). Der gedruckte QR-Code wird nativ per ESC/POS
+erzeugt, der Barcode per `GS k` (CODE128).
 
 ## License
 

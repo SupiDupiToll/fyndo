@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fyndo · Bon-Designer</title>
+<!--
+  ============================================================================
+  fyndo Bon-Designer - eigenstaendiges Tool (keine fyndo-Integration)
+  ----------------------------------------------------------------------------
+  Design-Read:  Tool-UI fuer Kassen-/Cafe-Personal, ruhige Instrumentenpanel-
+                Sprache, native CSS + CSS-Variablen, ein einziger Marken-Akzent.
+  Dials:        DESIGN_VARIANCE 3 · MOTION_INTENSITY 3 · VISUAL_DENSITY 6
+                (Tool, keine Landing-Page -> Hero/Bento/Eyebrow-Regeln greifen
+                hier bewusst nicht.)
+
+  Regeln, die hier greifen:
+  - Ein Akzent (fyndo-Blau, oklch 265) auf der ganzen Seite, gesperrt.
+  - Kein reines #000 / #fff im UI; Papier-Vorschau bewusst off-white (Bon).
+  - Radius-Lock: 14px Panels · 10px Controls · 7px Chips (dokumentierte Skala).
+  - Voller State-Zyklus: leer / laedt / Fehler / taktiles :active / Fokusring.
+  - Kontrast: Button-Text auf Akzent >= 4.5:1, in beiden Modi geprueft.
+  - Keine Emojis; Inline-SVG-Icons, einheitliche stroke-width 1.6.
+  - Dual-Mode (System + Umschalter), prefers-reduced-motion respektiert.
+
+  UX-Features:
+  - Undo/Redo (Buttons + Strg/⌘+Z, Shift+Z / Y) mit History-Stack.
+  - Drag & Drop zum Sortieren (zusaetzlich ▲▼), Bausteine einklappbar.
+  - Sticky-Vorschau auf Desktop, Auto-Save-Anzeige.
+  - Zeilenlaengen-Warnung (doppelt-breite Schrift beruecksichtigt).
+  - Tastenkuerzel: Strg/⌘+Enter drucken, Strg/⌘+S JSON speichern.
+  ============================================================================
+-->
+<style>
+  /* ---------- Tokens: Light ---------- */
+  :root{
+    color-scheme: light;
+    --bg:#f4f5f8;
+    --panel:#ffffff;
+    --panel-2:#f7f8fa;
+    --line:#e0e3ea;
+    --line-strong:#cbd1dc;
+    --txt:#171a21;
+    --muted:#5b6472;
+
+    --accent:#3d4dc9;                       /* Fallback (oklch 0.47 265) */
+    --accent:oklch(0.47 0.20 265);          /* Primaer-Aktion (bg), >=4.5:1 mit weiss */
+    --accent-hover:oklch(0.41 0.20 265);
+    --accent-text:oklch(0.44 0.20 265);     /* Akzent als Text/Link */
+    --accent-ink:#ffffff;                   /* Text auf Akzent */
+    --accent-soft:oklch(0.47 0.20 265 / .10);
+
+    --ok:#1c7a48;
+    --ok:oklch(0.52 0.13 155);
+    --err:#bb2d2d;
+    --err:oklch(0.52 0.19 25);
+
+    --paper:#fbfbfa;                        /* Bon-Vorschau (immer hell) */
+    --paper-ink:#151515;
+
+    --r-lg:14px;                            /* Radius-Lock (Skala) */
+    --r-md:10px;
+    --r-sm:7px;
+
+    --shadow:0 1px 2px rgba(20,24,40,.06), 0 10px 30px rgba(20,24,40,.07);
+    --ease:cubic-bezier(.16,1,.3,1);
+  }
+
+  /* ---------- Tokens: Dark ---------- */
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#0e1116;
+    --panel:#151922;
+    --panel-2:#1b2029;
+    --line:#262d38;
+    --line-strong:#333c49;
+    --txt:#e8ecf2;
+    --muted:#9aa4b4;
+
+    --accent:#7c8bf0;
+    --accent:oklch(0.68 0.16 265);
+    --accent-hover:oklch(0.74 0.15 265);
+    --accent-text:oklch(0.80 0.12 265);
+    --accent-ink:#0b0f1a;
+    --accent-soft:oklch(0.68 0.16 265 / .16);
+
+    --ok:oklch(0.74 0.14 155);
+    --err:oklch(0.70 0.17 25);
+
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 16px 44px rgba(0,0,0,.5);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#0e1116;
+      --panel:#151922;
+      --panel-2:#1b2029;
+      --line:#262d38;
+      --line-strong:#333c49;
+      --txt:#e8ecf2;
+      --muted:#9aa4b4;
+      --accent:#7c8bf0;
+      --accent:oklch(0.68 0.16 265);
+      --accent-hover:oklch(0.74 0.15 265);
+      --accent-text:oklch(0.80 0.12 265);
+      --accent-ink:#0b0f1a;
+      --accent-soft:oklch(0.68 0.16 265 / .16);
+      --ok:oklch(0.74 0.14 155);
+      --err:oklch(0.70 0.17 25);
+      --shadow:0 1px 2px rgba(0,0,0,.45), 0 16px 44px rgba(0,0,0,.5);
+    }
+  }
+
+  /* ---------- Base ---------- */
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--txt);
+    font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  }
+  a{color:var(--accent-text)}
+  button,input,select,textarea{font:inherit;color:inherit}
+  code{font-family:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;font-size:.9em}
+
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+  :focus:not(:focus-visible){outline:none}
+
+  .ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;
+      stroke-linecap:round;stroke-linejoin:round}
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  /* ---------- Toolbar ---------- */
+  header{
+    position:sticky; top:0; z-index:20;
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    padding:10px 16px; background:color-mix(in oklab, var(--bg) 88%, transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+  }
+  .brand{font-weight:700; letter-spacing:-.01em; margin-right:4px; white-space:nowrap}
+  .brand b{color:var(--accent-text)}
+  .grow{flex:1 1 auto}
+
+  .field{display:flex; align-items:center; gap:7px; background:var(--panel);
+    border:1px solid var(--line); border-radius:var(--r-md); padding:4px 9px}
+  .field:focus-within{border-color:var(--accent)}
+  .field label{color:var(--muted); font-size:12px; white-space:nowrap}
+  .field input,.field select{background:transparent; border:0; outline:0; padding:4px 2px}
+  .field input[type=text]{min-width:180px}
+  .field select{cursor:pointer}
+  .field select option{background:var(--panel); color:var(--txt)}
+  #serverStatus{cursor:pointer; border-radius:var(--r-sm); padding:2px 4px; transition:background .15s var(--ease)}
+  #serverStatus:hover{background:var(--panel-2)}
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    background:var(--panel); border:1px solid var(--line); color:var(--txt);
+    padding:8px 12px; border-radius:var(--r-md); cursor:pointer; white-space:nowrap;
+    font-weight:500; line-height:1;
+    transition:background .16s var(--ease),border-color .16s var(--ease),
+               color .16s var(--ease),transform .08s var(--ease);
+  }
+  .btn:hover{background:var(--panel-2); border-color:var(--line-strong)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600}
+  .btn.primary:hover{background:var(--accent-hover); border-color:var(--accent-hover)}
+  .btn.ghost{background:transparent}
+  .btn.ghost:hover{background:var(--accent-soft); border-color:var(--line-strong)}
+  .btn.sm{padding:6px 10px; font-size:13px}
+  .btn:disabled{opacity:.5; cursor:not-allowed}
+  .btn[aria-busy="true"]{cursor:progress}
+  .btn .spin{display:none}
+  .btn[aria-busy="true"] .spin{display:inline-block}
+  .btn[aria-busy="true"] .ic-lead{display:none}
+  .spin{width:15px;height:15px;border:2px solid color-mix(in oklab, var(--accent-ink) 45%, transparent);
+    border-top-color:var(--accent-ink);border-radius:50%;animation:spin .7s linear infinite}
+  .btn.ghost .spin,.btn:not(.primary) .spin{border-color:var(--line-strong);border-top-color:var(--accent)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .iconbtn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+    background:transparent;border:1px solid transparent;border-radius:var(--r-sm);cursor:pointer;color:var(--muted);
+    transition:background .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease),transform .08s var(--ease)}
+  .iconbtn:hover{background:var(--panel); border-color:var(--line); color:var(--txt)}
+  .iconbtn:active{transform:translateY(1px)}
+  .iconbtn.del:hover{color:var(--err); border-color:color-mix(in oklab,var(--err) 40%,var(--line))}
+  .iconbtn:disabled{opacity:.3;cursor:not-allowed}
+  .iconbtn:disabled:hover{background:transparent;border-color:transparent;color:var(--muted)}
+
+  /* ---------- Layout ---------- */
+  main{display:grid; grid-template-columns:minmax(380px,1fr) minmax(360px,520px);
+    gap:18px; padding:18px; align-items:start; max-width:1400px; margin:0 auto}
+  @media (max-width:980px){ main{grid-template-columns:1fr} }
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden}
+  .panel > h2{
+    margin:0; padding:12px 14px; font-size:12px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--muted); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px;
+  }
+  .panel .body{padding:14px}
+
+  /* Sticky-Vorschau auf Desktop: Bon bleibt beim Editieren sichtbar */
+  @media (min-width:981px){
+    .panel.preview{position:sticky; top:74px}
+    .panel.preview .body{max-height:calc(100vh - 120px); overflow:auto}
+  }
+
+  .hint{color:var(--muted); font-size:12px; line-height:1.5}
+  .kbd{display:inline-block; padding:1px 5px; border:1px solid var(--line-strong); border-bottom-width:2px;
+    border-radius:5px; font-size:11px; color:var(--muted); background:var(--panel-2)}
+  .status{font-size:12px; display:inline-flex; align-items:center; gap:6px; color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--line-strong);display:inline-block;flex:none}
+  .dot.ok{background:var(--ok)} .dot.err{background:var(--err)}
+  .dot.pending{animation:pulse 1.4s var(--ease) infinite}
+  @keyframes pulse{50%{opacity:.35}}
+
+  /* ---------- Add-bar ---------- */
+  .addbar{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px}
+  .addbar .btn{background:var(--panel-2)}
+  .addbar .btn:hover{background:var(--accent-soft); border-color:var(--accent)}
+
+  /* ---------- Block cards ---------- */
+  #blocks{display:flex; flex-direction:column; gap:10px}
+  .block{background:var(--panel-2); border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden;
+    transition:border-color .16s var(--ease), box-shadow .3s var(--ease)}
+  .block:hover{border-color:var(--line-strong)}
+  .block.flash{box-shadow:0 0 0 2px var(--accent)}
+  .block.dragging{opacity:.45}
+  .block.drop-before{box-shadow:0 -3px 0 -1px var(--accent)}
+  .block.drop-after{box-shadow:0 3px 0 -1px var(--accent)}
+
+  .block .head{display:flex; align-items:center; gap:4px; padding:5px 6px 5px 4px; border-bottom:1px solid var(--line)}
+  .block.collapsed .head{border-bottom-color:transparent}
+  .grip{display:inline-flex; align-items:center; justify-content:center; width:22px; height:26px;
+    color:var(--line-strong); cursor:grab; border-radius:var(--r-sm); flex:none}
+  .grip:hover{color:var(--muted); background:var(--panel)}
+  .grip:active{cursor:grabbing}
+  .block .head .name{display:inline-flex; align-items:center; gap:5px; flex:1 1 auto; text-align:left;
+    background:transparent; border:0; cursor:pointer; padding:4px 6px; border-radius:var(--r-sm);
+    font-weight:600; font-size:12.5px; letter-spacing:.02em; color:var(--accent-text)}
+  .block .head .name:hover{background:var(--accent-soft)}
+  .chev{transition:transform .18s var(--ease)}
+  .block.collapsed .chev{transform:rotate(-90deg)}
+  .block .head .mini{display:flex; gap:2px}
+  .block .fields{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding:12px}
+  .block.collapsed .fields{display:none}
+  .block .fields .full{grid-column:1 / -1}
+
+  .lab{display:flex; flex-direction:column; gap:5px}
+  .lab > span{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600}
+  .lab input[type=text],.lab input[type=number],.lab select,.lab textarea{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md); padding:7px 9px; outline:0; width:100%;
+    transition:border-color .15s var(--ease)}
+  .lab input:focus,.lab select:focus,.lab textarea:focus{border-color:var(--accent)}
+  .lab textarea{resize:vertical; min-height:54px}
+  .lab select option{background:var(--panel)}
+  .row-inline{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .switch{display:inline-flex; align-items:center; gap:7px; cursor:pointer; user-select:none; font-size:13px}
+  .switch input{width:16px;height:16px;accent-color:var(--accent)}
+
+  /* ---------- Empty state ---------- */
+  .empty{padding:30px 24px; text-align:center; color:var(--muted);
+    border:1px dashed var(--line-strong); border-radius:var(--r-md); display:flex; flex-direction:column; align-items:center; gap:10px}
+  .empty svg{width:26px;height:26px;stroke:var(--line-strong);fill:none;stroke-width:1.4}
+  .empty strong{color:var(--txt); font-weight:600}
+  .empty p{margin:0; font-size:12.5px; max-width:34ch}
+
+  /* ---------- Presets ---------- */
+  .presets{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+
+  /* ---------- Footer-Tools ---------- */
+  .tools{margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+  .tools .sep{width:1px; align-self:stretch; background:var(--line); margin:0 2px}
+  .saved{font-size:11px; color:var(--muted); opacity:0; transition:opacity .3s var(--ease);
+    display:inline-flex; align-items:center; gap:4px; margin-left:auto}
+  .saved.show{opacity:1}
+  .saved .ic{width:13px;height:13px;color:var(--ok)}
+
+  /* ---------- Preview / paper ---------- */
+  .previewWrap{display:flex; flex-direction:column; align-items:center; gap:14px}
+  .paper{
+    width:calc(32ch + 44px); background:var(--paper); color:var(--paper-ink);
+    font-family:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    font-size:13px; line-height:1.35; padding:22px; border-radius:6px;
+    box-shadow:var(--shadow); white-space:pre-wrap; word-break:break-word;
+  }
+  .paper .ln{display:block}
+  .paper .double{font-size:2em; line-height:1.15}
+  .paper .wide{font-size:2em}
+  .paper .tall{line-height:1.6}
+  .paper .bold{font-weight:700}
+  .paper .ul{text-decoration:underline}
+  .paper .cols{display:flex; justify-content:space-between; gap:8px}
+  .paper .cols .l{overflow:hidden; white-space:nowrap}
+  .paper .cols .r{white-space:nowrap}
+  /* Zeilenlaengen-Warnung: markiert, wird auf dem Drucker umgebrochen */
+  .paper .ln.overflow{background:rgba(187,45,45,.08); box-shadow:inset 3px 0 0 rgba(187,45,45,.8); border-radius:2px}
+  .paper .qr{display:block; margin:6px 0}
+  .paper .qr img{width:150px;height:150px;image-rendering:pixelated}
+  .paper .qr .ph{width:150px;height:150px;border:1px dashed #b9b9b9;display:flex;align-items:center;
+    justify-content:center;font-size:10px;color:#7a7a7a;text-align:center;padding:6px;white-space:normal}
+  .paper .bc{display:block; margin:4px 0}
+  .paper .bc .bars{display:flex; align-items:flex-end; height:52px}
+  .paper .bc .bars i{display:block;height:100%;background:#151515}
+  .paper .bc .txt{font-size:11px; letter-spacing:2px; margin-top:2px}
+  .paper .cutline{display:flex; align-items:center; gap:8px; color:#8a8a8a; margin-top:4px}
+  .paper .cutline hr{flex:1; border:0; border-top:1px dashed #a9a9a9; margin:0}
+  .paper .placeholder{color:#8a8a8a; text-align:center; display:block}
+  .preview-actions{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+  .warnTag{color:var(--err); font-weight:600}
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(16px);
+    background:var(--panel); border:1px solid var(--line); color:var(--txt);
+    padding:11px 16px; border-radius:var(--r-md); box-shadow:var(--shadow);
+    opacity:0; pointer-events:none; transition:opacity .22s var(--ease),transform .22s var(--ease);
+    z-index:50; max-width:min(90vw,520px); display:flex; align-items:center; gap:9px;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  .toast .dot{width:9px;height:9px}
+  .toast.ok .dot{background:var(--ok)} .toast.err .dot{background:var(--err)}
+
+  /* ---------- Reduced motion ---------- */
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
+    .dot.pending{animation:none}
+  }
+
+  /* ---------- Print ---------- */
+  @page{ size:58mm auto; margin:0 }
+  @media print{
+    body{background:#fff}
+    header, main > .panel:first-child, .preview-actions, .toast{display:none !important}
+    main{display:block; padding:0; margin:0; max-width:none}
+    .panel{border:0; background:#fff}
+    .panel > h2{display:none}
+    .panel .body{padding:0; max-height:none; overflow:visible}
+    .panel.preview{position:static}
+    .previewWrap{gap:0}
+    .paper{box-shadow:none; width:58mm; padding:2mm; font-size:11px; border-radius:0}
+    .paper .ln.overflow{background:none; box-shadow:none}
+    .paper .qr img{width:32mm;height:32mm}
+  }
+</style>
+</head>
+<body>
+
+<!-- Inline-Icon-Sprite (einfache geometrische Glyphen, einheitliche Strichstaerke) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.25v9.5M3.25 8h9.5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 16 16"><path d="M8 12.75V3.25M4 7.25 8 3.25l4 4"/></symbol>
+  <symbol id="i-down" viewBox="0 0 16 16"><path d="M8 3.25v9.5M4 8.75 8 12.75l4-4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.75" y="5.75" width="7.5" height="7.5" rx="1.75"/><path d="M10.25 5.75V4.25A1.75 1.75 0 0 0 8.5 2.5H4.25A1.75 1.75 0 0 0 2.5 4.25V8.5A1.75 1.75 0 0 0 4.25 10.25h1.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.75 4.25h10.5M6 4.25V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.25M4.4 4.25l.5 8.1a1 1 0 0 0 1 .95h4.2a1 1 0 0 0 1-.95l.5-8.1"/></symbol>
+  <symbol id="i-print" viewBox="0 0 16 16"><path d="M4.75 6V2.75h6.5V6M4.75 12.5h-1.5a1 1 0 0 1-1-1V8.25a1 1 0 0 1 1-1h8.5a1 1 0 0 1 1 1v3.25a1 1 0 0 1-1 1h-1.5M4.75 9.5h6.5v3.75h-6.5z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.5v7.5M4.75 7 8 10.25 11.25 7M3 13.25h10"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 10V2.5M4.75 5.75 8 2.5l3.25 3.25M3 13.25h10"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5V5.5H10"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.25M8 13.25v1.25M1.5 8h1.25M13.25 8h1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M12.6 3.4l-.9.9M4.3 11.7l-.9.9"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 16 16"><path d="M13.25 9.75A5.5 5.5 0 0 1 6.25 2.75a5.5 5.5 0 1 0 7 7Z"/></symbol>
+  <symbol id="i-cut" viewBox="0 0 16 16"><circle cx="4" cy="4" r="1.75"/><circle cx="4" cy="12" r="1.75"/><path d="M5.4 5.2 13 12.5M5.4 10.8 13 3.5"/></symbol>
+  <symbol id="i-box" viewBox="0 0 16 16"><path d="M2.5 4.5 8 2l5.5 2.5v7L8 14l-5.5-2.5z"/><path d="M2.5 4.5 8 7l5.5-2.5M8 7v7"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M4 6.5 8 10.5l4-4"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 16 16"><g fill="currentColor" stroke="none"><circle cx="6" cy="4.5" r="1.05"/><circle cx="10" cy="4.5" r="1.05"/><circle cx="6" cy="8" r="1.05"/><circle cx="10" cy="8" r="1.05"/><circle cx="6" cy="11.5" r="1.05"/><circle cx="10" cy="11.5" r="1.05"/></g></symbol>
+  <symbol id="i-undo" viewBox="0 0 16 16"><path d="M6.5 4 3 7.5l3.5 3.5"/><path d="M3 7.5h6.25a3.75 3.75 0 1 1 0 7.5H8"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 16 16"><path d="M9.5 4 13 7.5 9.5 11"/><path d="M13 7.5H6.75a3.75 3.75 0 1 0 0 7.5H8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.5 8.5 6.5 11.5 12.5 5"/></symbol>
+</svg>
+
+<header>
+  <div class="brand">fyndo · <b>Bon-Designer</b></div>
+
+  <div class="field">
+    <label for="serverUrl">Druckserver</label>
+    <input id="serverUrl" type="text" spellcheck="false" placeholder="http://localhost:8787">
+    <span class="status" id="serverStatus" role="status" aria-live="polite" title="Klicken zum erneuten Prüfen">
+      <span class="dot pending"></span><span>prüfe…</span>
+    </span>
+  </div>
+
+  <div class="field">
+    <label for="width">Breite</label>
+    <select id="width">
+      <option value="32">58 mm · 32 Zeichen</option>
+      <option value="48">80 mm · 48 Zeichen</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="charset">Zeichensatz</label>
+    <select id="charset">
+      <option value="ascii">ASCII (ä→ae)</option>
+      <option value="cp437">CP437 (Umlaute)</option>
+      <option value="cp858">CP858 (Umlaute + €)</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="copies">Kopien</label>
+    <input id="copies" type="number" min="1" max="5" value="1" style="width:52px">
+  </div>
+
+  <span class="grow"></span>
+
+  <button class="iconbtn" id="themeToggle" type="button" title="Hell/Dunkel" aria-label="Farbschema umschalten">
+    <svg class="ic" aria-hidden="true"><use href="#i-moon" id="themeIcon"></use></svg>
+  </button>
+
+  <button class="btn primary" id="btnPrint" type="button" aria-busy="false" title="Strg/⌘+Enter">
+    <span class="spin" aria-hidden="true"></span>
+    <svg class="ic ic-lead" aria-hidden="true"><use href="#i-print"></use></svg>
+    Drucken
+  </button>
+</header>
+
+<main>
+  <!-- ============ EDITOR ============ -->
+  <section class="panel" aria-labelledby="editorTitle">
+    <h2 id="editorTitle">Bausteine</h2>
+    <div class="body">
+      <div class="addbar" role="group" aria-label="Baustein hinzufügen">
+        <button class="btn sm" type="button" data-add="text">Text</button>
+        <button class="btn sm" type="button" data-add="cols">2 Spalten</button>
+        <button class="btn sm" type="button" data-add="hr">Trenner</button>
+        <button class="btn sm" type="button" data-add="qr">QR-Code</button>
+        <button class="btn sm" type="button" data-add="barcode">Barcode</button>
+        <button class="btn sm" type="button" data-add="feed">Leerzeile</button>
+        <button class="btn sm" type="button" data-add="cut">Schnitt</button>
+        <button class="btn sm ghost" type="button" data-add="raw">Rohtext</button>
+      </div>
+
+      <div class="presets" style="margin-bottom:16px" role="group" aria-label="Vorlage laden">
+        <span class="hint">Vorlagen:</span>
+        <button class="btn sm ghost" type="button" data-preset="blank">Leer</button>
+        <button class="btn sm ghost" type="button" data-preset="receipt">Kassenbon</button>
+        <button class="btn sm ghost" type="button" data-preset="order">Bestellbon</button>
+        <button class="btn sm ghost" type="button" data-preset="voucher">Gutschein</button>
+      </div>
+
+      <div id="blocks"></div>
+
+      <div class="tools">
+        <button class="iconbtn" type="button" id="btnUndo" title="Rückgängig (Strg/⌘+Z)" aria-label="Rückgängig" disabled>
+          <svg class="ic" aria-hidden="true"><use href="#i-undo"></use></svg>
+        </button>
+        <button class="iconbtn" type="button" id="btnRedo" title="Wiederholen (Strg/⌘+Shift+Z)" aria-label="Wiederholen" disabled>
+          <svg class="ic" aria-hidden="true"><use href="#i-redo"></use></svg>
+        </button>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="btn sm" type="button" id="btnExport" title="Strg/⌘+S">
+          <svg class="ic" aria-hidden="true"><use href="#i-download"></use></svg>JSON speichern
+        </button>
+        <button class="btn sm" type="button" id="btnImport">
+          <svg class="ic" aria-hidden="true"><use href="#i-upload"></use></svg>JSON laden
+        </button>
+        <button class="btn sm ghost" type="button" id="btnReset">
+          <svg class="ic" aria-hidden="true"><use href="#i-reset"></use></svg>Zurücksetzen
+        </button>
+        <input id="fileInput" type="file" accept="application/json,.json" hidden>
+        <span class="saved" id="savedTag" aria-live="polite">
+          <svg class="ic" aria-hidden="true"><use href="#i-check"></use></svg>Gespeichert
+        </span>
+      </div>
+
+      <p class="hint" style="margin-top:12px">
+        Eigenständiges Werkzeug, keine fyndo-Integration. Zum Drucken muss der Druckserver
+        laufen (<code>printer/server.py</code>). Die QR-Vorschau kommt vom Server
+        (<code>qrencode</code>); gedruckt wird der QR nativ per ESC/POS.
+        Kürzel: <span class="kbd">Strg/⌘+Enter</span> drucken,
+        <span class="kbd">Strg/⌘+S</span> speichern,
+        <span class="kbd">Strg/⌘+Z</span> rückgängig.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ PREVIEW ============ -->
+  <section class="panel preview" aria-labelledby="previewTitle">
+    <h2 id="previewTitle">Vorschau <span class="grow" style="flex:1"></span><span class="hint" id="previewInfo"></span></h2>
+    <div class="body previewWrap">
+      <div class="paper" id="paper" aria-label="Bon-Vorschau"></div>
+      <div class="preview-actions">
+        <button class="btn sm primary" type="button" id="btnPrint2" aria-busy="false">
+          <span class="spin" aria-hidden="true"></span>
+          <svg class="ic ic-lead" aria-hidden="true"><use href="#i-print"></use></svg>
+          An Druckserver senden
+        </button>
+        <button class="btn sm ghost" type="button" id="btnBrowserPrint">Browser-Druck</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span class="dot"></span><span id="toastMsg"></span>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const LS_KEY = "fyndo-bon-designer-v1";
+  const THEME_KEY = "fyndo-bon-designer-theme";
+  const DEFAULT_SERVER = "http://localhost:8787";
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ------------------------------------------------------------------ */
+  /* Block-Definitionen                                                  */
+  /* ------------------------------------------------------------------ */
+  const TYPE_LABEL = {
+    text:"Text", cols:"2 Spalten", hr:"Trenner", qr:"QR-Code",
+    barcode:"Barcode", feed:"Leerzeile", cut:"Schnitt", raw:"Rohtext"
+  };
+  const BLOCK_DEFS = {
+    text:    () => ({type:"text", text:"Neue Zeile", align:"left", size:"normal", bold:false, underline:false}),
+    cols:    () => ({type:"cols", left:"Links", right:"Rechts"}),
+    hr:      () => ({type:"hr", char:"-"}),
+    qr:      () => ({type:"qr", data:"https://fyndo.sdtoll.de", size:6, ec:"M", align:"center"}),
+    barcode: () => ({type:"barcode", data:"1234567890", height:60, width:2, hri:2, align:"center"}),
+    feed:    () => ({type:"feed", lines:2}),
+    cut:     () => ({type:"cut"}),
+    raw:     () => ({type:"raw", text:"Rohtext"})
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* State                                                               */
+  /* ------------------------------------------------------------------ */
+  const state = { serverUrl: DEFAULT_SERVER, width: 32, charset: "ascii", copies: 1, blocks: [] };
+  const collapsed = new WeakSet();   // eingeklappte Bausteine (per Objekt-Identitaet)
+
+  const $ = (id) => document.getElementById(id);
+  const blocksEl = $("blocks");
+  const paperEl = $("paper");
+
+  function snapshot(){
+    return JSON.stringify({serverUrl:state.serverUrl, width:state.width, charset:state.charset, copies:state.copies, blocks:state.blocks});
+  }
+  function persist(){
+    try{ localStorage.setItem(LS_KEY, snapshot()); }catch(e){}
+    flashSaved();
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(raw){
+        const s = JSON.parse(raw);
+        if(s && Array.isArray(s.blocks)){
+          Object.assign(state, {
+            serverUrl: s.serverUrl || DEFAULT_SERVER,
+            width: s.width === 48 ? 48 : 32,
+            charset: ["ascii","cp437","cp858"].includes(s.charset) ? s.charset : "ascii",
+            copies: Math.min(5, Math.max(1, parseInt(s.copies)||1)),
+            blocks: s.blocks.map(b => ({...b}))
+          });
+          return;
+        }
+      }
+    }catch(e){ /* ignore */ }
+    applyPreset("receipt", {history:false, silent:true});
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* History (Undo/Redo)                                                 */
+  /* ------------------------------------------------------------------ */
+  const history = { past: [], future: [], limit: 120 };
+  let burstSnapshot = null, burstTimer = null;
+
+  function trimHistory(){ while(history.past.length > history.limit) history.past.shift(); }
+  function updateHistoryButtons(){
+    $("btnUndo").disabled = history.past.length === 0;
+    $("btnRedo").disabled = history.future.length === 0;
+  }
+  function flushPending(){
+    if(burstSnapshot === null) return;
+    clearTimeout(burstTimer);
+    history.past.push(burstSnapshot);
+    burstSnapshot = null;
+    trimHistory();
+    history.future.length = 0;
+    updateHistoryButtons();
+  }
+  function pushHistory(){          // VOR einer strukturellen Aenderung aufrufen
+    flushPending();
+    history.past.push(snapshot());
+    trimHistory();
+    history.future.length = 0;
+    updateHistoryButtons();
+  }
+  function beginBurst(){           // fuer Tipp-Eingaben: ein Eintrag pro Tipp-Serie
+    if(burstSnapshot === null) burstSnapshot = snapshot();
+    clearTimeout(burstTimer);
+    burstTimer = setTimeout(flushPending, 700);
+  }
+  function restore(snap){
+    const s = JSON.parse(snap);
+    state.serverUrl = s.serverUrl; state.width = s.width; state.charset = s.charset;
+    state.copies = s.copies; state.blocks = s.blocks;
+    syncToolbar(); renderEditor(); renderPreview(); persist();
+  }
+  function undo(){
+    flushPending();
+    if(!history.past.length) return;
+    history.future.push(snapshot());
+    restore(history.past.pop());
+    updateHistoryButtons();
+  }
+  function redo(){
+    flushPending();
+    if(!history.future.length) return;
+    history.past.push(snapshot());
+    restore(history.future.pop());
+    updateHistoryButtons();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Vorlagen                                                            */
+  /* ------------------------------------------------------------------ */
+  function presetBlocks(name){
+    if(name === "blank") return [];
+    if(name === "order") return [
+      {type:"text", text:"Sweet Cream", align:"center", size:"double", bold:true},
+      {type:"text", text:"BESTELLBON", align:"center", bold:false},
+      {type:"hr", char:"="},
+      {type:"cols", left:"Bestellung:", right:"#1042"},
+      {type:"cols", left:"Zeit:", right:"14.10.2026 16:40"},
+      {type:"hr", char:"-"},
+      {type:"text", text:"2x Vanille Becher", align:"left", size:"normal", bold:false},
+      {type:"text", text:"1x Schoko groß", align:"left", size:"normal", bold:false},
+      {type:"hr", char:"-"},
+      {type:"text", text:"Bitte zubereiten", align:"center", bold:true},
+      {type:"feed", lines:2},
+      {type:"cut"}
+    ];
+    if(name === "voucher") return [
+      {type:"text", text:"Sweet Cream", align:"center", size:"double", bold:true},
+      {type:"text", text:"GUTSCHEIN", align:"center", size:"tall", bold:true},
+      {type:"hr", char:"="},
+      {type:"text", text:"Wert: 10,00 EUR", align:"center", size:"normal", bold:true},
+      {type:"text", text:"Code: FYN-4K2P-9QXZ", align:"center", size:"normal", bold:false},
+      {type:"qr", data:"https://fyndo.sdtoll.de/gift/FYN-4K2P-9QXZ", size:6, ec:"M", align:"center"},
+      {type:"text", text:"Einlösbar bis 31.12.2026", align:"center", bold:false},
+      {type:"feed", lines:2},
+      {type:"cut"}
+    ];
+    return [
+      {type:"text", text:"Sweet Cream", align:"center", size:"double", bold:true},
+      {type:"text", text:"Eiscafé Musterstadt", align:"center", bold:false},
+      {type:"hr", char:"="},
+      {type:"cols", left:"Datum:", right:"14.10.2026 16:40"},
+      {type:"cols", left:"Bon-Nr.:", right:"#1042"},
+      {type:"hr", char:"-"},
+      {type:"cols", left:"2x Vanille Becher", right:"4,00 €"},
+      {type:"cols", left:"1x Schoko groß", right:"3,50 €"},
+      {type:"hr", char:"-"},
+      {type:"cols", left:"SUMME:", right:"7,50 €"},
+      {type:"cols", left:"Zahlung:", right:"Bar"},
+      {type:"hr", char:"="},
+      {type:"qr", data:"https://fyndo.sdtoll.de/receipt/1042", size:6, ec:"M", align:"center"},
+      {type:"text", text:"Vielen Dank für Ihren Einkauf!", align:"center", bold:false},
+      {type:"feed", lines:2},
+      {type:"cut"}
+    ];
+  }
+  function applyPreset(name, opts){
+    opts = opts || {};
+    if(opts.history !== false) pushHistory();
+    state.blocks = presetBlocks(name).map(b => ({...b}));
+    renderEditor(); renderPreview(); persist();
+    if(!opts.silent) toast("Vorlage geladen.", "ok");
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Helpers                                                             */
+  /* ------------------------------------------------------------------ */
+  function esc(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function serverBase(){ return (state.serverUrl || DEFAULT_SERVER).replace(/\/+$/,""); }
+  function icon(id){ return '<svg class="ic" aria-hidden="true"><use href="#i-'+id+'"></use></svg>'; }
+  function toast(msg, kind){
+    const t = $("toast");
+    $("toastMsg").textContent = msg;
+    t.className = "toast show" + (kind ? " " + kind : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { t.className = "toast"; }, 3600);
+  }
+  let savedTimer = null;
+  function flashSaved(){
+    const el = $("savedTag");
+    el.classList.add("show");
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(() => el.classList.remove("show"), 1200);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Editor                                                              */
+  /* ------------------------------------------------------------------ */
+  function renderEditor(){
+    if(!state.blocks.length){
+      blocksEl.innerHTML =
+        '<div class="empty">' +
+          '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5 8 2l5.5 2.5v7L8 14l-5.5-2.5z"/><path d="M2.5 4.5 8 7l5.5-2.5M8 7v7"/></svg>' +
+          '<strong>Noch keine Bausteine</strong>' +
+          '<p>Wähle eine Vorlage oder füge einen Baustein hinzu, um den Bon aufzubauen.</p>' +
+          '<button class="btn sm" type="button" data-preset="receipt">Kassenbon-Vorlage laden</button>' +
+        '</div>';
+      return;
+    }
+    blocksEl.innerHTML = state.blocks.map((b,i) => blockCard(b,i)).join("");
+    wireCards();
+  }
+
+  function selOpts(options, current){
+    return options.map(o => `<option value="${esc(o[0])}"${String(o[0])===String(current)?" selected":""}>${esc(o[1])}</option>`).join("");
+  }
+
+  function blockCard(b, i){
+    const n = state.blocks.length;
+    const isCol = collapsed.has(b);
+    const head = `
+      <div class="head">
+        <span class="grip" data-grip title="Ziehen zum Sortieren" aria-hidden="true">${icon("grip")}</span>
+        <button class="name" type="button" data-collapse="${i}" aria-expanded="${!isCol}" title="${isCol?"aufklappen":"einklappen"}">
+          <svg class="ic chev" aria-hidden="true"><use href="#i-chev"></use></svg>${esc(TYPE_LABEL[b.type] || b.type)}
+        </button>
+        <span class="mini">
+          <button class="iconbtn" type="button" data-act="up" data-i="${i}" title="nach oben" aria-label="nach oben" ${i===0?"disabled":""}>${icon("up")}</button>
+          <button class="iconbtn" type="button" data-act="down" data-i="${i}" title="nach unten" aria-label="nach unten" ${i===n-1?"disabled":""}>${icon("down")}</button>
+          <button class="iconbtn" type="button" data-act="dup" data-i="${i}" title="duplizieren" aria-label="duplizieren">${icon("copy")}</button>
+          <button class="iconbtn del" type="button" data-act="del" data-i="${i}" title="löschen" aria-label="löschen">${icon("trash")}</button>
+        </span>
+      </div>`;
+
+    let fields = "";
+    if(b.type === "text"){
+      fields = `
+        <label class="lab full"><span>Text</span>
+          <textarea data-k="text" data-i="${i}">${esc(b.text)}</textarea></label>
+        <label class="lab"><span>Ausrichtung</span>
+          <select data-k="align" data-i="${i}">${selOpts([["left","links"],["center","zentriert"],["right","rechts"]], b.align)}</select></label>
+        <label class="lab"><span>Größe</span>
+          <select data-k="size" data-i="${i}">${selOpts([["normal","normal"],["tall","doppelt hoch"],["wide","doppelt breit"],["double","doppelt"]], b.size)}</select></label>
+        <div class="row-inline full">
+          <label class="switch"><input type="checkbox" data-k="bold" data-i="${i}" ${b.bold?"checked":""}> fett</label>
+          <label class="switch"><input type="checkbox" data-k="underline" data-i="${i}" ${b.underline?"checked":""}> unterstrichen</label>
+        </div>`;
+    } else if(b.type === "cols"){
+      fields = `
+        <label class="lab"><span>Links</span><input type="text" data-k="left" data-i="${i}" value="${esc(b.left)}"></label>
+        <label class="lab"><span>Rechts</span><input type="text" data-k="right" data-i="${i}" value="${esc(b.right)}"></label>`;
+    } else if(b.type === "hr"){
+      fields = `
+        <label class="lab"><span>Trennzeichen</span><input type="text" maxlength="1" data-k="char" data-i="${i}" value="${esc(b.char)}"></label>`;
+    } else if(b.type === "qr"){
+      fields = `
+        <label class="lab full"><span>Inhalt (URL / Text)</span>
+          <input type="text" data-k="data" data-i="${i}" value="${esc(b.data)}"></label>
+        <label class="lab"><span>Modulgröße (1–16)</span>
+          <input type="number" min="1" max="16" data-k="size" data-i="${i}" value="${esc(b.size)}"></label>
+        <label class="lab"><span>Fehlerkorrektur</span>
+          <select data-k="ec" data-i="${i}">${selOpts([["L","L (7%)"],["M","M (15%)"],["Q","Q (25%)"],["H","H (30%)"]], b.ec)}</select></label>
+        <label class="lab"><span>Ausrichtung</span>
+          <select data-k="align" data-i="${i}">${selOpts([["left","links"],["center","zentriert"],["right","rechts"]], b.align)}</select></label>`;
+    } else if(b.type === "barcode"){
+      fields = `
+        <label class="lab full"><span>Inhalt (CODE128)</span>
+          <input type="text" data-k="data" data-i="${i}" value="${esc(b.data)}"></label>
+        <label class="lab"><span>Höhe (Punkte)</span>
+          <input type="number" min="1" max="255" data-k="height" data-i="${i}" value="${esc(b.height)}"></label>
+        <label class="lab"><span>Modulbreite (2–6)</span>
+          <input type="number" min="2" max="6" data-k="width" data-i="${i}" value="${esc(b.width)}"></label>
+        <label class="lab"><span>Klartext</span>
+          <select data-k="hri" data-i="${i}">${selOpts([[0,"keiner"],[1,"oberhalb"],[2,"unterhalb"],[3,"beide"]], b.hri)}</select></label>
+        <label class="lab"><span>Ausrichtung</span>
+          <select data-k="align" data-i="${i}">${selOpts([["left","links"],["center","zentriert"],["right","rechts"]], b.align)}</select></label>`;
+    } else if(b.type === "feed"){
+      fields = `
+        <label class="lab"><span>Leerzeilen</span>
+          <input type="number" min="1" max="20" data-k="lines" data-i="${i}" value="${esc(b.lines)}"></label>`;
+    } else if(b.type === "raw"){
+      fields = `
+        <label class="lab full"><span>Rohtext (mehrere Zeilen erlaubt)</span>
+          <textarea data-k="text" data-i="${i}">${esc(b.text)}</textarea></label>`;
+    } else if(b.type === "cut"){
+      fields = `<p class="hint" style="grid-column:1/-1;margin:2px 0">Papier wird hier geschnitten.</p>`;
+    }
+
+    return `<div class="block${isCol?" collapsed":""}" data-block="${i}">${head}<div class="fields">${fields}</div></div>`;
+  }
+
+  function wireCards(){
+    // Aktionsbuttons (▲▼ / duplizieren / löschen)
+    blocksEl.querySelectorAll("[data-act]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = parseInt(btn.dataset.i, 10);
+        const act = btn.dataset.act;
+        if(act === "up" && i > 0){ pushHistory(); [state.blocks[i-1], state.blocks[i]] = [state.blocks[i], state.blocks[i-1]]; }
+        else if(act === "down" && i < state.blocks.length-1){ pushHistory(); [state.blocks[i+1], state.blocks[i]] = [state.blocks[i], state.blocks[i+1]]; }
+        else if(act === "dup"){ pushHistory(); state.blocks.splice(i+1, 0, JSON.parse(JSON.stringify(state.blocks[i]))); }
+        else if(act === "del"){ pushHistory(); state.blocks.splice(i, 1); }
+        else return;
+        renderEditor(); renderPreview(); persist();
+      });
+    });
+
+    // Einklappen
+    blocksEl.querySelectorAll("[data-collapse]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const blk = btn.closest(".block");
+        const b = state.blocks[parseInt(btn.dataset.collapse, 10)];
+        if(collapsed.has(b)) collapsed.delete(b); else collapsed.add(b);
+        const nowCol = collapsed.has(b);
+        blk.classList.toggle("collapsed", nowCol);
+        btn.setAttribute("aria-expanded", String(!nowCol));
+        btn.title = nowCol ? "aufklappen" : "einklappen";
+      });
+    });
+
+    // Feldänderungen
+    blocksEl.querySelectorAll("[data-k]").forEach(el => {
+      const structural = (el.type === "checkbox" || el.tagName === "SELECT");
+      el.addEventListener(structural ? "change" : "input", () => {
+        const i = parseInt(el.dataset.i, 10);
+        const k = el.dataset.k;
+        if(structural){ flushPending(); pushHistory(); } else { beginBurst(); }
+        let v;
+        if(el.type === "checkbox") v = el.checked;
+        else if(el.type === "number") v = parseInt(el.value, 10) || 0;
+        else v = el.value;
+        state.blocks[i][k] = v;
+        renderPreview(); persist();
+      });
+    });
+
+    wireDrag();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Drag & Drop (Sortieren)                                             */
+  /* ------------------------------------------------------------------ */
+  let dragFrom = -1, isDragging = false;
+  function clearDropMarks(){
+    blocksEl.querySelectorAll(".drop-before,.drop-after").forEach(el => el.classList.remove("drop-before","drop-after"));
+  }
+  function wireDrag(){
+    blocksEl.querySelectorAll(".block").forEach(el => {
+      const grip = el.querySelector("[data-grip]");
+      if(grip){
+        grip.addEventListener("pointerdown", () => { el.draggable = true; });
+      }
+      el.addEventListener("dragstart", (e) => {
+        dragFrom = parseInt(el.dataset.block, 10);
+        isDragging = true;
+        el.classList.add("dragging");
+        if(e.dataTransfer){ e.dataTransfer.effectAllowed = "move"; try{ e.dataTransfer.setData("text/plain", String(dragFrom)); }catch(_){} }
+      });
+      el.addEventListener("dragend", () => {
+        el.draggable = false; isDragging = false; dragFrom = -1;
+        el.classList.remove("dragging"); clearDropMarks();
+      });
+    });
+  }
+  blocksEl.addEventListener("dragover", (e) => {
+    const t = e.target.closest(".block");
+    if(!t) return;
+    e.preventDefault();
+    clearDropMarks();
+    const r = t.getBoundingClientRect();
+    t.classList.add((e.clientY - r.top) > r.height/2 ? "drop-after" : "drop-before");
+  });
+  blocksEl.addEventListener("drop", (e) => {
+    const t = e.target.closest(".block");
+    if(!t || dragFrom < 0) return;
+    e.preventDefault();
+    const r = t.getBoundingClientRect();
+    const after = (e.clientY - r.top) > r.height/2;
+    let to = parseInt(t.dataset.block, 10) + (after ? 1 : 0);
+    if(to === dragFrom || to === dragFrom + 1){ clearDropMarks(); return; }
+    pushHistory();
+    const [moved] = state.blocks.splice(dragFrom, 1);
+    if(to > dragFrom) to--;
+    state.blocks.splice(to, 0, moved);
+    dragFrom = -1;
+    renderEditor(); renderPreview(); persist();
+  });
+  document.addEventListener("pointerup", () => {
+    if(!isDragging) blocksEl.querySelectorAll(".block").forEach(b => { b.draggable = false; });
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Vorschau                                                            */
+  /* ------------------------------------------------------------------ */
+  function sizeClass(size){
+    return size === "double" ? "double" : size === "wide" ? "wide" : size === "tall" ? "tall" : "";
+  }
+  // effektive Zeichenbreite eines Bausteins (doppelt-breite Schrift zaehlt 2x)
+  function effWidth(b){
+    if(b.type === "text" || b.type === "raw"){
+      const parts = String(b.text || "").split("\n");
+      let len = 0; parts.forEach(p => { if(p.length > len) len = p.length; });
+      if(b.type === "text" && (b.size === "double" || b.size === "wide")) len *= 2;
+      return len;
+    }
+    if(b.type === "cols") return String(b.left || "").length + String(b.right || "").length;
+    return 0;
+  }
+
+  function renderPreview(){
+    paperEl.style.width = `calc(${state.width}ch + 44px)`;
+    const out = [];
+    let warnCount = 0;
+
+    state.blocks.forEach(b => {
+      const over = effWidth(b) > state.width;
+      if(over) warnCount++;
+      const overCls = over ? " overflow" : "";
+      const overTitle = over ? ' title="Zu lang: wird auf dem Drucker umgebrochen"' : "";
+
+      if(b.type === "text"){
+        const cls = ["ln", sizeClass(b.size), b.bold ? "bold" : "", b.underline ? "ul" : ""].filter(Boolean).join(" ") + overCls;
+        out.push(`<span class="${cls}"${overTitle} style="text-align:${b.align}">${esc(b.text === "" ? " " : b.text)}</span>`);
+      } else if(b.type === "raw"){
+        String(b.text).split("\n").forEach(l => {
+          const o = l.length > state.width;
+          out.push(`<span class="ln${o?" overflow":""}"${o?overTitle:""}>${esc(l)}</span>`);
+        });
+      } else if(b.type === "cols"){
+        out.push(`<span class="ln cols${overCls}"${overTitle}><span class="l">${esc(b.left)}</span><span class="r">${esc(b.right)}</span></span>`);
+      } else if(b.type === "hr"){
+        const ch = (b.char || "-").slice(0,1) || "-";
+        out.push(`<span class="ln">${esc(ch.repeat(state.width))}</span>`);
+      } else if(b.type === "feed"){
+        for(let k=0;k<Math.max(1, b.lines);k++) out.push(`<span class="ln"> </span>`);
+      } else if(b.type === "cut"){
+        out.push(`<span class="cutline"><hr><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-cut"></use></svg><hr></span>`);
+      } else if(b.type === "qr"){
+        const align = b.align || "center";
+        const url = `${serverBase()}/qr.png?data=${encodeURIComponent(b.data)}&size=4`;
+        out.push(`<span class="ln qr" style="text-align:${align}"><img src="${esc(url)}" alt="QR-Code" data-qr="1"></span>`);
+      } else if(b.type === "barcode"){
+        const align = b.align || "center";
+        const justify = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+        out.push(
+          `<span class="ln bc" style="text-align:${align}">` +
+          `<span class="bars" style="justify-content:${justify}">${barcodeBars(b.data)}</span>` +
+          (b.hri ? `<span class="txt" style="display:block;text-align:${align}">${esc(b.data)}</span>` : "") +
+          `</span>`
+        );
+      }
+    });
+
+    paperEl.innerHTML = out.join("") ||
+      `<span class="ln placeholder">Leerer Bon — noch keine Bausteine</span>`;
+
+    // QR-Fehler (Server offline) -> Platzhalter
+    paperEl.querySelectorAll('img[data-qr]').forEach(img => {
+      const onFail = () => {
+        if(!img.isConnected) return;
+        const ph = document.createElement("span");
+        ph.className = "ph";
+        ph.textContent = "QR-Vorschau nicht verfügbar (Druckserver offline?)";
+        img.replaceWith(ph);
+      };
+      img.addEventListener("error", onFail, { once:true });
+      if(img.complete && img.naturalWidth === 0) onFail();
+    });
+
+    const info = $("previewInfo");
+    info.innerHTML =
+      `${state.blocks.length} Bausteine · ${state.width} Zeichen · ${state.charset}` +
+      (warnCount ? ` · <span class="warnTag">${warnCount} zu lang</span>` : "");
+  }
+
+  function barcodeBars(data){
+    let h = 0;
+    for(let i=0;i<data.length;i++){ h = (h*31 + data.charCodeAt(i)) >>> 0; }
+    let bars = "", x = h || 1;
+    for(let i=0;i<46;i++){
+      x = (x * 1103515245 + 12345) >>> 0;
+      bars += `<i style="width:${1 + (x % 3)}px;margin-right:1px"></i>`;
+    }
+    return bars;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Druck                                                               */
+  /* ------------------------------------------------------------------ */
+  function payload(){
+    return { width: state.width, charset: state.charset, copies: state.copies, blocks: state.blocks };
+  }
+
+  async function printToServer(){
+    if(!state.blocks.length){ toast("Keine Bausteine zum Drucken.", "err"); return; }
+    const btns = [$("btnPrint"), $("btnPrint2")];
+    btns.forEach(b => { b.disabled = true; b.setAttribute("aria-busy","true"); });
+    try{
+      const res = await fetch(serverBase() + "/print/blocks", {
+        method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload())
+      });
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok || data.ok === false) throw new Error(data.error || ("HTTP " + res.status));
+      toast(`An den Drucker gesendet (${data.bytes || "?"} Bytes).`, "ok");
+    }catch(err){
+      toast("Druck fehlgeschlagen: " + err.message + " — läuft der Druckserver?", "err");
+    }finally{
+      btns.forEach(b => { b.disabled = false; b.setAttribute("aria-busy","false"); });
+      checkServer();
+    }
+  }
+
+  async function checkServer(){
+    const st = $("serverStatus");
+    const dot = st.querySelector(".dot");
+    const label = st.querySelector("span:last-child");
+    try{
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 2500);
+      const res = await fetch(serverBase() + "/health", {signal: ctrl.signal});
+      clearTimeout(t);
+      const d = await res.json();
+      dot.className = "dot ok";
+      label.textContent = `${d.printer || "Drucker"} · ${d.width || "?"} Zeichen`;
+      return true;
+    }catch(e){
+      dot.className = "dot err";
+      label.textContent = "offline";
+      return false;
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Import / Export                                                     */
+  /* ------------------------------------------------------------------ */
+  function exportJson(){
+    const blob = new Blob([JSON.stringify(payload(), null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "fyndo-bon-design.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast("JSON gespeichert.", "ok");
+  }
+  function importJson(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const s = JSON.parse(reader.result);
+        if(!s || !Array.isArray(s.blocks)) throw new Error("Ungültiges Format");
+        pushHistory();
+        state.blocks = s.blocks.map(b => ({...b}));
+        if(s.width) state.width = s.width === 48 ? 48 : 32;
+        if(["ascii","cp437","cp858"].includes(s.charset)) state.charset = s.charset;
+        if(s.copies) state.copies = Math.min(5, Math.max(1, parseInt(s.copies)||1));
+        syncToolbar(); renderEditor(); renderPreview(); persist();
+        toast("Design geladen.", "ok");
+      }catch(err){ toast("Import fehlgeschlagen: " + err.message, "err"); }
+    };
+    reader.readAsText(file);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Theme (Dual-Mode)                                                   */
+  /* ------------------------------------------------------------------ */
+  function resolvedTheme(){
+    const t = document.documentElement.getAttribute("data-theme");
+    if(t) return t;
+    return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function syncThemeIcon(){
+    $("themeIcon").setAttribute("href", resolvedTheme() === "dark" ? "#i-sun" : "#i-moon");
+  }
+  function initTheme(){
+    const stored = localStorage.getItem(THEME_KEY);
+    if(stored === "light" || stored === "dark") document.documentElement.setAttribute("data-theme", stored);
+    syncThemeIcon();
+    $("themeToggle").addEventListener("click", () => {
+      const next = resolvedTheme() === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem(THEME_KEY, next);
+      syncThemeIcon();
+    });
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncThemeIcon);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Toolbar                                                             */
+  /* ------------------------------------------------------------------ */
+  function syncToolbar(){
+    $("serverUrl").value = state.serverUrl;
+    $("width").value = String(state.width);
+    $("charset").value = state.charset;
+    $("copies").value = String(state.copies);
+  }
+
+  function addBlock(type){
+    if(!BLOCK_DEFS[type]) return;
+    pushHistory();
+    state.blocks.push(BLOCK_DEFS[type]());
+    renderEditor(); renderPreview(); persist();
+    const last = blocksEl.lastElementChild;
+    if(last){
+      last.scrollIntoView({behavior: reduceMotion ? "auto" : "smooth", block:"nearest"});
+      last.classList.add("flash");
+      setTimeout(() => last.classList.remove("flash"), 700);
+    }
+  }
+
+  function initToolbar(){
+    $("serverUrl").addEventListener("change", () => {
+      state.serverUrl = $("serverUrl").value.trim() || DEFAULT_SERVER;
+      syncToolbar(); persist(); renderPreview(); checkServer();
+    });
+    $("width").addEventListener("change", () => {
+      state.width = parseInt($("width").value, 10) === 48 ? 48 : 32; persist(); renderPreview();
+    });
+    $("charset").addEventListener("change", () => {
+      state.charset = $("charset").value; persist(); renderPreview();
+    });
+    $("copies").addEventListener("change", () => {
+      state.copies = Math.min(5, Math.max(1, parseInt($("copies").value,10)||1));
+      $("copies").value = String(state.copies); persist();
+    });
+    $("serverStatus").addEventListener("click", checkServer);
+
+    // Delegation: funktioniert auch für dynamisch eingefügte Buttons (Empty-State)
+    document.addEventListener("click", (e) => {
+      const add = e.target.closest("[data-add]");
+      if(add){ addBlock(add.dataset.add); return; }
+      const pre = e.target.closest("[data-preset]");
+      if(pre){ applyPreset(pre.dataset.preset); return; }
+    });
+
+    $("btnUndo").addEventListener("click", undo);
+    $("btnRedo").addEventListener("click", redo);
+    $("btnPrint").addEventListener("click", printToServer);
+    $("btnPrint2").addEventListener("click", printToServer);
+    $("btnBrowserPrint").addEventListener("click", () => window.print());
+    $("btnExport").addEventListener("click", exportJson);
+    $("btnImport").addEventListener("click", () => $("fileInput").click());
+    $("fileInput").addEventListener("change", (e) => {
+      if(e.target.files[0]) importJson(e.target.files[0]);
+      e.target.value = "";
+    });
+    $("btnReset").addEventListener("click", () => {
+      if(confirm("Aktuelles Design verwerfen und Standard-Kassenbon laden?")) applyPreset("receipt");
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Tastenkürzel                                                        */
+  /* ------------------------------------------------------------------ */
+  document.addEventListener("keydown", (e) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if(!mod) return;
+    const key = (e.key || "").toLowerCase();
+    const inField = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || "");
+    if(key === "enter"){ e.preventDefault(); printToServer(); return; }
+    if(key === "s"){ e.preventDefault(); exportJson(); return; }
+    if(key === "z"){
+      if(inField) return;              // im Feld: natives Text-Undo zulassen
+      e.preventDefault();
+      e.shiftKey ? redo() : undo();
+      return;
+    }
+    if(key === "y"){ if(inField) return; e.preventDefault(); redo(); }
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Start                                                               */
+  /* ------------------------------------------------------------------ */
+  initTheme();
+  loadState();
+  syncToolbar();
+  renderEditor();
+  renderPreview();
+  initToolbar();
+  updateHistoryButtons();
+  checkServer();
+  setInterval(checkServer, 15000);
+})();
+</script>
+</body>
+</html>

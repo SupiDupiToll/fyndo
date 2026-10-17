@@ -14,7 +14,9 @@ Endpunkte
 ---------
   GET  /health        Status / Konfiguration
   GET  /printers      CUPS-Drucker auflisten
+  GET  /qr.png        QR-Code als PNG-Vorschau (via qrencode)
   POST /print         strukturierter Bon (JSON)
+  POST /print/blocks  freie Design-Blöcke (für den Bon-Designer)
   POST /print/text    {"text": "Zeile1\\nZeile2"}
   POST /print/raw     {"base64": "..."} rohe ESC/POS-Bytes
   POST /test          Testbon drucken
@@ -36,6 +38,7 @@ import subprocess
 import sys
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 
 # ---------------------------------------------------------------------------
 # Konfiguration
@@ -48,11 +51,12 @@ PRINTER_MODE = os.environ.get("PRINTER_MODE", "cups").lower()  # cups | device
 PRINTER_DEVICE = os.environ.get("PRINTER_DEVICE", "/dev/usb/lp0")
 LP_BIN = os.environ.get("LP_BIN", "lp")
 LPSTAT_BIN = os.environ.get("LPSTAT_BIN", "lpstat")
+QRENCODE_BIN = os.environ.get("QRENCODE_BIN", "qrencode")
 
 # Papierbreite in Zeichen (Font A): 58 mm ≈ 32, 80 mm ≈ 48.
 WIDTH = int(os.environ.get("PRINTER_WIDTH", "32"))
 
-# Zeichensatz:
+# Zeichensatz (kann pro Anfrage über das Feld "charset" überschrieben werden):
 #   ascii  – Umlaute werden transliteriert (ä→ae, ö→oe, ü→ue, ß→ss, €→EUR).
 #            Funktioniert auf JEDEM Drucker, auch wenn dieser intern GBK nutzt.
 #   cp437  – echte Umlaute über Codepage 437 (ESC t 0), falls unterstützt.
@@ -130,6 +134,7 @@ ASCII_MAP = {
 }
 
 CHARSET_CODEPAGE = {"cp437": 0, "cp858": 19}
+VALID_CHARSETS = ("ascii", "cp437", "cp858")
 
 _TYPO = {
     "\u00a0": " ",  # NBSP
@@ -162,10 +167,11 @@ def transliterate(text: str) -> str:
     return "".join(out)
 
 
-def disp(text) -> str:
+def disp(text, charset: str | None = None) -> str:
     """Text für die Ausgabe vorbereiten (Länge = spätere Zeichenbreite)."""
+    cs = (charset or CHARSET).lower()
     s = normalize(text)
-    if CHARSET == "ascii":
+    if cs == "ascii":
         s = transliterate(s)
     return s
 
@@ -185,8 +191,9 @@ def encode(text: str) -> bytes:
 class EscPos:
     """Minimaler ESC/POS-Builder."""
 
-    def __init__(self, width: int = WIDTH):
+    def __init__(self, width: int = WIDTH, charset: str | None = None):
         self.width = width
+        self.charset = (charset or CHARSET).lower()
         self.parts: list[bytes] = []
 
     def raw(self, *parts) -> "EscPos":
@@ -198,15 +205,15 @@ class EscPos:
             elif isinstance(p, (list, tuple)):
                 self.parts.append(bytes(p))
             else:
-                self.parts.append(encode(disp(str(p))))
+                self.parts.append(encode(disp(str(p), self.charset)))
         return self
 
     def init(self) -> "EscPos":
         return self.raw([ESC, 0x40])
 
     def codepage(self) -> "EscPos":
-        if CHARSET in CHARSET_CODEPAGE:
-            return self.raw([ESC, 0x74, CHARSET_CODEPAGE[CHARSET]])
+        if self.charset in CHARSET_CODEPAGE:
+            return self.raw([ESC, 0x74, CHARSET_CODEPAGE[self.charset]])
         return self
 
     def align(self, a: str) -> "EscPos":
@@ -221,12 +228,12 @@ class EscPos:
         return self.raw([GS, 0x21, n])
 
     def text(self, s) -> "EscPos":
-        return self.raw(encode(disp(s)))
+        return self.raw(encode(disp(s, self.charset)))
 
     def line(self, s="") -> "EscPos":
         if s == "":
             return self.raw([LF])
-        return self.raw(encode(disp(s))).raw([LF])
+        return self.raw(encode(disp(s, self.charset))).raw([LF])
 
     def feed(self, n: int = FEED_LINES) -> "EscPos":
         return self.raw([ESC, 0x64, max(0, min(255, n))])
@@ -244,9 +251,9 @@ class EscPos:
 
     def cols(self, left, right) -> "EscPos":
         """Zwei Spalten: links, rechts rechtsbündig, ggf. links abschneiden."""
-        r = disp(right)
+        r = disp(right, self.charset)
         max_left = max(0, self.width - len(r) - 1)
-        l = disp(left)
+        l = disp(left, self.charset)
         if len(l) > max_left:
             l = l[:max_left]
         pad = max(1, self.width - len(l) - len(r))
@@ -259,6 +266,11 @@ class EscPos:
 # ---------------------------------------------------------------------------
 # Bon-Rendering
 # ---------------------------------------------------------------------------
+
+def _pick_charset(payload: dict) -> str:
+    cs = str(payload.get("charset") or "").lower()
+    return cs if cs in VALID_CHARSETS else CHARSET
+
 
 def format_euro(cents) -> str:
     try:
@@ -301,11 +313,15 @@ def render_receipt(payload: dict | None = None) -> bytes:
     payload:
       vendorName, orderNumber, date, items[{qty,name,amountCents,unitCents}],
       subtotalCents, totalCents, giftCardCents, paymentMethod, header, footer,
-      note, width, copies
+      note, width, charset, copies
     """
     payload = payload or {}
     width = int(payload.get("width") or WIDTH) or WIDTH
-    p = EscPos(width)
+    cs = _pick_charset(payload)
+    p = EscPos(width, cs)
+
+    def D(t) -> str:
+        return disp(t, cs)
 
     items = payload.get("items") if isinstance(payload.get("items"), list) else []
     total_cents = int(
@@ -323,16 +339,15 @@ def render_receipt(payload: dict | None = None) -> bytes:
     p.init().codepage().align("center")
 
     # Kopf
-    vendor = disp(payload.get("vendorName") or "fyndo")
+    vendor = D(payload.get("vendorName") or "fyndo")
     p.bold(True)
-    # Doppelte Breite nur, wenn der Name sonst umbrechen würde.
     if len(vendor) <= width // 2:
         p.size(0x11).line(vendor).size(0x00)
     else:
         p.size(0x10).line(vendor).size(0x00)
     p.bold(False)
     if payload.get("header"):
-        p.line(disp(payload["header"]))
+        p.line(D(payload["header"]))
     p.line()
 
     # Bestellnummer groß und weit oben
@@ -350,7 +365,7 @@ def render_receipt(payload: dict | None = None) -> bytes:
     p.hr("=")
     p.cols("Datum:", format_datetime(payload.get("date")))
     if payload.get("vendorName"):
-        p.cols("Filiale:", disp(payload["vendorName"])[: max(1, width - 9)])
+        p.cols("Filiale:", D(payload["vendorName"])[: max(1, width - 9)])
     p.hr("-")
 
     # Positionen
@@ -364,8 +379,8 @@ def render_receipt(payload: dict | None = None) -> bytes:
             else:
                 amount = int(item.get("unitCents") or 0) * qty
             prefix = f"{qty}x " if qty > 1 else ""
-            name = disp(prefix + str(item.get("name") or item.get("title") or "Artikel"))
-            price = disp(format_euro(amount))
+            name = D(prefix + str(item.get("name") or item.get("title") or "Artikel"))
+            price = D(format_euro(amount))
             max_left = max(8, width - len(price) - 1)
             chunks = []
             rest = name
@@ -393,7 +408,7 @@ def render_receipt(payload: dict | None = None) -> bytes:
 
     if payload.get("note"):
         p.hr("-")
-        p.text("Hinweis: ").line(disp(payload["note"]))
+        p.text("Hinweis: ").line(D(payload["note"]))
 
     # Fuß
     p.align("center")
@@ -409,8 +424,8 @@ def render_receipt(payload: dict | None = None) -> bytes:
     return buf * copies
 
 
-def render_text(text: str, cut: bool = True, copies: int = 1) -> bytes:
-    p = EscPos()
+def render_text(text: str, cut: bool = True, copies: int = 1, charset: str | None = None) -> bytes:
+    p = EscPos(WIDTH, charset)
     p.init().codepage()
     for line in str(text).split("\n"):
         p.line(line)
@@ -420,6 +435,107 @@ def render_text(text: str, cut: bool = True, copies: int = 1) -> bytes:
     buf = p.build()
     n = max(1, min(5, int(copies or 1)))
     return buf * n
+
+
+# ---------------------------------------------------------------------------
+# Block-Rendering (für den Bon-Designer)
+# ---------------------------------------------------------------------------
+
+SIZES = {"normal": 0x00, "tall": 0x10, "wide": 0x01, "double": 0x11}
+_EC = {"L": 48, "M": 49, "Q": 50, "H": 51}
+
+
+def qr_commands(p: "EscPos", data, module: int = 5, ec: str = "M") -> None:
+    """Nativen ESC/POS-QR-Code (Modell 2) anfügen."""
+    d = str(data).encode("utf-8")
+    n = len(d) + 3
+    pl, ph = n & 0xFF, (n >> 8) & 0xFF
+    p.raw([GS, 0x28, 0x6B, 4, 0, 0x31, 0x41, 0x32, 0x00])  # Modell 2
+    p.raw([GS, 0x28, 0x6B, 3, 0, 0x31, 0x43, max(1, min(16, int(module)))])  # Modulgröße
+    p.raw([GS, 0x28, 0x6B, 3, 0, 0x31, 0x45, _EC.get(str(ec).upper(), 49)])  # Fehlerkorrektur
+    p.raw([GS, 0x28, 0x6B, pl, ph, 0x31, 0x50, 0x30])  # Daten speichern
+    p.raw(d)
+    p.raw([GS, 0x28, 0x6B, 3, 0, 0x31, 0x51, 0x30])  # Drucken
+
+
+def barcode_commands(p: "EscPos", data, height: int = 60, width: int = 2, hri: int = 2) -> None:
+    """CODE128-Barcode (GS k 73) anfügen."""
+    p.raw([GS, 0x68, max(1, min(255, int(height)))])  # GS h  Höhe
+    p.raw([GS, 0x77, max(2, min(6, int(width)))])  # GS w  Modulbreite
+    p.raw([GS, 0x48, max(0, min(3, int(hri)))])  # GS H  Klartextposition
+    d = str(data).encode("ascii", "replace")
+    p.raw([GS, 0x6B, 73, len(d)])  # GS k 73 n
+    p.raw(d)
+
+
+def render_blocks(payload: dict | None = None) -> bytes:
+    """Rendert eine freie Liste von Design-Blöcken als ESC/POS.
+
+    payload: { width, charset, copies, blocks: [ {type, ...}, ... ] }
+
+    Blocktypen:
+      text    {text, align, size: normal|tall|wide|double, bold, underline}
+      cols    {left, right}
+      hr      {char}
+      qr      {data, size (Modul 1-16), ec: L|M|Q|H, align}
+      barcode {data, height, width, hri, align}
+      feed    {lines}
+      cut     {}
+      raw     {text}
+    """
+    payload = payload or {}
+    width = int(payload.get("width") or WIDTH) or WIDTH
+    cs = _pick_charset(payload)
+    blocks = payload.get("blocks") if isinstance(payload.get("blocks"), list) else []
+    p = EscPos(width, cs)
+    p.init().codepage()
+
+    cut_done = False
+    for b in blocks:
+        if not isinstance(b, dict):
+            continue
+        t = str(b.get("type") or "text")
+        align = str(b.get("align") or "")
+        if align in ("left", "center", "right"):
+            p.align(align)
+
+        if t == "text":
+            p.bold(bool(b.get("bold")))
+            if b.get("underline"):
+                p.raw([ESC, 0x2D, 1])
+            p.size(SIZES.get(str(b.get("size", "normal")).lower(), 0x00))
+            p.line(str(b.get("text", "")))
+            p.size(0x00)
+            p.bold(False)
+            if b.get("underline"):
+                p.raw([ESC, 0x2D, 0])
+        elif t == "cols":
+            p.cols(str(b.get("left", "")), str(b.get("right", "")))
+        elif t == "hr":
+            ch = str(b.get("char") or "-")[:1] or "-"
+            p.hr(ch)
+        elif t == "qr":
+            p.align(align or "center")
+            qr_commands(p, b.get("data", ""), b.get("size", 5), b.get("ec", "M"))
+        elif t == "barcode":
+            p.align(align or "center")
+            barcode_commands(p, b.get("data", ""), b.get("height", 60),
+                             b.get("width", 2), b.get("hri", 2))
+        elif t == "feed":
+            p.feed(int(b.get("lines", 1)))
+        elif t == "cut":
+            p.cut()
+            cut_done = True
+        elif t == "raw":
+            p.line(str(b.get("text", "")))
+
+    if not cut_done:
+        p.feed(FEED_LINES)
+        p.cut()
+
+    copies = max(1, min(5, int(payload.get("copies") or 1)))
+    buf = p.build()
+    return buf * copies
 
 
 # ---------------------------------------------------------------------------
@@ -482,6 +598,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_bytes(self, status: int, data: bytes, content_type: str) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        for k, v in CORS_HEADERS.items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(data)
+
     def _read_json(self) -> dict:
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0:
@@ -514,8 +640,43 @@ class Handler(BaseHTTPRequestHandler):
                 "width": WIDTH,
                 "charset": CHARSET,
                 "cut": CUT_MODE,
-                "endpoints": ["/health", "/printers", "/print", "/print/text", "/print/raw", "/test"],
+                "endpoints": ["/health", "/printers", "/qr.png", "/designer", "/print", "/print/text",
+                              "/print/raw", "/print/blocks", "/test"],
             })
+            return
+        if path == "/qr.png":
+            qs = parse_qs(urlparse(self.path).query)
+            data = (qs.get("data") or [""])[0]
+            if not data:
+                self._send(400, {"ok": False, "error": "Parameter 'data' fehlt."})
+                return
+            try:
+                size = int((qs.get("size") or ["4"])[0])
+            except ValueError:
+                size = 4
+            size = max(1, min(16, size))
+            try:
+                proc = subprocess.run(
+                    [QRENCODE_BIN, "-o", "-", "-t", "PNG", "-s", str(size), "-m", "2", data],
+                    capture_output=True, timeout=10,
+                )
+            except FileNotFoundError:
+                self._send(500, {"ok": False, "error": f"{QRENCODE_BIN} nicht installiert."})
+                return
+            if proc.returncode != 0:
+                self._send(500, {"ok": False, "error": (proc.stderr or b"").decode("utf-8", "replace").strip()})
+                return
+            self._send_bytes(200, proc.stdout, "image/png")
+            return
+        if path in ("/designer", "/bon-designer", "/bon-designer.html"):
+            designer = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bon-designer.html")
+            try:
+                with open(designer, "rb") as fh:
+                    html = fh.read()
+            except OSError:
+                self._send(404, {"ok": False, "error": "bon-designer.html nicht gefunden."})
+                return
+            self._send_bytes(200, html, "text/html; charset=utf-8")
             return
         if path == "/printers":
             try:
@@ -537,6 +698,17 @@ class Handler(BaseHTTPRequestHandler):
                                  "orderNumber": payload.get("orderNumber")})
                 return
 
+            if path == "/print/blocks":
+                payload = self._read_json()
+                data = render_blocks(payload)
+                send_to_printer(data)
+                self._send(200, {
+                    "ok": True,
+                    "bytes": len(data),
+                    "blocks": len(payload.get("blocks") or []),
+                })
+                return
+
             if path == "/print/text":
                 payload = self._read_json()
                 text = str(payload.get("text") or "")
@@ -544,7 +716,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(400, {"ok": False, "error": "Feld 'text' fehlt."})
                     return
                 data = render_text(text, cut=payload.get("cut", True) is not False,
-                                   copies=payload.get("copies", 1))
+                                   copies=payload.get("copies", 1),
+                                   charset=_pick_charset(payload))
                 send_to_printer(data)
                 self._send(200, {"ok": True, "bytes": len(data)})
                 return
@@ -570,6 +743,8 @@ class Handler(BaseHTTPRequestHandler):
                     "header": "TESTBON",
                     "orderNumber": payload.get("orderNumber") or 42,
                     "date": datetime.now().isoformat(),
+                    "charset": payload.get("charset"),
+                    "width": payload.get("width"),
                     "items": [
                         {"qty": 1, "name": "Testartikel A", "amountCents": 250},
                         {"qty": 2, "name": "Testartikel mit sehr langem Namen B", "amountCents": 500},
@@ -596,6 +771,7 @@ def main() -> None:
     print(f"[fyndo-print] Druckserver läuft auf http://{HOST}:{PORT}")
     print(f"[fyndo-print] Drucker: {PRINTER_NAME} (Modus: {PRINTER_MODE}), "
           f"Breite: {WIDTH}, Charset: {CHARSET}, Schnitt: {CUT_MODE}")
+    print(f"[fyndo-print] Bon-Designer: printer/bon-designer.html im Browser öffnen")
     print(f"[fyndo-print] Test: curl -X POST http://localhost:{PORT}/test")
     try:
         server.serve_forever()
