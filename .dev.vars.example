@@ -1,0 +1,32 @@
+# Lokale Runtime-Variablen für `wrangler dev` / `opennextjs-cloudflare preview`.
+#
+# Diese Datei nach `.dev.vars` kopieren und ausfüllen (wird nicht eingecheckt).
+# Sie ergänzt die `.env`-Dateien: `NEXT_PUBLIC_*`-Variablen werden zur Build-Zeit
+# aus `.env*` eingebettet, die Secrets hier werden zur Laufzeit gelesen.
+#
+# In Produktion werden alle Secrets über das Cloudflare-Dashboard bzw.
+# `wrangler secret put <NAME>` gesetzt (nicht in dieser Datei).
+
+NEXTJS_ENV=development
+
+# --- Pflicht: Hexclave (Auth) ---
+# Ohne HEXCLAVE_PROJECT_ID bricht der Server beim ersten Request mit einem
+# 500er ab ("It seems that you haven't provided a project ID.").
+HEXCLAVE_PROJECT_ID=
+HEXCLAVE_PUBLISHABLE_CLIENT_KEY=
+HEXCLAVE_SECRET_SERVER_KEY=
+# HEXCLAVE_ADMIN_EMAILS=
+
+# --- Pflicht: Datenbank (Neon, HTTP-Treiber) ---
+# DATABASE_URL=postgresql://user:password@host/db?sslmode=require
+
+# --- Optional ---
+# NEXT_PUBLIC_ADMIN_EMAIL=
+# RBANK_API_URL=
+# RBANK_MERCHANT_ID=
+# RBANK_MERCHANT_SECRET=
+# RBANK_EMBED_CHECKOUT_KEY=
+# NTFY_WEBHOOK_URL=
+# TIPPIE_PAY_BASE=
+# POS_CARD_SECRET=
+# APP_URL=http://localhost:8787

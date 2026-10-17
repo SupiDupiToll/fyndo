@@ -5,8 +5,17 @@ const GATE_PASSWORD = "123";
 const GATE_COOKIE = "gate_pass";
 const EXCLUDED_PATHS = ["/gate", "/_next", "/api", "/pos", "/demos", "/favicon.ico", "/robots.txt"];
 
+// POS-Ansage-MP3s liegen als Static Assets unter `public/pos-audio`. Der
+// Direktzugriff wird gesperrt; ausgeliefert werden sie ausschließlich über die
+// authentifizierte Route `/api/pos/audio/[key]` (via `ASSETS`-Binding).
+const BLOCKED_PREFIXES = ["/pos-audio"];
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (BLOCKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    return new NextResponse("Not found", { status: 404 });
+  }
 
   const isExcluded = EXCLUDED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
   if (isExcluded) return NextResponse.next();

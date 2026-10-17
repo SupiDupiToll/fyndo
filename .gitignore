@@ -3,3 +3,11 @@ node_modules
 .env
 .env.example
 __pycache__
+
+# Cloudflare / OpenNext
+.open-next
+.wrangler
+.dev.vars
+.dev.vars.local
+!.dev.vars.example
+cloudflare-env.d.ts

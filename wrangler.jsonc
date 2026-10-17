@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fyndo",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+    // `/pos-audio/*` muss den Worker (und damit die Next-Middleware in
+    // `src/proxy.ts`) durchlaufen, damit der Direktzugriff auf die
+    // POS-Ansage-MP3s gesperrt bleibt. Ausgeliefert werden sie nur über die
+    // geschützte Route `/api/pos/audio/[key]`.
+    "run_worker_first": ["/pos-audio/*"]
+  },
+  "observability": {
+    "enabled": true
+  }
+}
