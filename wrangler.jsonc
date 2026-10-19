@@ -4,6 +4,16 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "vars": {
+    "APP_URL": "https://fyndo.sdtoll.de",
+    "HEXCLAVE_ADMIN_EMAILS": "admin-rui@sdtoll.de",
+    "NEXT_PUBLIC_ADMIN_EMAIL": "admin-rui@sdtoll.de",
+    "NEXT_PUBLIC_HEXCLAVE_PROJECT_ID": "632bc66a-aca7-4fb4-8dc8-56450facd60a",
+    "NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY": "pck_8epbc06e76q2sz938tsp8pf9smaa2cnvafndx0xwqrhv0",
+    "RBANK_API_URL": "https://rbank.sdtoll.de",
+    "RBANK_MERCHANT_ID": "c6b0e1bb-4ec2-47a8-9531-22426df3f911",
+    "TIPPIE_PAY_BASE": "https://pay.tippie.de/business-pay/3763235/EUR/"
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
