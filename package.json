@@ -6,7 +6,8 @@
   "packageManager": "pnpm@10.34.7",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "opennextjs-cloudflare build",
+    "build:next": "next build",
     "start": "next start",
     "postinstall": "prisma generate",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",

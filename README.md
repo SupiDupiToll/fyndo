@@ -79,7 +79,8 @@ Kopiere `.env.example` zu `.env` und fülle die Werte aus. Die `.env` ist per `.
 | Befehl | Beschreibung |
 | --- | --- |
 | `pnpm dev` | Next.js-Entwicklungsserver |
-| `pnpm build` | Produktions-Build (Next.js) |
+| `pnpm build` | Produktions-Build inkl. Cloudflare-Worker-Bundle (OpenNext) |
+| `pnpm build:next` | Nur Next.js-Build (ohne Worker-Bundle, z. B. für `pnpm start`) |
 | `pnpm start` | Produktionsserver starten (klassisches Node-Hosting) |
 | `pnpm preview` | Build für Cloudflare + lokaler Worker (`wrangler dev`) |
 | `pnpm deploy` | Build + Deployment als Cloudflare Worker |
@@ -141,6 +142,17 @@ pnpm preview
 # 2. In Produktion deployen (baut und lädt hoch)
 pnpm deploy
 ```
+
+### Workers Builds (Git-Deployment)
+
+Bei einem über das Cloudflare-Dashboard verbundenen Repository müssen Build- und Deploy-Befehl zusammenpassen:
+
+| Einstellung | Befehl |
+| --- | --- |
+| Build command | `pnpm run build` |
+| Deploy command | `npx wrangler deploy` |
+
+`pnpm run build` führt `opennextjs-cloudflare build` aus und erzeugt das `.open-next/`-Verzeichnis (Worker-Bundle + kompilierte OpenNext-Config). `wrangler deploy` erkennt das OpenNext-Projekt und ruft intern `opennextjs-cloudflare deploy` auf – ohne vorherigen OpenNext-Build bricht es mit `Could not find compiled Open Next config` ab. Ein reiner `next build` (weiterhin als `pnpm build:next` verfügbar) reicht dafür nicht.
 
 ### Umgebungsvariablen auf Cloudflare
 
