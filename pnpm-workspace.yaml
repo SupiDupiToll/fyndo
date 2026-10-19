@@ -1,3 +1,9 @@
+# Reiner Root-Workspace (keine Sub-Pakete). Das `packages`-Feld ist bei
+# älteren pnpm-Versionen (Cloudflare Workers Builds nutzt teils noch pnpm 9)
+# Pflicht, sonst bricht `pnpm install` mit "packages field missing or empty" ab.
+packages:
+  - "."
+
 allowBuilds:
   '@prisma/engines': true
   esbuild: true
