@@ -257,6 +257,6 @@ Der Designer spricht den Druckserver direkt an (`/print/blocks` zum Drucken,
 `/qr.png` für die QR-Vorschau). Der gedruckte QR-Code wird nativ per ESC/POS
 erzeugt, der Barcode per `GS k` (CODE128).
 
-## License
+## Lizenz
 
 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/legalcode.en)
