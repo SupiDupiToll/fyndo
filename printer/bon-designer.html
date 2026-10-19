@@ -390,9 +390,11 @@
   <div class="field">
     <label for="charset">Zeichensatz</label>
     <select id="charset">
+      <option value="auto">Auto · Umlaute + Chinesisch</option>
       <option value="ascii">ASCII (ä→ae)</option>
       <option value="cp437">CP437 (Umlaute)</option>
       <option value="cp858">CP858 (Umlaute + €)</option>
+      <option value="image">Alles als Bild</option>
     </select>
   </div>
 
@@ -525,7 +527,7 @@
   /* ------------------------------------------------------------------ */
   /* State                                                               */
   /* ------------------------------------------------------------------ */
-  const state = { serverUrl: DEFAULT_SERVER, width: 32, charset: "ascii", copies: 1, blocks: [] };
+  const state = { serverUrl: DEFAULT_SERVER, width: 32, charset: "auto", copies: 1, blocks: [] };
   const collapsed = new WeakSet();   // eingeklappte Bausteine (per Objekt-Identitaet)
 
   const $ = (id) => document.getElementById(id);
@@ -533,7 +535,7 @@
   const paperEl = $("paper");
 
   function snapshot(){
-    return JSON.stringify({serverUrl:state.serverUrl, width:state.width, charset:state.charset, copies:state.copies, blocks:state.blocks});
+    return JSON.stringify({v:2, serverUrl:state.serverUrl, width:state.width, charset:state.charset, copies:state.copies, blocks:state.blocks});
   }
   function persist(){
     try{ localStorage.setItem(LS_KEY, snapshot()); }catch(e){}
@@ -546,10 +548,14 @@
       if(raw){
         const s = JSON.parse(raw);
         if(s && Array.isArray(s.blocks)){
+          let cs = ["auto","image","ascii","cp437","cp858"].includes(s.charset) ? s.charset : "auto";
+          // Migration v1 -> v2: alter Standard "ascii" wird zu "auto"
+          // (Umlaute nativ + Chinesisch als Bitmap).
+          if((s.v || 1) < 2 && cs === "ascii") cs = "auto";
           Object.assign(state, {
             serverUrl: s.serverUrl || DEFAULT_SERVER,
             width: s.width === 48 ? 48 : 32,
-            charset: ["ascii","cp437","cp858"].includes(s.charset) ? s.charset : "ascii",
+            charset: cs,
             copies: Math.min(5, Math.max(1, parseInt(s.copies)||1)),
             blocks: s.blocks.map(b => ({...b}))
           });
@@ -895,15 +901,23 @@
   function sizeClass(size){
     return size === "double" ? "double" : size === "wide" ? "wide" : size === "tall" ? "tall" : "";
   }
+  // sichtbare Breite: CJK/Vollbreite zählt 2 Zeichenzellen, sonst 1
+  function eaw(ch){
+    const o = ch.codePointAt(0);
+    return ((o>=0x1100&&o<=0x115F)||(o>=0x2E80&&o<=0xA4CF)||(o>=0xAC00&&o<=0xD7A3)||
+            (o>=0xF900&&o<=0xFAFF)||(o>=0xFE30&&o<=0xFE4F)||(o>=0xFF00&&o<=0xFF60)||
+            (o>=0xFFE0&&o<=0xFFE6)||(o>=0x20000&&o<=0x3FFFD)) ? 2 : 1;
+  }
+  function visWidth(s){ let n=0; for(const ch of String(s==null?"":s)) n+=eaw(ch); return n; }
   // effektive Zeichenbreite eines Bausteins (doppelt-breite Schrift zaehlt 2x)
   function effWidth(b){
     if(b.type === "text" || b.type === "raw"){
       const parts = String(b.text || "").split("\n");
-      let len = 0; parts.forEach(p => { if(p.length > len) len = p.length; });
+      let len = 0; parts.forEach(p => { const w = visWidth(p); if(w > len) len = w; });
       if(b.type === "text" && (b.size === "double" || b.size === "wide")) len *= 2;
       return len;
     }
-    if(b.type === "cols") return String(b.left || "").length + String(b.right || "").length;
+    if(b.type === "cols") return visWidth(b.left) + visWidth(b.right);
     return 0;
   }
 
@@ -1051,7 +1065,7 @@
         pushHistory();
         state.blocks = s.blocks.map(b => ({...b}));
         if(s.width) state.width = s.width === 48 ? 48 : 32;
-        if(["ascii","cp437","cp858"].includes(s.charset)) state.charset = s.charset;
+        if(["auto","image","ascii","cp437","cp858"].includes(s.charset)) state.charset = s.charset;
         if(s.copies) state.copies = Math.min(5, Math.max(1, parseInt(s.copies)||1));
         syncToolbar(); renderEditor(); renderPreview(); persist();
         toast("Design geladen.", "ok");

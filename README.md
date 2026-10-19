@@ -218,6 +218,10 @@ Der Bon enthält die **Bestellnummer groß oben**, Datum, Positionen, die
 automatisch abgeschnitten (Autocut). Für 58-mm-Papier ist die Breite auf 32
 Zeichen voreingestellt; Umlaute werden standardmäßig nach ASCII übertragen
 (ä→ae, ö→oe, ü→ue, ß→ss, €→EUR), damit sie auf jedem Drucker korrekt erscheinen.
+Mit `charset: "auto"` druckt der Server zusätzlich **Chinesisch und andere
+Schriftsysteme** (die eingebauten Druckerfonts können kein CJK): solche Zeilen
+werden als Bitmap gerendert und per ESC/POS-Raster (`GS v 0`) gedruckt – siehe
+[`printer/README.md`](printer/README.md#chinesisch--andere-schriftsysteme-charset-auto).
 Alle Optionen siehe [`printer/README.md`](printer/README.md).
 
 ### Bon-Designer (eigenständige HTML-Datei)
@@ -228,6 +232,8 @@ Bons aus Bausteinen zusammenbauen (Text, 2 Spalten, Trenner, **QR-Code**,
 **Barcode**, Leerzeile, Schnitt), mit Live-Vorschau ansehen und über den
 Druckserver ausdrucken. Vorlagen (Kassenbon, Bestellbon, Gutschein),
 JSON-Export/-Import und automatisches Speichern im Browser sind enthalten.
+Der Zeichensatz **„Auto"** druckt auch **Chinesisch** (und andere nicht-lateinische
+Schriftsysteme) – solche Zeilen werden als Bitmap gerendert.
 
 Öffnen entweder direkt im Browser oder über den Druckserver:
 

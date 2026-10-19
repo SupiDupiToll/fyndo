@@ -72,7 +72,11 @@ mit dem man Bons visuell zusammenbaut und druckt:
 
 - Bausteine: Text (Ausrichtung, Größe, fett, unterstrichen), 2 Spalten,
   Trennlinie, **QR-Code**, **Barcode (CODE128)**, Leerzeile, Schnitt, Rohtext
-- Live-Vorschau im 58-mm-/80-mm-Layout
+- **Unicode/CJK**: mit Zeichensatz `Auto` werden Umlaute nativ und Chinesisch
+  (und andere Schriftsysteme) als Bitmap gedruckt (siehe Abschnitt
+  „Chinesisch / andere Schriftsysteme")
+- Undo/Redo, Drag-&-Drop-Sortierung, einklappbare Bausteine, sticky Vorschau
+- Live-Vorschau im 58-mm-/80-mm-Layout (markiert zu lange Zeilen)
 - Vorlagen: Kassenbon, Bestellbon, Gutschein
 - Export/Import als JSON, automatisches Speichern im Browser (localStorage)
 - Druck über den Druckserver oder Browser-Druck (58 mm)
@@ -136,9 +140,12 @@ und überschreiben die Server-Standardwerte.
 | `PRINTER_MODE`   | `cups`          | `cups` (lp -o raw) oder `device` (direkt schreiben)       |
 | `PRINTER_DEVICE` | `/dev/usb/lp0`  | Nur bei `PRINTER_MODE=device`                             |
 | `PRINTER_WIDTH`  | `32`            | Zeichen pro Zeile (58 mm = 32, 80 mm = 48)                |
-| `CHARSET`        | `ascii`         | `ascii` (Umlaute transliterieren), `cp437` oder `cp858`   |
+| `CHARSET`        | `ascii`         | `ascii`, `cp437`, `cp858`, `auto` (CJK als Bitmap) oder `image` (immer Bitmap) |
 | `CUT_MODE`       | `partial`       | `partial` (GS V B 0), `full` (GS V 0) oder `none`         |
 | `FEED_LINES`     | `4`             | Vorschub vor dem Schnitt                                  |
+| `DOTS_PER_CHAR`  | `12`            | Punktbreite einer Zeichenzelle beim Rasterdruck (203 dpi) |
+| `RASTER_FONT_PX` | `2*DOTS_PER_CHAR` | Schriftgröße in px für den Rasterdruck                  |
+| `CJK_FONT`       | auto            | Pfad zu einem CJK-TTF/TTC (sonst automatische Suche)      |
 
 ### Zeichensatz / Umlaute
 
@@ -152,6 +159,38 @@ Unterstützt der Drucker eine Latin-Codepage, echte Umlaute versuchen mit:
 ```bash
 CHARSET=cp437 python3 server.py   # ESC t 0
 CHARSET=cp858 python3 server.py   # ESC t 19 (inkl. €)
+```
+
+### Chinesisch / andere Schriftsysteme (`charset: auto`)
+
+Die eingebauten Druckerschriften sind reine 1-Byte-Zeichensätze und kennen
+**keine** chinesischen (oder kyrillischen, japanischen …) Glyphen – ohne
+Rasterdruck landen dort nur `?`. Mit `charset: "auto"` rendert der Server
+solche Zeilen als **Bitmap** und schickt sie per ESC/POS-Rasterbefehl
+(`GS v 0`) an den Drucker:
+
+- lateinische Zeilen (inkl. Umlauten, `€`) bleiben schnell & gestochen scharf
+  im eingebauten Druckerfont (Codepage 858),
+- alles, was die Codepage nicht kann (z. B. 中文), wird als Bild gedruckt.
+
+Voraussetzung: **Pillow** und ein CJK-Font sind installiert (auf diesem System
+`python3-pil` + `fonts-wqy-zenhei`/`fonts-noto-cjk`). Beides wird automatisch
+gefunden; `GET /health` meldet `"cjk": true`. `charset: "image"` erzwingt für
+**jede** Zeile den Bitmap-Weg.
+
+Lange Zeilen werden beim Rasterdruck **automatisch auf die Papierbreite
+umgebrochen** (Bitmaps brechen – anders als der eingebaute Druckerfont – nicht
+selbst um). Gerendert wird mit dem **BASIC-Layout** von Pillow (ohne Raqm),
+dadurch gibt es bei sehr viel Text keinen `raqm_layout() failed.`-Fehler.
+Schlägt das Rendern einer Zeile wider Erwarten fehl, fällt der Server automatisch
+auf nativen Text zurück, statt die ganze Anfrage abzubrechen.
+
+```bash
+# Test: chinesischer Bon (siehe auch den Bon-Designer)
+curl -s -X POST http://localhost:8787/print/blocks -H 'Content-Type: application/json' -d '{
+  "charset":"auto","width":32,
+  "blocks":[{"type":"text","text":"你好，世界","align":"center","size":"double","bold":true},
+            {"type":"cols","left":"珍珠奶茶","right":"5,90 €"}]}'
 ```
 
 ### Direkt am USB-Gerät drucken (ohne CUPS)

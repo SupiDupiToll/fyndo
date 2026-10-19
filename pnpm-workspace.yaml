@@ -1,7 +1,9 @@
 allowBuilds:
   '@prisma/engines': true
+  esbuild: true
   prisma: true
   sharp: true
+  workerd: true
 minimumReleaseAgeExclude:
   - '@hexclave/next@1.0.64'
   - '@hexclave/sc@1.0.64'

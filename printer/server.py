@@ -61,11 +61,24 @@ WIDTH = int(os.environ.get("PRINTER_WIDTH", "32"))
 #            Funktioniert auf JEDEM Drucker, auch wenn dieser intern GBK nutzt.
 #   cp437  – echte Umlaute über Codepage 437 (ESC t 0), falls unterstützt.
 #   cp858  – echte Umlaute über Codepage 858 (ESC t 19), inkl. €.
+#   auto   – Standard-Codepage für lateinische Zeichen PLUS Rasterdruck
+#            (Bitmap) für alles, was die Codepage nicht kann (z. B. Chinesisch,
+#            Japanisch, Kyrillisch). Braucht Pillow + einen CJK-Font.
+#   image  – jede Zeile als Bitmap (immer Rasterdruck).
 CHARSET = os.environ.get("CHARSET", "ascii").lower()
 
 CUT_MODE = os.environ.get("CUT_MODE", "partial").lower()  # partial | full | none
 FEED_LINES = int(os.environ.get("FEED_LINES", "4"))
 MAX_BODY_BYTES = 1024 * 1024  # 1 MB
+
+# Rasterdruck (CJK/Unicode über ESC/POS GS v 0)
+# DOTS_PER_CHAR: Punktbreite einer Zeichenzelle (Font A) bei 203 dpi:
+#   58 mm ≈ 384 Punkte / 32 Zeichen = 12, 80 mm ≈ 576 / 48 = 12.
+DOTS_PER_CHAR = int(os.environ.get("DOTS_PER_CHAR", "12"))
+# Schriftgröße in Pixeln pro Zeichenzelle; 2 * DOTS_PER_CHAR ist ein guter Start.
+RASTER_FONT_PX = int(os.environ.get("RASTER_FONT_PX", str(2 * DOTS_PER_CHAR)))
+# Optionaler Pfad zu einem CJK-fähigen TTF/TTC; sonst automatische Suche.
+CJK_FONT_PATH = os.environ.get("CJK_FONT", "")
 
 # ---------------------------------------------------------------------------
 # ESC/POS
@@ -133,8 +146,8 @@ ASCII_MAP = {
     "£": "GBP", "¢": "c", "©": "(c)", "®": "(R)", "§": "Par.", "±": "+/-",
 }
 
-CHARSET_CODEPAGE = {"cp437": 0, "cp858": 19}
-VALID_CHARSETS = ("ascii", "cp437", "cp858")
+CHARSET_CODEPAGE = {"cp437": 0, "cp858": 19, "auto": 19}
+VALID_CHARSETS = ("ascii", "cp437", "cp858", "auto", "image")
 
 _TYPO = {
     "\u00a0": " ",  # NBSP
@@ -188,6 +201,198 @@ def encode(text: str) -> bytes:
     return bytes(out)
 
 
+# ---------------------------------------------------------------------------
+# Rasterdruck (für CJK / beliebiges Unicode über ESC/POS GS v 0)
+# ---------------------------------------------------------------------------
+
+try:
+    from PIL import Image, ImageDraw, ImageFont  # type: ignore
+    _PIL_AVAILABLE = True
+except Exception:  # noqa: BLE001
+    _PIL_AVAILABLE = False
+
+_FONT_CANDIDATES = [
+    CJK_FONT_PATH,
+    "/usr/share/fonts/wenquanyi/wqy-zenhei/wqy-zenhei.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/arphic/uming.ttc",
+]
+
+
+def _find_cjk_font() -> str | None:
+    """Ersten verfügbaren CJK-fähigen Font finden (oder None)."""
+    for path in _FONT_CANDIDATES:
+        if path and os.path.exists(path):
+            return path
+    if _PIL_AVAILABLE:
+        try:
+            proc = subprocess.run(
+                ["fc-match", "-f", "%{file}", ":lang=zh"],
+                capture_output=True, timeout=5,
+            )
+            found = proc.stdout.decode("utf-8", "replace").strip()
+            if found and os.path.exists(found):
+                return found
+        except Exception:  # noqa: BLE001
+            pass
+    return None
+
+
+_CJK_FONT = _find_cjk_font()
+_FONT_CACHE: dict[int, object] = {}
+
+
+def raster_available() -> bool:
+    return bool(_PIL_AVAILABLE and _CJK_FONT)
+
+
+def _get_font(px: int):
+    font = _FONT_CACHE.get(px)
+    if font is None:
+        # BASIC-Layout statt Raqm: kein "raqm_layout() failed." bei langen oder
+        # gemischten Strings, deterministisch und für monospaced CJK/Latein
+        # vollkommen ausreichend (wir brauchen kein Bidi/Shaping).
+        engine = getattr(getattr(ImageFont, "Layout", None), "BASIC", None)
+        try:
+            font = ImageFont.truetype(_CJK_FONT, px, layout_engine=engine)
+        except Exception:  # noqa: BLE001 – sehr alte Pillow ohne layout_engine
+            font = ImageFont.truetype(_CJK_FONT, px)
+        _FONT_CACHE[px] = font
+    return font
+
+
+def _latin_ok(text: str) -> bool:
+    """True, wenn jedes Zeichen über ASCII/LATIN_MAP darstellbar ist."""
+    return all(ord(ch) < 0x80 or ch in LATIN_MAP for ch in text)
+
+
+def vis_len(text: str) -> int:
+    """Sichtbare Zeichenbreite: CJK/Vollbreite zählt 2, sonst 1."""
+    n = 0
+    for ch in str(text):
+        o = ord(ch)
+        if (0x1100 <= o <= 0x115F or 0x2E80 <= o <= 0xA4CF or 0xAC00 <= o <= 0xD7A3
+                or 0xF900 <= o <= 0xFAFF or 0xFE30 <= o <= 0xFE4F
+                or 0xFF00 <= o <= 0xFF60 or 0xFFE0 <= o <= 0xFFE6
+                or 0x20000 <= o <= 0x3FFFD):
+            n += 2
+        else:
+            n += 1
+    return n
+
+
+def split_vis(text: str, max_width: int) -> list[str]:
+    """Text in Stücke mit sichtbarer Breite <= max_width teilen."""
+    if max_width <= 0:
+        return [text]
+    chunks: list[str] = []
+    cur: list[str] = []
+    w = 0
+    for ch in str(text):
+        cw = 2 if vis_len(ch) == 2 else 1
+        if w + cw > max_width and cur:
+            chunks.append("".join(cur))
+            cur, w = [], 0
+        cur.append(ch)
+        w += cw
+    if cur:
+        chunks.append("".join(cur))
+    return chunks or [""]
+
+
+# Sicherheitsnetz: pro Rasterzeile nie mehr als so viele Zeichen rendern
+# (die Breite wird ohnehin vorher auf die Papierbreite umgebrochen).
+_MAX_GLYPH_CHARS = 512
+
+
+def _sanitize(text: str) -> str:
+    """Steuerzeichen und lone surrogates entfernen (FreeType-sicher)."""
+    out: list[str] = []
+    for ch in str(text):
+        o = ord(ch)
+        if o == 0x09:  # Tab -> Leerzeichen
+            out.append(" ")
+        elif o < 0x20 or o == 0x7F or 0xD800 <= o <= 0xDFFF or o in (0xFFFE, 0xFFFF):
+            continue
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _glyph_image(text: str, px: int, bold: bool):
+    """Text als eng zugeschnittenes 1-Bit-Bild (1 = weiss)."""
+    text = _sanitize(text)[:_MAX_GLYPH_CHARS] or " "
+    font = _get_font(px)
+    left, top, right, bottom = font.getbbox(text)
+    w, h = max(1, right - left), max(1, bottom - top)
+    img = Image.new("1", (w + 2, h + 2), 1)
+    draw = ImageDraw.Draw(img)
+    draw.text((1 - left, 1 - top), text, font=font, fill=0)
+    if bold:
+        draw.text((2 - left, 1 - top), text, font=font, fill=0)
+    return img
+
+
+_SIZE_SCALE = {0x00: (1, 1), 0x01: (2, 1), 0x10: (1, 2), 0x11: (2, 2)}
+
+
+def render_line_image(text: str, width_dots: int, size: int = 0x00,
+                      bold: bool = False, underline: bool = False, align: str = "left"):
+    """Eine Textzeile als vollbreites Bitmap."""
+    sx, sy = _SIZE_SCALE.get(size, (1, 1))
+    glyph = _glyph_image(text, RASTER_FONT_PX, bold)
+    if sx != 1 or sy != 1:
+        glyph = glyph.resize(
+            (max(1, glyph.width * sx), max(1, glyph.height * sy)), Image.NEAREST
+        )
+    height = glyph.height + 2
+    canvas = Image.new("1", (width_dots, height), 1)
+    if align == "center":
+        x = (width_dots - glyph.width) // 2
+    elif align == "right":
+        x = width_dots - glyph.width
+    else:
+        x = 0
+    x = max(0, min(x, width_dots - 1))
+    canvas.paste(glyph, (x, 1))
+    if underline:
+        draw = ImageDraw.Draw(canvas)
+        y = height - 2
+        draw.line([(max(0, x), y), (min(width_dots - 1, x + glyph.width), y)], fill=0)
+    return canvas
+
+
+def render_cols_image(left: str, right: str, width_dots: int, bold: bool = False):
+    """Zwei Spalten (links/rechts) als ein Bitmap."""
+    gl = _glyph_image(str(left), RASTER_FONT_PX, bold)
+    gr = _glyph_image(str(right), RASTER_FONT_PX, bold)
+    avail = width_dots - gr.width - 2
+    if gl.width > avail and avail > 1:
+        gl = gl.crop((0, 0, avail, gl.height))
+    height = max(gl.height, gr.height) + 2
+    canvas = Image.new("1", (width_dots, height), 1)
+    canvas.paste(gl, (0, 1))
+    canvas.paste(gr, (max(0, width_dots - gr.width), 1))
+    return canvas
+
+
+def build_raster(image) -> bytes:
+    """GS v 0 – Rasterbitmap; 1 = schwarz (drucken)."""
+    w, h = image.size
+    pad = (8 - w % 8) % 8
+    if pad:
+        padded = Image.new("1", (w + pad, h), 1)
+        padded.paste(image, (0, 0))
+        image = padded
+        w += pad
+    data = bytes(b ^ 0xFF for b in image.tobytes())  # PIL liefert 1=weiss
+    xb = w // 8
+    return bytes([GS, 0x76, 0x30, 0x00, xb & 0xFF, (xb >> 8) & 0xFF,
+                  h & 0xFF, (h >> 8) & 0xFF]) + data
+
+
 class EscPos:
     """Minimaler ESC/POS-Builder."""
 
@@ -195,6 +400,11 @@ class EscPos:
         self.width = width
         self.charset = (charset or CHARSET).lower()
         self.parts: list[bytes] = []
+        self._align = "left"
+        self._size = 0x00
+        self._bold = False
+        self._underline = False
+        self._raster = self.charset in ("auto", "image") and raster_available()
 
     def raw(self, *parts) -> "EscPos":
         for p in parts:
@@ -218,22 +428,66 @@ class EscPos:
 
     def align(self, a: str) -> "EscPos":
         n = 1 if a == "center" else 2 if a == "right" else 0
+        self._align = "center" if n == 1 else "right" if n == 2 else "left"
         return self.raw([ESC, 0x61, n])
 
     def bold(self, on: bool) -> "EscPos":
+        self._bold = bool(on)
         return self.raw([ESC, 0x45, 1 if on else 0])
+
+    def underline(self, on: bool) -> "EscPos":
+        self._underline = bool(on)
+        return self.raw([ESC, 0x2D, 1 if on else 0])
 
     def size(self, n: int) -> "EscPos":
         """0 normal, 0x10 doppelte Höhe, 0x01 doppelte Breite, 0x11 doppelt."""
+        self._size = n
         return self.raw([GS, 0x21, n])
 
     def text(self, s) -> "EscPos":
         return self.raw(encode(disp(s, self.charset)))
 
+    def _needs_raster(self, text: str) -> bool:
+        if not self._raster or not text or not text.strip():
+            return False
+        if self.charset == "image":
+            return True
+        return not _latin_ok(text)
+
+    def _raster_text(self, text: str) -> bytes:
+        """Text als Raster drucken – selbst auf die Papierbreite umgebrochen.
+
+        Rasterbitmaps umbrechen NICHT automatisch (der Drucker kennt keine
+        Zeilenlänge), deshalb teilen wir hier in Zeilen der Papierbreite. Das
+        hält die Bitmaps klein und vermeidet riesige Bilder (und damit Pillow-
+        Layoutfehler bei sehr viel Text).
+        """
+        # doppelt breite Schrift (0x01/0x11) halbiert die nutzbaren Spalten
+        max_w = self.width
+        if self._size in (0x01, 0x11):
+            max_w = max(1, self.width // 2)
+        out = bytearray()
+        for raw_line in str(text).split("\n"):
+            if not raw_line.strip():
+                out += bytes([LF])  # Leerzeile: normaler Vorschub
+                continue
+            for chunk in split_vis(raw_line, max_w):
+                img = render_line_image(chunk, self.width * DOTS_PER_CHAR,
+                                        self._size, self._bold, self._underline,
+                                        self._align)
+                out += build_raster(img)
+        return bytes(out)
+
     def line(self, s="") -> "EscPos":
         if s == "":
             return self.raw([LF])
-        return self.raw(encode(disp(s, self.charset))).raw([LF])
+        text = str(s)
+        if self._needs_raster(text):
+            try:
+                return self.raw(self._raster_text(text))
+            except Exception:  # noqa: BLE001 – nie den ganzen Bon scheitern lassen
+                pass
+        return self.raw(encode(disp(text, self.charset))).raw([LF])
 
     def feed(self, n: int = FEED_LINES) -> "EscPos":
         return self.raw([ESC, 0x64, max(0, min(255, n))])
@@ -251,12 +505,24 @@ class EscPos:
 
     def cols(self, left, right) -> "EscPos":
         """Zwei Spalten: links, rechts rechtsbündig, ggf. links abschneiden."""
+        l_raw, r_raw = str(left), str(right)
+        if self._raster and (self.charset == "image" or not _latin_ok(l_raw + r_raw)):
+            # linke Spalte vorab auf die verfügbare Breite kürzen (kleine Bitmaps)
+            try:
+                clean_r = _sanitize(r_raw)
+                avail = self.width - vis_len(clean_r) - 1
+                if 1 <= avail < self.width:
+                    l_raw = split_vis(_sanitize(l_raw), avail)[0]
+                img = render_cols_image(l_raw, r_raw, self.width * DOTS_PER_CHAR, self._bold)
+                return self.raw(build_raster(img))
+            except Exception:  # noqa: BLE001 – im Zweifel nativer Text
+                pass
         r = disp(right, self.charset)
-        max_left = max(0, self.width - len(r) - 1)
+        max_left = max(0, self.width - vis_len(r) - 1)
         l = disp(left, self.charset)
-        if len(l) > max_left:
+        if vis_len(l) > max_left:
             l = l[:max_left]
-        pad = max(1, self.width - len(l) - len(r))
+        pad = max(1, self.width - vis_len(l) - vis_len(r))
         return self.line(l + " " * pad + r)
 
     def build(self) -> bytes:
@@ -341,7 +607,7 @@ def render_receipt(payload: dict | None = None) -> bytes:
     # Kopf
     vendor = D(payload.get("vendorName") or "fyndo")
     p.bold(True)
-    if len(vendor) <= width // 2:
+    if vis_len(vendor) <= width // 2:
         p.size(0x11).line(vendor).size(0x00)
     else:
         p.size(0x10).line(vendor).size(0x00)
@@ -354,7 +620,7 @@ def render_receipt(payload: dict | None = None) -> bytes:
     if payload.get("orderNumber") is not None:
         num = f"#{payload['orderNumber']}"
         p.bold(True)
-        if len(num) <= width // 2:
+        if vis_len(num) <= width // 2:
             p.size(0x11).line(num).size(0x00)
         else:
             p.size(0x10).line(num).size(0x00)
@@ -365,7 +631,7 @@ def render_receipt(payload: dict | None = None) -> bytes:
     p.hr("=")
     p.cols("Datum:", format_datetime(payload.get("date")))
     if payload.get("vendorName"):
-        p.cols("Filiale:", D(payload["vendorName"])[: max(1, width - 9)])
+        p.cols("Filiale:", D(payload["vendorName"]))
     p.hr("-")
 
     # Positionen
@@ -381,13 +647,8 @@ def render_receipt(payload: dict | None = None) -> bytes:
             prefix = f"{qty}x " if qty > 1 else ""
             name = D(prefix + str(item.get("name") or item.get("title") or "Artikel"))
             price = D(format_euro(amount))
-            max_left = max(8, width - len(price) - 1)
-            chunks = []
-            rest = name
-            while len(rest) > max_left:
-                chunks.append(rest[:max_left])
-                rest = rest[max_left:]
-            chunks.append(rest)
+            max_left = max(8, width - vis_len(price) - 1)
+            chunks = split_vis(name, max_left)
             for i, chunk in enumerate(chunks):
                 if i == len(chunks) - 1:
                     p.cols(chunk, price)
@@ -501,14 +762,12 @@ def render_blocks(payload: dict | None = None) -> bytes:
 
         if t == "text":
             p.bold(bool(b.get("bold")))
-            if b.get("underline"):
-                p.raw([ESC, 0x2D, 1])
+            p.underline(bool(b.get("underline")))
             p.size(SIZES.get(str(b.get("size", "normal")).lower(), 0x00))
             p.line(str(b.get("text", "")))
             p.size(0x00)
             p.bold(False)
-            if b.get("underline"):
-                p.raw([ESC, 0x2D, 0])
+            p.underline(False)
         elif t == "cols":
             p.cols(str(b.get("left", "")), str(b.get("right", "")))
         elif t == "hr":
@@ -639,6 +898,9 @@ class Handler(BaseHTTPRequestHandler):
                 "device": PRINTER_DEVICE if PRINTER_MODE == "device" else None,
                 "width": WIDTH,
                 "charset": CHARSET,
+                "charsets": list(VALID_CHARSETS),
+                "cjk": raster_available(),
+                "cjkFont": _CJK_FONT,
                 "cut": CUT_MODE,
                 "endpoints": ["/health", "/printers", "/qr.png", "/designer", "/print", "/print/text",
                               "/print/raw", "/print/blocks", "/test"],
