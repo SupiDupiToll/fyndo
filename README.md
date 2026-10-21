@@ -158,7 +158,7 @@ Bei einem über das Cloudflare-Dashboard verbundenen Repository müssen Build- u
 
 Es gibt zwei Kategorien:
 
-- **Build-Zeit** (`NEXT_PUBLIC_*`): werden von Next.js in das Bundle eingebettet und müssen beim **Build** verfügbar sein – also in den Build-Variablen der CI bzw. in der lokalen `.env`/`.env.production`. Dazu gehören `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID`, `NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY`, `NEXT_PUBLIC_ADMIN_EMAIL` und `NEXT_PUBLIC_POS_PRINT_URL`.
+- **Build-Zeit** (`NEXT_PUBLIC_*`): werden von Next.js in das Bundle eingebettet und müssen beim **Build** verfügbar sein – also in den Build-Variablen der CI bzw. in der lokalen `.env`/`.env.production`. Dazu gehören `NEXT_PUBLIC_ADMIN_EMAIL` und `NEXT_PUBLIC_POS_PRINT_URL`. Die Hexclave-Konfiguration (`projectId`, Publishable Client Key) wird dagegen zur **Laufzeit** vom Server-Layout an die Auth-UI übergeben – sie muss nicht beim Build vorliegen.
 - **Laufzeit (Secrets)**: alles andere. Diese werden über das Cloudflare-Dashboard bzw. per CLI gesetzt und landen dank `nodejs_compat` in `process.env`:
 
   ```bash
@@ -170,7 +170,7 @@ Es gibt zwei Kategorien:
   # optional: RBANK_*, NTFY_WEBHOOK_URL, POS_CARD_SECRET, TIPPIE_PAY_BASE, HEXCLAVE_ADMIN_EMAILS
   ```
 
-  > **Pflicht:** Ohne `HEXCLAVE_PROJECT_ID` (und den passenden Hexclave-Keys) bricht der Server beim ersten Request mit `500` ab (`It seems that you haven't provided a project ID.`). Die App liest die Hexclave-Werte zur Laufzeit über die `HEXCLAVE_*`-Namen; die `NEXT_PUBLIC_*`-Namen aus der Tabelle oben sind die Build-Zeit-Entsprechungen, aus denen das SDK automatisch zurückfällt.
+  > **Pflicht:** Ohne `HEXCLAVE_PROJECT_ID` (und den passenden Hexclave-Keys) bricht der Server beim ersten Request mit `500` ab (`It seems that you haven't provided a project ID.`). Die App liest die Hexclave-Werte zur Laufzeit über die `HEXCLAVE_*`-Namen und fällt auf die `NEXT_PUBLIC_*`-Namen zurück, falls nur diese gesetzt sind. Wichtig: `process.env` wird auf Workers erst beim ersten Request befüllt – Hexclave-Apps dürfen deshalb nicht auf Modulebene erzeugt werden.
 
 Für die lokale Entwicklung mit `wrangler dev`/`pnpm preview` die Secrets in eine `.dev.vars` legen (Vorlage: [`.dev.vars.example`](.dev.vars.example)); `pnpm dev` liest sie weiterhin aus `.env`.
 

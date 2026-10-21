@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HexclaveProviders } from "@/components/hexclave-providers";
+import { getHexclaveRuntimeConfig } from "@/hexclave/config";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { projectId, publishableClientKey } = getHexclaveRuntimeConfig();
+
   return (
     <html lang="de" suppressHydrationWarning>
       <head>
@@ -23,7 +26,12 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
       <body className="bg-white text-ink antialiased overflow-x-hidden">
-        <HexclaveProviders>{children}</HexclaveProviders>
+        <HexclaveProviders
+          projectId={projectId}
+          publishableClientKey={publishableClientKey}
+        >
+          {children}
+        </HexclaveProviders>
       </body>
     </html>
   );
