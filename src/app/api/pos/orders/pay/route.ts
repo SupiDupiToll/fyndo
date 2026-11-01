@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAppUrl, getRbankEmbedCheckoutKey } from "@/lib/env";
-import { buildRbankEmbedCheckoutUrl, createRbankPayment } from "@/lib/rbank";
+import {
+  buildRbankCheckoutUrl,
+  buildRbankEmbedCheckoutUrl,
+  createRbankPayment,
+} from "@/lib/rbank";
 import { buildTippieUrl, POS_MIN_DIGITAL_PAYMENT_CENTS, POS_PAYMENT_METHODS, type PosPaymentMethod } from "@/lib/pos";
 import { formatEuro } from "@/lib/format";
 
@@ -65,7 +69,10 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json({
         method,
-        paymentUrl: buildRbankEmbedCheckoutUrl(precreatedToken),
+        // Normaler RBank-Zahlungslink (z. B. für QR-Code) …
+        paymentUrl: buildRbankCheckoutUrl(precreatedToken),
+        // … und eingebetteter Checkout für den Kiosk-Modus.
+        embedUrl: buildRbankEmbedCheckoutUrl(precreatedToken),
         token: precreatedToken,
         embedKey: getRbankEmbedCheckoutKey(),
         totalCents,
@@ -97,7 +104,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       method,
-      paymentUrl: buildRbankEmbedCheckoutUrl(session.token),
+      paymentUrl: buildRbankCheckoutUrl(session.token),
+      embedUrl: buildRbankEmbedCheckoutUrl(session.token),
       token: session.token,
       embedKey: getRbankEmbedCheckoutKey(),
       totalCents,

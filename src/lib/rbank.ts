@@ -64,6 +64,12 @@ export function buildRbankEmbedCheckoutUrl(token: string, config?: RBankConfig):
   return `${resolved.apiUrl}/embed/pay/${encodeURIComponent(token)}?key=${encodeURIComponent(key)}`;
 }
 
+/** Normaler (gehosteter) RBank-Zahlungslink – z. B. für QR-Codes. */
+export function buildRbankCheckoutUrl(token: string, config?: RBankConfig): string {
+  const resolved = config ?? getRbankConfig();
+  return `${resolved.apiUrl}/pay/${encodeURIComponent(token)}`;
+}
+
 export async function verifyRbankPayment(
   token: string,
   config?: RBankConfig,

@@ -7,6 +7,7 @@ import {
   printTestReceipt,
   setPrintServerUrl,
 } from "@/lib/pos-print-client";
+import type { PosRbankCheckoutMode } from "@/lib/pos";
 
 function simpleHash(str: string): string {
   let h = 5381;
@@ -41,10 +42,14 @@ type InfoRow = { label: string; value: string };
 export function PosDebugMenu({
   vendorName,
   adminEnabled,
+  rbankCheckoutMode,
+  onRbankCheckoutModeChange,
   onClose,
 }: {
   vendorName: string;
   adminEnabled: boolean;
+  rbankCheckoutMode: PosRbankCheckoutMode;
+  onRbankCheckoutModeChange: (mode: PosRbankCheckoutMode) => void;
   onClose: () => void;
 }) {
   const [code, setCode] = useState("");
@@ -271,6 +276,72 @@ export function PosDebugMenu({
                   <i className="fa-solid fa-arrow-left text-xl" />
                   <span className="text-xs font-bold">Schließen</span>
                 </button>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-xs font-black uppercase tracking-wider text-mute mb-2">
+                RBank Checkout
+              </h3>
+              <div className="rounded-xl border border-line p-4 space-y-3">
+                <p className="text-[11px] text-mute">
+                  Darstellung beim Bezahlen mit RBank auf diesem Gerät.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(
+                    [
+                      {
+                        mode: "embed",
+                        icon: "fa-solid fa-window-maximize",
+                        title: "Eingebettet",
+                        sub: "Checkout direkt am Bildschirm",
+                      },
+                      {
+                        mode: "qr",
+                        icon: "fa-solid fa-qrcode",
+                        title: "QR-Code",
+                        sub: "Normaler RBank-Zahlungslink als QR",
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const active = rbankCheckoutMode === option.mode;
+                    return (
+                      <button
+                        key={option.mode}
+                        type="button"
+                        onClick={() => onRbankCheckoutModeChange(option.mode)}
+                        className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                          active
+                            ? "border-accent bg-accent/5 text-accent"
+                            : "border-line hover:border-accent/50 hover:bg-surf"
+                        }`}
+                      >
+                        <span
+                          className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${
+                            active ? "bg-accent/10" : "bg-surf"
+                          }`}
+                        >
+                          <i className={option.icon} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-bold">
+                            {option.title}
+                          </span>
+                          <span className="block text-[11px] text-mute">
+                            {option.sub}
+                          </span>
+                        </span>
+                        <i
+                          className={`fa-solid text-sm ${
+                            active
+                              ? "fa-circle-check"
+                              : "fa-circle text-line"
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </section>
 

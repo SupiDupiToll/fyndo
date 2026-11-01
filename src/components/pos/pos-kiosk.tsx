@@ -12,7 +12,10 @@ import {
 import {
   POS_MIN_DIGITAL_PAYMENT_CENTS,
   POS_PAYMENT_METHODS,
+  POS_RBANK_CHECKOUT_MODE_KEY,
+  parseRbankCheckoutMode,
   type PosPaymentMethod,
+  type PosRbankCheckoutMode,
 } from "@/lib/pos";
 import { formatEuro } from "@/lib/format";
 import { printReceipt } from "@/lib/pos-print-client";
@@ -154,6 +157,26 @@ export function PosKiosk({
   const [debugOpen, setDebugOpen] = useState(false);
   const debugTimerRef = useRef<number | null>(null);
   const debugTapRef = useRef(0);
+  const [rbankCheckoutMode, setRbankCheckoutMode] =
+    useState<PosRbankCheckoutMode>(() => {
+      if (typeof window === "undefined") return "embed";
+      try {
+        return parseRbankCheckoutMode(
+          window.localStorage.getItem(POS_RBANK_CHECKOUT_MODE_KEY),
+        );
+      } catch {
+        return "embed";
+      }
+    });
+
+  function changeRbankCheckoutMode(mode: PosRbankCheckoutMode) {
+    setRbankCheckoutMode(mode);
+    try {
+      window.localStorage.setItem(POS_RBANK_CHECKOUT_MODE_KEY, mode);
+    } catch {
+      /* Storage nicht verfügbar */
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -168,9 +191,9 @@ export function PosKiosk({
 
   // SDK früh laden, damit der Checkout beim Klick sofort startet.
   useEffect(() => {
-    if (demo || !rbankBaseUrl) return;
+    if (demo || !rbankBaseUrl || rbankCheckoutMode !== "embed") return;
     loadRbankCheckoutSdk(rbankBaseUrl).catch(() => {});
-  }, [demo, rbankBaseUrl]);
+  }, [demo, rbankBaseUrl, rbankCheckoutMode]);
 
   function handleLogoClick() {
     debugTapRef.current += 1;
@@ -864,7 +887,9 @@ export function PosKiosk({
     if (m === "RBANK")
       announce(
         "rbank-qr",
-        `Bitte bezahlen Sie direkt am Bildschirm. Ihre Nummer ist ${orderNumber}.`,
+        rbankCheckoutMode === "qr"
+          ? `Bitte scannen Sie den QR-Code und bezahlen Sie mit RBank. Ihre Nummer ist ${orderNumber}.`
+          : `Bitte bezahlen Sie direkt am Bildschirm. Ihre Nummer ist ${orderNumber}.`,
       );
     else if (m === "TIPPIE")
       announce(
@@ -1337,6 +1362,7 @@ export function PosKiosk({
             rbankToken={rbankToken}
             rbankKey={rbankKey}
             rbankBaseUrl={rbankBaseUrl}
+            rbankCheckoutMode={rbankCheckoutMode}
             busy={busy}
             error={error}
             rbankStatus={rbankStatus}
@@ -1395,6 +1421,8 @@ export function PosKiosk({
         <PosDebugMenu
           vendorName={vendorName}
           adminEnabled={settings.adminEnabled && settings.adminCodeHash !== ""}
+          rbankCheckoutMode={rbankCheckoutMode}
+          onRbankCheckoutModeChange={changeRbankCheckoutMode}
           onClose={() => setDebugOpen(false)}
         />
       )}
@@ -2456,6 +2484,7 @@ function CheckoutOverlay({
   rbankToken,
   rbankKey,
   rbankBaseUrl,
+  rbankCheckoutMode,
   busy,
   error,
   rbankStatus,
@@ -2476,6 +2505,7 @@ function CheckoutOverlay({
   rbankToken: string | null;
   rbankKey: string | null;
   rbankBaseUrl?: string;
+  rbankCheckoutMode: PosRbankCheckoutMode;
   busy: boolean;
   error: string;
   rbankStatus: string | null;
@@ -2645,6 +2675,7 @@ function CheckoutOverlay({
                   rbankToken={rbankToken}
                   rbankKey={rbankKey}
                   rbankBaseUrl={rbankBaseUrl}
+                  rbankCheckoutMode={rbankCheckoutMode}
                   rbankStatus={rbankStatus}
                   onRbankStatus={onRbankStatus}
                 />
@@ -2992,6 +3023,7 @@ function PaymentQrView({
   rbankToken,
   rbankKey,
   rbankBaseUrl,
+  rbankCheckoutMode,
   rbankStatus,
   onRbankStatus,
 }: {
@@ -3000,10 +3032,11 @@ function PaymentQrView({
   rbankToken: string | null;
   rbankKey: string | null;
   rbankBaseUrl?: string;
+  rbankCheckoutMode: PosRbankCheckoutMode;
   rbankStatus: string | null;
   onRbankStatus: (status: string | null) => void;
 }) {
-  if (method === "RBANK") {
+  if (method === "RBANK" && rbankCheckoutMode === "embed") {
     return (
       <div className="flex flex-col items-center text-center">
         <div className="w-full max-w-xl min-h-[520px] rounded-2xl border border-line bg-white overflow-hidden">
@@ -3038,6 +3071,8 @@ function PaymentQrView({
     );
   }
 
+  const isRbankQr = method === "RBANK";
+
   return (
     <div className="flex flex-col items-center text-center">
       <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl border border-line bg-white p-3 flex items-center justify-center">
@@ -3051,8 +3086,15 @@ function PaymentQrView({
         )}
       </div>
       <p className="mt-5 text-sm text-mute max-w-sm">
-        Mit dem Handy scannen und mit PayPal, Apple Pay oder Karte bezahlen.
+        {isRbankQr
+          ? "Mit dem Handy scannen und direkt mit RBank bezahlen. Die Bestellung wird automatisch bestätigt."
+          : "Mit dem Handy scannen und mit PayPal, Apple Pay oder Karte bezahlen."}
       </p>
+      {isRbankQr && rbankStatus && rbankStatus !== "PENDING" && (
+        <p className="mt-2 text-xs font-bold text-mute uppercase tracking-wide">
+          {rbankStatus}
+        </p>
+      )}
       <div className="mt-6 flex items-center gap-3 text-mute">
         <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
         <span className="text-sm font-medium">
