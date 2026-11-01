@@ -23,6 +23,12 @@ import { LockScreen } from "@/components/pos/lock-screen";
 import { SuccessBurst } from "@/components/kokonutui/success-burst";
 import type { PosSettings } from "@/lib/pos-settings";
 import { PosDebugMenu } from "@/components/pos/pos-debug-menu";
+import type { PosTranslationKey } from "@/lib/pos-i18n";
+import {
+  PosLanguageProvider,
+  PosLanguageSwitch,
+  usePosLang,
+} from "@/components/pos/pos-language";
 
 export type PosVariant = { id: string; name: string; priceCents: number };
 
@@ -55,33 +61,33 @@ type OrderInfo = {
   itemCount: number;
 };
 
-const METHOD_LABELS: Record<
+const METHOD_META: Record<
   PosPaymentMethod,
-  { title: string; sub: string; icon: string }
+  { titleKey: PosTranslationKey; subKey: PosTranslationKey; icon: string }
 > = {
   RBANK: {
-    title: "RBank",
-    sub: "Direkt am Bildschirm bezahlen",
+    titleKey: "methodRbankTitle",
+    subKey: "methodRbankSub",
     icon: "fa-solid fa-mobile-screen",
   },
   TIPPIE: {
-    title: "PayPal / Apple Pay / Karte",
-    sub: "QR-Code scannen & online zahlen",
+    titleKey: "methodTippieTitle",
+    subKey: "methodTippieSub",
     icon: "fa-solid fa-credit-card",
   },
   TERMINAL: {
-    title: "Kartenterminal",
-    sub: "Karte an das Terminal halten",
+    titleKey: "methodTerminalTitle",
+    subKey: "methodTerminalSub",
     icon: "fa-solid fa-id-card",
   },
   CASH: {
-    title: "Bar",
-    sub: "Betrag an der Kasse bezahlen",
+    titleKey: "methodCashTitle",
+    subKey: "methodCashSub",
     icon: "fa-solid fa-money-bill-wave",
   },
   GUTSCHEIN: {
-    title: "Fyndo-Gutschein",
-    sub: "Mit Gutschein ganz oder teilweise zahlen",
+    titleKey: "methodGiftTitle",
+    subKey: "methodGiftSub",
     icon: "fa-solid fa-gift",
   },
 };
@@ -100,21 +106,32 @@ function containerCount(containers: Container[], productId: string) {
   return containers.filter((c) => c.product.id === productId).length;
 }
 
-export function PosKiosk({
-  vendorName,
-  products,
-  toppings,
-  settings,
-  demo = false,
-  rbankBaseUrl,
-}: {
+export type PosKioskProps = {
   vendorName: string;
   products: PosProduct[];
   toppings: PosProduct[];
   settings: PosSettings;
   demo?: boolean;
   rbankBaseUrl?: string;
-}) {
+};
+
+export function PosKiosk(props: PosKioskProps) {
+  return (
+    <PosLanguageProvider>
+      <PosKioskInner {...props} />
+    </PosLanguageProvider>
+  );
+}
+
+function PosKioskInner({
+  vendorName,
+  products,
+  toppings,
+  settings,
+  demo = false,
+  rbankBaseUrl,
+}: PosKioskProps) {
+  const { lang, t: tr } = usePosLang();
   const [cart, setCart] = useState<Map<string, CartItem>>(new Map());
   const [speakerOn, setSpeakerOn] = useState(() => !demo);
   const [cartOpen, setCartOpen] = useState(false);
@@ -244,21 +261,20 @@ export function PosKiosk({
     if (initialAnnounceRef.current) return;
     initialAnnounceRef.current = true;
     if (lockOpen) return;
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       if (containerMode) {
         announce(
           "welcome",
-          `Willkommen bei ${vendorName}. Wählen Sie zuerst Ihre Becher oder Schüsseln.`,
+          tr("sayWelcomeContainers", { vendor: vendorName }),
+          lang,
         );
       } else {
-        announce(
-          "welcome",
-          `Willkommen bei ${vendorName}. Wählen Sie Ihre Produkte.`,
-        );
+        announce("welcome", tr("sayWelcome", { vendor: vendorName }), lang);
       }
     }, 600);
-    return () => window.clearTimeout(t);
-  }, [vendorName, lockOpen, containerMode]);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendorName, lockOpen, containerMode, lang]);
 
   useEffect(() => {
     if (!settings.lockScreenEnabled || lockOpen || countdownOpen) return;
@@ -280,7 +296,8 @@ export function PosKiosk({
         setCountdownOpen(true);
         announce(
           "idle-countdown",
-          "Der Bildschirm wird gleich gesperrt. Wenn Sie noch da sind, tippen Sie auf Ich bin noch hier.",
+          tr("sayIdle"),
+          lang,
         );
       }, settings.idleTimeoutSeconds * 1000);
     }
@@ -316,6 +333,8 @@ export function PosKiosk({
     settings.lockScreenEnabled,
     settings.idleTimeoutSeconds,
     settings.lockWarningSeconds,
+    tr,
+    lang,
   ]);
 
   useEffect(() => {
@@ -388,7 +407,11 @@ export function PosKiosk({
     const label = variant ? `${product.title} ${variant.name}` : product.title;
     announce(
       "product-added",
-      `${label}, ${formatSpokenEuro(itemPrice(product, variant))}.`,
+      tr("sayAdded", {
+        label,
+        price: formatSpokenEuro(itemPrice(product, variant), lang),
+      }),
+      lang,
     );
   }
 
@@ -399,7 +422,7 @@ export function PosKiosk({
   ) {
     setQty(product, variant, 0, container);
     const label = variant ? `${product.title} ${variant.name}` : product.title;
-    announce("product-removed", `${label} entfernt.`);
+    announce("product-removed", tr("sayRemoved", { label }), lang);
   }
 
   function addContainer(product: PosProduct) {
@@ -423,7 +446,11 @@ export function PosKiosk({
       });
       return [...prev, container];
     });
-    announce("product-added", `${product.title} hinzugefügt.`);
+    announce(
+      "product-added",
+      tr("sayContainerAdded", { label: product.title }),
+      lang,
+    );
   }
 
   function removeContainer(product: PosProduct) {
@@ -440,14 +467,19 @@ export function PosKiosk({
       });
       return next;
     });
-    announce("product-removed", `${product.title} entfernt.`);
+    announce("product-removed", tr("sayRemoved", { label: product.title }), lang);
   }
 
   function enterBuildStep() {
     setWizardStep("build");
     setActiveContainerIndex(0);
     const first = containers[0];
-    if (first) announce("container", `${first.label}. Wählen Sie Ihre Kugeln.`);
+    if (first)
+      announce(
+        "container",
+        tr("sayContainerScoops", { label: first.label }),
+        lang,
+      );
   }
 
   function setContainerQty(product: PosProduct, qty: number) {
@@ -482,7 +514,8 @@ export function PosKiosk({
     setPickerProduct(product);
     announce(
       "select-payment",
-      `${product.title}. Bitte Größe oder Variante wählen.`,
+      tr("sayChooseVariant", { product: product.title }),
+      lang,
     );
   }
 
@@ -510,14 +543,11 @@ export function PosKiosk({
     if (toppingProducts.length > 0) {
       setToppingContainer(null);
       setToppingOpen(true);
-      announce(
-        "toppings",
-        "Noch etwas dazu? Wählen Sie Ihre Toppings oder tippen Sie auf Nein Danke.",
-      );
+      announce("toppings", tr("sayToppings"), lang);
       return;
     }
     setSummaryOpen(true);
-    announce("checkout", "Zur Kasse. Bitte prüfen Sie Ihre Bestellung.");
+    announce("checkout", tr("sayCheckout"), lang);
   }
 
   function openToppingsForActiveContainer() {
@@ -531,7 +561,8 @@ export function PosKiosk({
     setToppingOpen(true);
     announce(
       "toppings",
-      `${c.label}. Noch etwas dazu? Wählen Sie Ihre Toppings oder tippen Sie auf Nein Danke.`,
+      tr("sayToppingsContainer", { label: c.label }),
+      lang,
     );
   }
 
@@ -540,10 +571,15 @@ export function PosKiosk({
       const nextIndex = activeContainerIndex + 1;
       setActiveContainerIndex(nextIndex);
       const c = containers[nextIndex];
-      if (c) announce("container", `${c.label}. Wählen Sie Ihre Kugeln.`);
+      if (c)
+        announce(
+          "container",
+          tr("sayContainerScoops", { label: c.label }),
+          lang,
+        );
     } else {
       setSummaryOpen(true);
-      announce("checkout", "Zur Kasse. Bitte prüfen Sie Ihre Bestellung.");
+      announce("checkout", tr("sayCheckout"), lang);
     }
   }
 
@@ -594,7 +630,7 @@ export function PosKiosk({
   function openPayment() {
     setSummaryOpen(false);
     setCheckoutOpen(true);
-    announce("checkout", "Zur Kasse. Ihre Bestellnummer wird gerade vergeben.");
+    announce("checkout", tr("sayAssigning"), lang);
     void createOrder();
   }
 
@@ -616,7 +652,7 @@ export function PosKiosk({
     if (settings.lockScreenEnabled) {
       setLockOpen(true);
     } else {
-      announce("new-order", "Neue Bestellung. Wählen Sie Ihre Produkte.");
+      announce("new-order", tr("sayNewOrder"), lang);
     }
   }
 
@@ -675,7 +711,11 @@ export function PosKiosk({
         itemCount: cartCount,
       };
       setOrder(info);
-      announce("order-sent", `Ihre Bestellnummer ist ${info.posOrderNumber}.`);
+      announce(
+        "order-sent",
+        tr("sayOrderNumber", { number: info.posOrderNumber }),
+        lang,
+      );
       setBusy(false);
       return info;
     }
@@ -696,14 +736,18 @@ export function PosKiosk({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Bestellung konnte nicht gestartet werden.");
+        setError(data.error ?? tr("orderStartError"));
         return null;
       }
       setOrder(data);
-      announce("order-sent", `Ihre Bestellnummer ist ${data.posOrderNumber}.`);
+      announce(
+        "order-sent",
+        tr("sayOrderNumber", { number: data.posOrderNumber }),
+        lang,
+      );
       return data as OrderInfo;
     } catch {
-      setError("Bestellung konnte nicht gestartet werden.");
+      setError(tr("orderStartError"));
       return null;
     } finally {
       setBusy(false);
@@ -728,7 +772,8 @@ export function PosKiosk({
       setBusy(false);
       announce(
         "select-payment",
-        "Fyndo-Gutschein. Bitte geben Sie den Gutscheincode ein.",
+        tr("sayGiftCode"),
+        lang,
       );
       return;
     }
@@ -760,7 +805,7 @@ export function PosKiosk({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Zahlungsstart fehlgeschlagen.");
+        setError(data.error ?? tr("paymentStartFailed"));
         setMethod(null);
         setBusy(false);
         return;
@@ -770,7 +815,7 @@ export function PosKiosk({
       setRbankKey(data.embedKey ?? null);
       announceByMethod(m, payTotal, currentOrder.posOrderNumber);
     } catch {
-      setError("Zahlungsstart fehlgeschlagen.");
+      setError(tr("paymentStartFailed"));
       setMethod(null);
     } finally {
       setBusy(false);
@@ -799,12 +844,12 @@ export function PosKiosk({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Bestätigung fehlgeschlagen.");
+        setError(data.error ?? tr("confirmFailed"));
         return;
       }
       onConfirmed(cartTotal, order.posOrderNumber);
     } catch {
-      setError("Bestätigung fehlgeschlagen.");
+      setError(tr("confirmFailed"));
     } finally {
       setBusy(false);
     }
@@ -832,13 +877,13 @@ export function PosKiosk({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Gutschein konnte nicht eingelöst werden.");
+        setError(data.error ?? tr("giftRedeemFailed"));
         return null;
       }
       setGiftApplied((prev) => prev + data.deduction);
       return { deduction: data.deduction, remainder: data.remainder };
     } catch {
-      setError("Gutschein konnte nicht eingelöst werden.");
+      setError(tr("giftRedeemFailed"));
       return null;
     } finally {
       setBusy(false);
@@ -867,12 +912,12 @@ export function PosKiosk({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Bestätigung fehlgeschlagen.");
+        setError(data.error ?? tr("confirmFailed"));
         return;
       }
       onConfirmed(cartTotal, order.posOrderNumber);
     } catch {
-      setError("Bestätigung fehlgeschlagen.");
+      setError(tr("confirmFailed"));
     } finally {
       setBusy(false);
     }
@@ -883,33 +928,34 @@ export function PosKiosk({
     totalCents: number,
     orderNumber: number,
   ) {
-    const total = formatSpokenEuro(totalCents);
+    const total = formatSpokenEuro(totalCents, lang);
     if (m === "RBANK")
       announce(
         "rbank-qr",
         rbankCheckoutMode === "qr"
-          ? `Bitte scannen Sie den QR-Code und bezahlen Sie mit RBank. Ihre Nummer ist ${orderNumber}.`
-          : `Bitte bezahlen Sie direkt am Bildschirm. Ihre Nummer ist ${orderNumber}.`,
+          ? tr("sayRbankQr", { number: orderNumber })
+          : tr("sayRbankEmbed", { number: orderNumber }),
+        lang,
       );
     else if (m === "TIPPIE")
       announce(
         "tippie-qr",
-        `Bitte scannen Sie den QR-Code und zahlen Sie ${total} mit PayPal, Apple Pay oder Karte. Ihre Nummer ist ${orderNumber}.`,
+        tr("sayTippie", { amount: total, number: orderNumber }),
+        lang,
       );
     else if (m === "TERMINAL")
-      announce(
-        "terminal-call",
-        `Kartenzahlung. Das Terminal wird aufgerufen. Bitte halten Sie Ihre Karte an das Terminal.`,
-      );
+      announce("terminal-call", tr("sayTerminal"), lang);
     else if (m === "CASH")
       announce(
         "cash",
-        `Bitte zahlen Sie ${total} in bar an der Kasse. Ihre Nummer ist ${orderNumber}.`,
+        tr("sayCash", { amount: total, number: orderNumber }),
+        lang,
       );
     else if (m === "GUTSCHEIN")
       announce(
         "select-payment",
-        `Bitte geben Sie den Gutscheincode ein. Ihre Nummer ist ${orderNumber}.`,
+        tr("sayGiftNumber", { number: orderNumber }),
+        lang,
       );
   }
 
@@ -947,7 +993,8 @@ export function PosKiosk({
     setDone({ totalCents, orderNumber });
     announce(
       "payment-confirmed",
-      `Vielen Dank! Ihre Bestellung ist raus. Ihre Nummer ist ${orderNumber}.`,
+      tr("sayConfirmed", { number: orderNumber }),
+      lang,
     );
     printOrderReceipt(totalCents, orderNumber);
   }
@@ -1049,8 +1096,9 @@ export function PosKiosk({
     announce(
       "welcome",
       containerMode
-        ? `Willkommen bei ${vendorName}. Wählen Sie zuerst Ihre Becher oder Schüsseln.`
-        : `Willkommen bei ${vendorName}. Wählen Sie Ihre Produkte.`,
+        ? tr("sayWelcomeContainers", { vendor: vendorName })
+        : tr("sayWelcome", { vendor: vendorName }),
+      lang,
     );
   }
 
@@ -1058,7 +1106,7 @@ export function PosKiosk({
     if (settings.lockScreenEnabled) {
       lockAfterOrder();
     } else {
-      announce("new-order", "Neue Bestellung. Wählen Sie Ihre Produkte.");
+      announce("new-order", tr("sayNewOrder"), lang);
       clearOrder();
       closeCheckout();
     }
@@ -1087,21 +1135,22 @@ export function PosKiosk({
               type="button"
               onClick={handleLogoClick}
               className="block max-w-full text-left select-none"
-              aria-label={settings.adminEnabled ? "Einstellungen" : vendorName}
+              aria-label={settings.adminEnabled ? tr("settings") : vendorName}
             >
               <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight truncate">
                 {vendorName}
                 <span className="text-accent">.</span>
               </h1>
             </button>
-            <p className="text-xs text-mute -mt-0.5">Tippen & Bestellen</p>
+            <p className="text-xs text-mute -mt-0.5">{tr("tagline")}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <PosLanguageSwitch />
             {!demo && (
               <button
                 onClick={() => setSpeakerOn((s) => !s)}
                 className={`w-11 h-11 rounded-full border flex items-center justify-center text-lg transition-colors ${speakerOn ? "border-accent text-accent" : "border-line text-mute"}`}
-                aria-label={speakerOn ? "Ton aus" : "Ton an"}
+                aria-label={speakerOn ? tr("soundOff") : tr("soundOn")}
               >
                 <i
                   className={`${speakerOn ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark"}`}
@@ -1111,15 +1160,15 @@ export function PosKiosk({
             <button
               onClick={resetForNewCustomer}
               className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${cartCount > 0 ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100" : "border-red-100 text-red-400 hover:bg-red-50"}`}
-              aria-label="Alles Löschen"
+              aria-label={tr("clearAll")}
             >
               <i className="fa-solid fa-user-plus" />
-              <span className="hidden sm:inline">Alles Löschen</span>
+              <span className="hidden sm:inline">{tr("clearAll")}</span>
             </button>
             <button
               onClick={() => {
                 setCartOpen(true);
-                announce("cart", "Ihr Warenkorb.");
+                announce("cart", tr("cartOpened"), lang);
               }}
               className="relative flex items-center gap-3 rounded-full border border-line bg-white pl-3 pr-4 py-2 hover:border-accent hover:bg-surf transition-colors"
             >
@@ -1129,7 +1178,7 @@ export function PosKiosk({
                   {formatEuro(cartTotal)}
                 </div>
                 <div className="text-[11px] text-mute leading-tight mt-0.5">
-                  {cartCount} Artikel
+                  {tr("articles", { count: cartCount })}
                 </div>
               </div>
               {cartCount > 0 && (
@@ -1171,7 +1220,7 @@ export function PosKiosk({
           />
         ) : products.length === 0 ? (
           <div className="text-center py-24 text-mute">
-            Keine Produkte verfügbar.
+            {tr("noProducts")}
           </div>
         ) : (
           <div
@@ -1213,8 +1262,8 @@ export function PosKiosk({
             >
               <span>
                 {containers.length === 0
-                  ? "Bitte Becher oder Schüssel wählen"
-                  : "Weiter: Kugeln wählen"}
+                  ? tr("chooseContainerCta")
+                  : tr("nextScoops")}
               </span>
               <span className="tabular-nums">{containers.length}×</span>
             </button>
@@ -1233,8 +1282,10 @@ export function PosKiosk({
             >
               <span>
                 {activeContainerIndex === containers.length - 1
-                  ? "Extras & bezahlen"
-                  : `Weiter: Extras & ${containers[activeContainerIndex + 1]?.label}`}
+                  ? tr("extrasAndPay")
+                  : tr("nextExtras", {
+                      label: containers[activeContainerIndex + 1]?.label ?? "",
+                    })}
               </span>
               <span className="tabular-nums">{formatEuro(cartTotal)}</span>
             </button>
@@ -1250,8 +1301,8 @@ export function PosKiosk({
             >
               <span>
                 {cartCount === 0 || cartTotal === 0
-                  ? "Warenkorb ist leer"
-                  : "Jetzt bezahlen"}
+                  ? tr("emptyCartShort")
+                  : tr("payNow")}
               </span>
               <span className="tabular-nums">{formatEuro(cartTotal)}</span>
             </button>
@@ -1441,6 +1492,7 @@ function ProductTile({
   onAdd: () => void;
   onSetQty: (qty: number) => void;
 }) {
+  const { t } = usePosLang();
   const hasVariants = product.variants.length > 0;
   const minPrice = hasVariants
     ? Math.min(...product.variants.map((v) => v.priceCents))
@@ -1479,12 +1531,12 @@ function ProductTile({
         </h3>
         <p className="mt-1 text-lg sm:text-xl font-black text-ink tabular-nums">
           {minPrice != null
-            ? `ab ${formatEuro(minPrice)}`
+            ? t("fromPrice", { price: formatEuro(minPrice) })
             : formatEuro(product.price)}
         </p>
         {hasVariants && (
           <span className="mt-1 inline-block rounded-full bg-accent/10 px-2.5 py-0.5 text-[11px] font-bold text-accent">
-            {product.variants.length} Varianten
+            {t("variants", { count: product.variants.length })}
           </span>
         )}
       </div>
@@ -1496,7 +1548,7 @@ function ProductTile({
           <button
             onClick={() => onSetQty(qty - 1)}
             className="w-9 h-9 rounded-lg bg-white text-accent font-black flex items-center justify-center shadow-sm hover:bg-accent hover:text-white transition-colors"
-            aria-label="Menge verringern"
+            aria-label={t("qtyDecrease")}
           >
             −
           </button>
@@ -1506,7 +1558,7 @@ function ProductTile({
           <button
             onClick={() => onSetQty(qty + 1)}
             className="w-9 h-9 rounded-lg bg-white text-accent font-black flex items-center justify-center shadow-sm hover:bg-accent hover:text-white transition-colors"
-            aria-label="Menge erhöhen"
+            aria-label={t("qtyIncrease")}
           >
             +
           </button>
@@ -1527,6 +1579,7 @@ function ContainerSelectionStep({
   onAdd: (product: PosProduct) => void;
   onSetQty: (product: PosProduct, qty: number) => void;
 }) {
+  const { t } = usePosLang();
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -1534,12 +1587,9 @@ function ContainerSelectionStep({
       transition={{ duration: 0.35 }}
     >
       <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">
-        Wähle deine Becher & Schüsseln
+        {t("chooseContainers")}
       </h2>
-      <p className="text-sm text-mute mb-6">
-        Tippe, wie viele Becher oder Schüsseln du möchtest. Danach wählst du für
-        jeden die Kugeln.
-      </p>
+      <p className="text-sm text-mute mb-6">{t("chooseContainersHint")}</p>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
         {containerProducts.map((product, index) => (
           <AnimatedTile key={product.id} index={index}>
@@ -1555,7 +1605,7 @@ function ContainerSelectionStep({
       {containers.length > 0 && (
         <div className="mt-8 rounded-2xl border border-line bg-white p-4">
           <p className="text-xs font-black uppercase tracking-widest text-mute mb-2">
-            Gewählt
+            {t("chosen")}
           </p>
           <div className="flex flex-wrap gap-2">
             {containers.map((c) => (
@@ -1603,6 +1653,7 @@ function ContainerBuildStep({
   ) => void;
   onOpenPicker: (product: PosProduct) => void;
 }) {
+  const { t } = usePosLang();
   const containerKey = (
     c: Container,
     product: PosProduct,
@@ -1620,7 +1671,7 @@ function ContainerBuildStep({
         <button
           onClick={onBack}
           className="w-11 h-11 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors"
-          aria-label="Zurück"
+          aria-label={t("back")}
         >
           <i className="fa-solid fa-arrow-left" />
         </button>
@@ -1639,7 +1690,9 @@ function ContainerBuildStep({
                 <i className="fa-solid fa-cup-togo" />
                 {c.label}
                 {idx === activeIndex && (
-                  <span className="text-xs font-bold opacity-80">· aktiv</span>
+                  <span className="text-xs font-bold opacity-80">
+                    · {t("active")}
+                  </span>
                 )}
               </button>
             ))}
@@ -1651,15 +1704,11 @@ function ContainerBuildStep({
         {activeContainer.label}
       </h2>
       <p className="text-sm text-mute mb-6">
-        {isLast
-          ? "Tippe die Kugeln für diesen Becher. Danach kannst du direkt bezahlen."
-          : "Tippe die Kugeln für diesen Becher."}
+        {isLast ? t("buildHintLast") : t("buildHint")}
       </p>
 
       {scoopProducts.length === 0 ? (
-        <div className="text-center py-16 text-mute">
-          Keine Kugeln verfügbar.
-        </div>
+        <div className="text-center py-16 text-mute">{t("noScoops")}</div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
           {scoopProducts.map((product, index) => (
@@ -1693,6 +1742,7 @@ function IdleCountdownOverlay({
   seconds: number;
   onStay: () => void;
 }) {
+  const { t } = usePosLang();
   return (
     <div className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-md rounded-3xl border border-line bg-white p-8 sm:p-10 text-center shadow-2xl">
@@ -1700,17 +1750,14 @@ function IdleCountdownOverlay({
           {Math.max(seconds, 0)}
         </div>
         <h2 className="mt-6 text-2xl sm:text-3xl font-bold tracking-tight">
-          Noch da?
+          {t("idleTitle")}
         </h2>
-        <p className="mt-2 text-sm text-mute">
-          Der Bildschirm sperrt sich gleich. Tippe auf „Ich bin noch hier“, um
-          weiterzubestellen.
-        </p>
+        <p className="mt-2 text-sm text-mute">{t("idleHint")}</p>
         <button
           onClick={onStay}
           className="mt-8 w-full rounded-full bg-accent px-8 py-4 text-lg font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99]"
         >
-          Ich bin noch hier
+          {t("idleStay")}
         </button>
       </div>
     </div>
@@ -1726,6 +1773,7 @@ function VariantPickerOverlay({
   onPick: (variant: PosVariant) => void;
   onClose: () => void;
 }) {
+  const { t } = usePosLang();
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -1754,12 +1802,12 @@ function VariantPickerOverlay({
         <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div className="min-w-0">
             <h2 className="text-xl font-bold truncate">{product.title}</h2>
-            <p className="text-xs text-mute">Wähle eine Variante</p>
+            <p className="text-xs text-mute">{t("chooseVariant")}</p>
           </div>
           <button
             onClick={onClose}
             className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors"
-            aria-label="Schließen"
+            aria-label={t("close")}
           >
             <i className="fa-solid fa-xmark" />
           </button>
@@ -1801,6 +1849,7 @@ function ToppingOverlay({
     selected: { product: PosProduct; variant: PosVariant | null; qty: number }[],
   ) => void;
 }) {
+  const { t } = usePosLang();
   const [qtys, setQtys] = useState<Map<string, number>>(
     () =>
       new Map(
@@ -1881,18 +1930,17 @@ function ToppingOverlay({
         <div className="flex items-center justify-between px-6 py-4 border-b border-line">
           <div className="min-w-0">
             <p className="text-xs text-mute uppercase tracking-widest">
-              Extras{containerLabel ? ` · ${containerLabel}` : ""}
+              {t("extras")}
+              {containerLabel ? ` · ${containerLabel}` : ""}
             </p>
             <h2 className="text-xl font-bold truncate">
-              {activeTopping
-                ? activeTopping.title
-                : "Noch etwas dazu?"}
+              {activeTopping ? activeTopping.title : t("toppingsTitle")}
             </h2>
           </div>
           <button
             onClick={onBack}
             className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors"
-            aria-label="Schließen"
+            aria-label={t("close")}
           >
             <i className="fa-solid fa-xmark" />
           </button>
@@ -1901,9 +1949,7 @@ function ToppingOverlay({
         <div className="flex-1 p-6">
           {activeTopping ? (
             <div className="space-y-3">
-              <p className="text-sm text-mute">
-                Tippen Sie auf eine Variante, um sie hinzuzufügen.
-              </p>
+              <p className="text-sm text-mute">{t("toppingsVariantHint")}</p>
               {activeTopping.variants.map((variant) => {
                 const key = `${activeTopping.id}:${variant.id}`;
                 const qty = qtys.get(key) ?? 0;
@@ -1935,7 +1981,9 @@ function ToppingOverlay({
                             });
                           }}
                           className="w-8 h-8 rounded-lg border border-line text-ink font-black flex items-center justify-center hover:bg-surf transition-colors"
-                          aria-label={`${variant.name} verringern`}
+                          aria-label={t("qtyDecreaseNamed", {
+                            name: variant.name,
+                          })}
                         >
                           −
                         </button>
@@ -1957,7 +2005,7 @@ function ToppingOverlay({
                 className="w-full rounded-full border border-line px-8 py-3.5 text-base font-bold text-ink hover:bg-surf transition-colors"
               >
                 <i className="fa-solid fa-arrow-left mr-2" />
-                Zurück zu den Extras
+                {t("backToExtras")}
               </button>
             </div>
           ) : (
@@ -2025,12 +2073,12 @@ function ToppingOverlay({
                       </h3>
                       <p className="mt-1 text-lg sm:text-xl font-black text-ink tabular-nums">
                         {hasVariants
-                          ? `ab ${formatEuro(minPrice)}`
+                          ? t("fromPrice", { price: formatEuro(minPrice) })
                           : formatEuro(topping.price)}
                       </p>
                       {hasVariants && (
                         <span className="mt-1 inline-block rounded-full bg-accent/10 px-2.5 py-0.5 text-[11px] font-bold text-accent">
-                          {topping.variants.length} Varianten
+                          {t("variants", { count: topping.variants.length })}
                         </span>
                       )}
                     </div>
@@ -2055,7 +2103,7 @@ function ToppingOverlay({
                             });
                           }}
                           className="w-9 h-9 rounded-lg bg-white text-accent font-black flex items-center justify-center shadow-sm hover:bg-accent hover:text-white transition-colors"
-                          aria-label="Menge verringern"
+                          aria-label={t("qtyDecrease")}
                         >
                           −
                         </button>
@@ -2075,7 +2123,7 @@ function ToppingOverlay({
                             });
                           }}
                           className="w-9 h-9 rounded-lg bg-white text-accent font-black flex items-center justify-center shadow-sm hover:bg-accent hover:text-white transition-colors"
-                          aria-label="Menge erhöhen"
+                          aria-label={t("qtyIncrease")}
                         >
                           +
                         </button>
@@ -2092,8 +2140,8 @@ function ToppingOverlay({
           <div className="flex items-center justify-between mb-4">
             <span className="text-mute font-medium">
               {selectedCount > 0
-                ? `${selectedCount} extra`
-                : "Keine Extras ausgewählt"}
+                ? t("extrasSelected", { count: selectedCount })
+                : t("noExtrasSelected")}
             </span>
             <span className="text-2xl font-black tabular-nums">
               {formatEuro(selectedTotal)}
@@ -2105,7 +2153,7 @@ function ToppingOverlay({
               className="w-full rounded-full border border-line px-8 py-4 text-base font-bold text-ink transition-colors hover:bg-surf active:scale-[0.99]"
             >
               <i className="fa-solid fa-xmark mr-2" />
-              Nein Danke
+              {t("noThanks")}
             </button>
             <button
               onClick={() => onConfirm(buildSelection())}
@@ -2117,7 +2165,7 @@ function ToppingOverlay({
               }`}
             >
               <i className="fa-solid fa-check mr-2" />
-              Mit Toppings fortfahren
+              {t("continueWithToppings")}
             </button>
           </div>
         </div>
@@ -2139,6 +2187,7 @@ function OrderSummaryOverlay({
   onPay: () => void;
   onNewCustomer: () => void;
 }) {
+  const { t } = usePosLang();
   const groups: { label: string | null; items: CartItem[] }[] = [];
   for (const item of items) {
     const label = item.containerLabel;
@@ -2175,19 +2224,19 @@ function OrderSummaryOverlay({
         <div className="flex items-center justify-between px-6 py-5 border-b border-line">
           <div>
             <p className="text-xs text-mute uppercase tracking-widest">
-              Bestellübersicht
+              {t("orderOverview")}
             </p>
-            <h2 className="text-xl font-bold">Bitte prüfen</h2>
+            <h2 className="text-xl font-bold">{t("pleaseReview")}</h2>
             {itemCount > 0 && (
               <p className="text-xs text-mute mt-0.5 tabular-nums">
-                {itemCount} Artikel
+                {t("articles", { count: itemCount })}
               </p>
             )}
           </div>
           <button
             onClick={onBack}
             className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors"
-            aria-label="Weiter bestellen"
+            aria-label={t("continueOrdering")}
           >
             <i className="fa-solid fa-xmark" />
           </button>
@@ -2198,15 +2247,13 @@ function OrderSummaryOverlay({
             <div className="w-16 h-16 rounded-2xl bg-tile flex items-center justify-center text-mute text-2xl">
               <i className="fa-solid fa-basket-shopping" />
             </div>
-            <p className="font-bold">Ihr Warenkorb ist leer</p>
-            <p className="text-sm text-mute max-w-xs">
-              Fügen Sie zuerst ein Produkt hinzu, dann erscheint es hier.
-            </p>
+            <p className="font-bold">{t("cartEmptyTitle")}</p>
+            <p className="text-sm text-mute max-w-xs">{t("cartEmptyHint")}</p>
             <button
               onClick={onBack}
               className="mt-4 rounded-full bg-accent px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-accent-hover"
             >
-              Weiter bestellen
+              {t("continueOrdering")}
             </button>
           </div>
         ) : (
@@ -2251,7 +2298,7 @@ function OrderSummaryOverlay({
                             </p>
                             {item.product.isTopping && (
                               <span className="shrink-0 rounded-full bg-pink-50 px-2 py-0.5 text-[10px] font-bold text-pink-600 uppercase tracking-wide">
-                                Extra
+                                {t("extraBadge")}
                               </span>
                             )}
                           </div>
@@ -2275,7 +2322,7 @@ function OrderSummaryOverlay({
         {items.length > 0 && (
           <div className="px-6 py-5 border-t border-line bg-surf/60">
             <div className="flex items-end justify-between mb-4">
-              <span className="font-medium text-mute">Summe</span>
+              <span className="font-medium text-mute">{t("total")}</span>
               <span className="text-3xl font-black tabular-nums leading-none">
                 {formatEuro(totalCents)}
               </span>
@@ -2284,7 +2331,7 @@ function OrderSummaryOverlay({
               onClick={onPay}
               className="w-full rounded-full bg-accent px-8 py-4 text-lg font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99]"
             >
-              Weiter zur Bezahlung
+              {t("goToPayment")}
             </button>
             <div className="mt-3 flex items-center justify-between">
               <button
@@ -2292,14 +2339,14 @@ function OrderSummaryOverlay({
                 className="text-sm font-bold text-mute hover:text-ink transition-colors"
               >
                 <i className="fa-solid fa-arrow-left mr-1.5" />
-                Weiter bestellen
+                {t("continueOrdering")}
               </button>
               <button
                 onClick={onNewCustomer}
                 className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-100"
               >
                 <i className="fa-solid fa-rotate-left mr-1.5" />
-                Alles löschen
+                {t("clearAllLower")}
               </button>
             </div>
           </div>
@@ -2324,6 +2371,7 @@ function CartDrawer({
   onSetQty: (item: CartItem, qty: number) => void;
   onRemove: (item: CartItem) => void;
 }) {
+  const { t } = usePosLang();
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -2363,11 +2411,11 @@ function CartDrawer({
         transition={{ type: "spring", stiffness: 300, damping: 32 }}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-          <h2 className="text-xl font-bold">Ihr Warenkorb</h2>
+          <h2 className="text-xl font-bold">{t("yourCart")}</h2>
           <button
             onClick={onClose}
             className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors"
-            aria-label="Schließen"
+            aria-label={t("close")}
           >
             <i className="fa-solid fa-xmark" />
           </button>
@@ -2376,7 +2424,7 @@ function CartDrawer({
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {items.length === 0 ? (
             <div className="text-center py-16 text-mute">
-              Ihr Warenkorb ist leer.
+              {t("cartEmpty")}
             </div>
           ) : (
             groups.map((group) => (
@@ -2418,7 +2466,7 @@ function CartDrawer({
                         <button
                           onClick={() => onSetQty(item, item.qty - 1)}
                           className="w-8 h-8 rounded-lg border border-line text-ink font-black flex items-center justify-center hover:bg-surf transition-colors"
-                          aria-label="Menge verringern"
+                          aria-label={t("qtyDecrease")}
                         >
                           −
                         </button>
@@ -2428,7 +2476,7 @@ function CartDrawer({
                         <button
                           onClick={() => onSetQty(item, item.qty + 1)}
                           className="w-8 h-8 rounded-lg border border-line text-ink font-black flex items-center justify-center hover:bg-surf transition-colors"
-                          aria-label="Menge erhöhen"
+                          aria-label={t("qtyIncrease")}
                         >
                           +
                         </button>
@@ -2443,7 +2491,7 @@ function CartDrawer({
                           onClick={() => onRemove(item)}
                           className="text-xs text-red-500 hover:underline"
                         >
-                          Entfernen
+                          {t("remove")}
                         </button>
                       </div>
                     </div>
@@ -2456,7 +2504,7 @@ function CartDrawer({
 
         <div className="px-6 py-5 border-t border-line">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-mute font-medium">Summe</span>
+            <span className="text-mute font-medium">{t("total")}</span>
             <span className="text-3xl font-black tabular-nums">
               {formatEuro(totalCents)}
             </span>
@@ -2466,7 +2514,7 @@ function CartDrawer({
             disabled={items.length === 0 || totalCents <= 0}
             className="w-full rounded-full bg-accent px-8 py-4 text-lg font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99] disabled:bg-tile disabled:text-mute"
           >
-            Jetzt bezahlen
+            {t("payNow")}
           </button>
         </div>
       </motion.div>
@@ -2516,7 +2564,9 @@ function CheckoutOverlay({
   onConfirmCash: () => void;
   onRetry: () => void;
   onBack: () => void;
-}) {  const displayNumber = order?.posOrderNumber ?? null;
+}) {
+  const { t } = usePosLang();
+  const displayNumber = order?.posOrderNumber ?? null;
   return (
     <motion.div
       className="fixed inset-0 z-40 bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8"
@@ -2537,15 +2587,15 @@ function CheckoutOverlay({
             <p className="text-xs text-mute uppercase tracking-widest">
               {vendorName} · POS
               {displayNumber != null
-                ? ` · Bestellnummer #${displayNumber}`
+                ? ` · ${t("orderNumber", { number: displayNumber })}`
                 : ""}
             </p>
-            <h2 className="text-xl font-bold">Bezahlung</h2>
+            <h2 className="text-xl font-bold">{t("payment")}</h2>
           </div>
           <button
             onClick={onBack}
             className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-mute hover:bg-surf transition-colors"
-            aria-label="Zurück"
+            aria-label={t("back")}
           >
             <i className="fa-solid fa-arrow-left" />
           </button>
@@ -2561,7 +2611,7 @@ function CheckoutOverlay({
             {displayNumber != null && (
               <div className="rounded-2xl border-2 border-accent bg-accent/5 px-6 py-2.5 text-center shrink-0">
                 <p className="text-[11px] font-bold text-accent uppercase tracking-widest">
-                  Ihre Nummer
+                  {t("yourNumber")}
                 </p>
                 <p className="text-4xl font-black text-accent tabular-nums leading-none mt-0.5">
                   {displayNumber}
@@ -2590,27 +2640,27 @@ function CheckoutOverlay({
                     <>
                       <div className="h-10 w-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
                       <p className="mt-5 text-sm font-bold text-mute">
-                        Bestellnummer wird vergeben…
+                        {t("assigningNumber")}
                       </p>
                     </>
                   ) : error ? (
                     <>
                       <i className="fa-solid fa-triangle-exclamation text-4xl text-red-400" />
                       <p className="mt-4 text-sm text-mute max-w-sm">
-                        Die Bestellung konnte nicht gestartet werden.
+                        {t("orderStartFailed")}
                       </p>
                       <button
                         onClick={onRetry}
                         className="mt-6 rounded-full bg-accent px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99]"
                       >
-                        Erneut versuchen
+                        {t("retry")}
                       </button>
                     </>
                   ) : (
                     <>
                       <div className="h-10 w-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
                       <p className="mt-5 text-sm font-bold text-mute">
-                        Bestellnummer wird vergeben…
+                        {t("assigningNumber")}
                       </p>
                     </>
                   )}
@@ -2626,7 +2676,7 @@ function CheckoutOverlay({
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {POS_PAYMENT_METHODS.map((m) => {
-                    const meta = METHOD_LABELS[m];
+                    const meta = METHOD_META[m];
                     const belowMin =
                       (m === "TIPPIE" || m === "TERMINAL") &&
                       totalCents < POS_MIN_DIGITAL_PAYMENT_CENTS;
@@ -2649,11 +2699,17 @@ function CheckoutOverlay({
                           <i className={meta.icon} />
                         </span>
                         <span>
-                          <span className="block font-bold">{meta.title}</span>
+                          <span className="block font-bold">
+                            {t(meta.titleKey)}
+                          </span>
                           <span className="block text-xs text-mute mt-0.5">
                             {belowMin
-                              ? `Erst ab ${formatEuro(POS_MIN_DIGITAL_PAYMENT_CENTS)} möglich`
-                              : meta.sub}
+                              ? t("minAmount", {
+                                  amount: formatEuro(
+                                    POS_MIN_DIGITAL_PAYMENT_CENTS,
+                                  ),
+                                })
+                              : t(meta.subKey)}
                           </span>
                         </span>
                       </motion.button>
@@ -2748,6 +2804,7 @@ function GiftCardView({
   onConfirmFull: () => void;
   onPickMethod: (m: PosPaymentMethod) => void;
 }) {
+  const { t } = usePosLang();
   const [code, setCode] = useState("");
   const [result, setResult] = useState<{
     deduction: number;
@@ -2759,7 +2816,7 @@ function GiftCardView({
     e.preventDefault();
     setLocalError("");
     if (!code.trim()) {
-      setLocalError("Bitte einen Gutscheincode eingeben.");
+      setLocalError(t("giftCodeRequired"));
       return;
     }
     const applied = await onApply(code.trim());
@@ -2777,15 +2834,15 @@ function GiftCardView({
               <div className="flex items-center justify-center w-14 h-14 rounded-full bg-green-50 text-green-600 text-2xl">
                 <i className="fa-solid fa-check" />
               </div>
-              <p className="mt-3 font-bold">
-                Gutschein eingelöst
-              </p>
+              <p className="mt-3 font-bold">{t("giftRedeemed")}</p>
               <p className="mt-1 text-sm text-mute">
-                {formatEuro(result.deduction)} abgezogen
+                {t("giftDeducted", {
+                  amount: formatEuro(result.deduction),
+                })}
               </p>
               <div className="mt-4 w-full flex items-center justify-between rounded-xl bg-white border border-line px-4 py-3">
                 <span className="text-sm font-medium text-mute">
-                  Restbetrag
+                  {t("remainingAmount")}
                 </span>
                 <span className="text-2xl font-black tabular-nums">
                   {formatEuro(result.remainder)}
@@ -2798,16 +2855,16 @@ function GiftCardView({
                 disabled={busy}
                 className="mt-5 w-full rounded-full bg-accent px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
               >
-                {busy ? "Wird bestätigt…" : "Bestellung abschließen"}
+                {busy ? t("confirming") : t("completeOrder")}
               </button>
             ) : (
               <>
                 <p className="mt-5 text-xs font-bold text-mute uppercase tracking-widest">
-                  Restbetrag bezahlen mit
+                  {t("payRemainingWith")}
                 </p>
                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {remainderMethods.map((m) => {
-                    const meta = METHOD_LABELS[m];
+                    const meta = METHOD_META[m];
                     return (
                       <button
                         key={m}
@@ -2820,10 +2877,10 @@ function GiftCardView({
                         </span>
                         <span className="min-w-0">
                           <span className="block text-sm font-bold truncate">
-                            {meta.title}
+                            {t(meta.titleKey)}
                           </span>
                           <span className="block text-[11px] text-mute truncate">
-                            {meta.sub}
+                            {t(meta.subKey)}
                           </span>
                         </span>
                       </button>
@@ -2839,7 +2896,7 @@ function GiftCardView({
                   className="mt-4 text-sm font-bold text-mute hover:text-ink transition-colors"
                 >
                   <i className="fa-solid fa-gift mr-1.5" />
-                  Weiteren Gutschein einlösen
+                  {t("redeemAnother")}
                 </button>
               </>
             )}
@@ -2849,11 +2906,11 @@ function GiftCardView({
             <div className="flex items-center justify-center w-14 h-14 rounded-full bg-accent/10 text-accent text-2xl">
               <i className="fa-solid fa-gift" />
             </div>
-            <p className="mt-3 font-bold">Gutscheincode eingeben</p>
+            <p className="mt-3 font-bold">{t("enterGiftCode")}</p>
             <p className="mt-1 text-sm text-mute">
               {giftApplied > 0
-                ? `${formatEuro(giftApplied)} wurden bereits abgezogen.`
-                : `Deckt den Betrag von ${formatEuro(totalCents)} ganz oder teilweise ab.`}
+                ? t("giftAlreadyApplied", { amount: formatEuro(giftApplied) })
+                : t("giftCovers", { amount: formatEuro(totalCents) })}
             </p>
             <form onSubmit={(e) => void handleSubmit(e)} className="mt-4">
               <input
@@ -2876,16 +2933,13 @@ function GiftCardView({
                 disabled={busy}
                 className="mt-3 w-full rounded-full bg-accent px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
               >
-                {busy ? "Prüfe…" : "Einlösen"}
+                {busy ? t("checking") : t("redeem")}
               </button>
             </form>
           </>
         )}
       </div>
-      <p className="mt-5 text-sm text-mute max-w-sm">
-        Geben Sie den Code vom Fyndo-Gutschein ein. Der Betrag wird direkt von
-        Ihrer Bestellung abgezogen.
-      </p>
+      <p className="mt-5 text-sm text-mute max-w-sm">{t("giftHint")}</p>
       {error && (
         <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">
           {error}
@@ -2952,6 +3006,7 @@ function RbankEmbedCheckout({
   baseUrl: string;
   onStatus?: (status: string) => void;
 }) {
+  const { t } = usePosLang();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<RBankCheckoutInstance | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -2996,20 +3051,18 @@ function RbankEmbedCheckout({
           malt, ist sie sichtbar, ohne auf load/ready zu warten. */}
       {loadFailed ? (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-white text-mute">
-          <span className="text-sm font-medium">
-            Checkout konnte nicht geladen werden.
-          </span>
+          <span className="text-sm font-medium">{t("checkoutLoadFailed")}</span>
           <button
             onClick={() => setRetryNonce((n) => n + 1)}
             className="rounded-full bg-accent px-5 py-2 text-sm font-bold text-white transition-all hover:bg-accent-hover"
           >
-            Erneut versuchen
+            {t("retry")}
           </button>
         </div>
       ) : (
         <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 bg-white text-mute">
           <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold">Lädt Checkout…</span>
+          <span className="text-xs font-bold">{t("loadingCheckout")}</span>
         </div>
       )}
       <div ref={containerRef} className="relative z-10 w-full" />
@@ -3036,6 +3089,7 @@ function PaymentQrView({
   rbankStatus: string | null;
   onRbankStatus: (status: string | null) => void;
 }) {
+  const { t } = usePosLang();
   if (method === "RBANK" && rbankCheckoutMode === "embed") {
     return (
       <div className="flex flex-col items-center text-center">
@@ -3050,14 +3104,11 @@ function PaymentQrView({
           ) : (
             <div className="h-[520px] flex flex-col items-center justify-center gap-3 text-mute">
               <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-bold">Lädt Checkout…</span>
+              <span className="text-xs font-bold">{t("loadingCheckout")}</span>
             </div>
           )}
         </div>
-        <p className="mt-5 text-sm text-mute max-w-sm">
-          Bezahlen Sie direkt am Bildschirm. Die Bestellung wird automatisch
-          bestätigt.
-        </p>
+        <p className="mt-5 text-sm text-mute max-w-sm">{t("rbankEmbedHint")}</p>
         {rbankStatus && rbankStatus !== "PENDING" && (
           <p className="mt-2 text-xs font-bold text-mute uppercase tracking-wide">
             {rbankStatus}
@@ -3065,7 +3116,7 @@ function PaymentQrView({
         )}
         <div className="mt-6 flex items-center gap-3 text-mute">
           <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Warte auf Zahlung…</span>
+          <span className="text-sm font-medium">{t("waitingPayment")}</span>
         </div>
       </div>
     );
@@ -3081,14 +3132,12 @@ function PaymentQrView({
         ) : (
           <div className="flex flex-col items-center gap-3 text-mute">
             <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-bold">Lädt QR-Code…</span>
+            <span className="text-xs font-bold">{t("loadingQr")}</span>
           </div>
         )}
       </div>
       <p className="mt-5 text-sm text-mute max-w-sm">
-        {isRbankQr
-          ? "Mit dem Handy scannen und direkt mit RBank bezahlen. Die Bestellung wird automatisch bestätigt."
-          : "Mit dem Handy scannen und mit PayPal, Apple Pay oder Karte bezahlen."}
+        {isRbankQr ? t("rbankQrHint") : t("tippieQrHint")}
       </p>
       {isRbankQr && rbankStatus && rbankStatus !== "PENDING" && (
         <p className="mt-2 text-xs font-bold text-mute uppercase tracking-wide">
@@ -3098,7 +3147,7 @@ function PaymentQrView({
       <div className="mt-6 flex items-center gap-3 text-mute">
         <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
         <span className="text-sm font-medium">
-          Warte auf Bezahlung und Bestätigung…
+          {t("waitingConfirmation")}
         </span>
       </div>
     </div>
@@ -3137,6 +3186,7 @@ function QrImage({ url }: { url: string }) {
 }
 
 function TerminalView() {
+  const { t } = usePosLang();
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
     const t = window.setInterval(() => setPulse((p) => !p), 1200);
@@ -3149,16 +3199,13 @@ function TerminalView() {
         className={`mt-2 flex flex-col items-center justify-center w-48 h-48 rounded-3xl border transition-all ${pulse ? "border-accent shadow-[0_0_40px_-6px_var(--color-accent)]" : "border-line"}`}
       >
         <i className="fa-solid fa-id-card text-6xl text-accent" />
-        <span className="mt-3 text-sm font-bold">Terminal ausgerufen</span>
+        <span className="mt-3 text-sm font-bold">{t("terminalCalled")}</span>
       </div>
-      <p className="mt-5 text-sm text-mute max-w-sm">
-        Das Kartenterminal ist aktiviert. Karte bereit halten und an das
-        Terminal halten.
-      </p>
+      <p className="mt-5 text-sm text-mute max-w-sm">{t("terminalHint")}</p>
       <div className="mt-6 flex items-center gap-3 text-mute">
         <div className="h-5 w-5 border-3 border-accent border-t-transparent rounded-full animate-spin" />
         <span className="text-sm font-medium">
-          Warte auf Bezahlung und Bestätigung…
+          {t("waitingConfirmation")}
         </span>
       </div>
     </div>
@@ -3176,6 +3223,7 @@ function CashView({
   error: string;
   onConfirm: () => void;
 }) {
+  const { t } = usePosLang();
   return (
     <div className="flex flex-col items-center text-center">
       <div className="mt-2 w-48 h-48 rounded-3xl border border-line bg-surf flex flex-col items-center justify-center">
@@ -3184,10 +3232,7 @@ function CashView({
           {formatEuro(totalCents)}
         </span>
       </div>
-      <p className="mt-5 text-sm text-mute max-w-sm">
-        Bitte im Geschäft abholen und an der Kasse bezahlen. Sobald Sie
-        bestätigen, wird Ihre Bestellung an den Marktstand übertragen.
-      </p>
+      <p className="mt-5 text-sm text-mute max-w-sm">{t("cashHint")}</p>
       {error && (
         <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">
           {error}
@@ -3198,7 +3243,7 @@ function CashView({
         disabled={busy}
         className="mt-6 w-full max-w-sm rounded-full bg-accent px-8 py-4 text-base font-bold text-white transition-all hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
       >
-        {busy ? "Wird gesendet…" : "Beim Abholen bezahlen"}
+        {busy ? t("sending") : t("payAtPickup")}
       </button>
     </div>
   );
@@ -3213,6 +3258,7 @@ function SuccessOverlay({
   orderNumber: number;
   onNewOrder: () => void;
 }) {
+  const { t } = usePosLang();
   return (
     <motion.div
       className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm flex items-center justify-center p-4"
@@ -3258,7 +3304,7 @@ function SuccessOverlay({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
         >
-          Danke!
+          {t("thanks")}
         </motion.h2>
         <motion.p
           className="mt-2 text-mute"
@@ -3266,7 +3312,7 @@ function SuccessOverlay({
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          Ihre Bestellung ist raus.
+          {t("orderPlaced")}
         </motion.p>
         <motion.div
           className="mt-6 rounded-2xl border-2 border-accent bg-accent/5 py-5"
@@ -3280,7 +3326,7 @@ function SuccessOverlay({
           }}
         >
           <p className="text-xs font-bold text-accent uppercase tracking-widest">
-            Ihre Nummer
+            {t("yourNumber")}
           </p>
           <motion.p
             className="mt-1 text-5xl font-black text-accent tabular-nums"
@@ -3312,7 +3358,7 @@ function SuccessOverlay({
           transition={{ delay: 0.45 }}
           whileTap={{ scale: 0.97 }}
         >
-          Neue Bestellung
+          {t("newOrder")}
         </motion.button>
       </motion.div>
     </motion.div>

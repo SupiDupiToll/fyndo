@@ -4,7 +4,9 @@ import type { AnnouncementKey } from "@/lib/pos-announcement-keys";
 
 const AUDIO_BASE = "/api/pos/audio";
 
-type QueueItem = { key: AnnouncementKey; text: string };
+export type SpeechLang = "de" | "zh";
+
+type QueueItem = { key: AnnouncementKey; text: string; lang: SpeechLang };
 let queue: QueueItem[] = [];
 let playing = false;
 let currentAudio: HTMLAudioElement | null = null;
@@ -25,20 +27,34 @@ export function setSpeechEnabled(value: boolean) {
   }
 }
 
-function speak(text: string) {
+function speak(text: string, lang: SpeechLang) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   const voices = window.speechSynthesis.getVoices();
-  const german =
-    voices.find((v) => v.lang.toLowerCase().startsWith("de")) ?? null;
+  const voice =
+    voices.find((v) => v.lang.toLowerCase().startsWith(lang)) ?? null;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "de-DE";
-  utterance.rate = 1.05;
-  if (german) utterance.voice = german;
+  utterance.lang = lang === "zh" ? "zh-CN" : "de-DE";
+  utterance.rate = lang === "zh" ? 0.95 : 1.05;
+  if (voice) utterance.voice = voice;
   window.speechSynthesis.speak(utterance);
 }
 
-function playAudioOrSpeech(key: AnnouncementKey, text: string, done: () => void) {
+function playAudioOrSpeech(
+  key: AnnouncementKey,
+  text: string,
+  lang: SpeechLang,
+  done: () => void,
+) {
   if (typeof window === "undefined") return done();
+
+  // Die vorproduzierten Ansagen gibt es nur auf Deutsch.
+  if (lang !== "de") {
+    speak(text, lang);
+    const duration = Math.min(Math.max(text.length * 140, 1500), 7000);
+    window.setTimeout(done, duration);
+    return;
+  }
+
   const audio = new Audio(`${AUDIO_BASE}/${key}`);
 
   let settled = false;
@@ -55,7 +71,7 @@ function playAudioOrSpeech(key: AnnouncementKey, text: string, done: () => void)
 
   audio.addEventListener("loadeddata", () => {
     audio.play().catch(() => {
-      speak(text);
+      speak(text, lang);
       finish(true);
     });
     currentAudio = audio;
@@ -67,7 +83,7 @@ function playAudioOrSpeech(key: AnnouncementKey, text: string, done: () => void)
 
   audio.addEventListener("error", () => {
     currentAudio = null;
-    speak(text);
+    speak(text, lang);
     finish(true);
   }, { once: true });
 }
@@ -77,7 +93,7 @@ async function processQueue() {
   playing = true;
   const item = queue.shift()!;
 
-  playAudioOrSpeech(item.key, item.text, () => {
+  playAudioOrSpeech(item.key, item.text, item.lang, () => {
     playing = false;
     void processQueue();
   });
@@ -88,9 +104,13 @@ function next() {
   void processQueue();
 }
 
-export function announce(key: AnnouncementKey, text: string) {
+export function announce(
+  key: AnnouncementKey,
+  text: string,
+  lang: SpeechLang = "de",
+) {
   if (typeof window === "undefined" || !enabled) return;
-  queue.push({ key, text });
+  queue.push({ key, text, lang });
   void processQueue();
 }
 
@@ -107,7 +127,10 @@ export function clearAnnouncements() {
   playing = false;
 }
 
-export function formatSpokenEuro(cents: number) {
+export function formatSpokenEuro(cents: number, lang: SpeechLang = "de") {
   const euros = cents / 100;
+  if (lang === "zh") {
+    return `${euros.toFixed(2)} 欧元`;
+  }
   return `${euros.toFixed(2).replace(".", ",")} Euro`;
 }

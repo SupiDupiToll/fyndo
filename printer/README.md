@@ -15,17 +15,34 @@ Druckserver  ──lp -o raw──►  CUPS-Queue "Bondrucker"  ──►  🧾
 
 ```bash
 cd printer
-python3 server.py
+./start.sh
 ```
+
+`start.sh` erzeugt beim ersten Mal ein Token in `.print-token` (gitignored) und
+startet den Server damit. Das Token wird automatisch von `server.py` gelesen –
+es ist **keine** Umgebungsvariable nötig. Ausgegeben werden die fertigen URLs:
+
+```
+POS-URL:   https://<tunnel-host>/<token>
+Im WLAN:   http://192.168.x.x:8787/<token>
+```
+
+Läuft der Cloudflare-Tunnel als Dienst (LaunchDaemon), muss nur `start.sh`
+laufen; die öffentliche URL steht in `.print-host`.
 
 Standardmäßig lauscht der Server auf `0.0.0.0:8787` und druckt über die
 CUPS-Queue **Bondrucker**.
 
-Schnelltest:
+> Auf macOS hängt der Drucker meist als serielles Gerät (`/dev/cu.*`), siehe
+> [macOS: Drucker per USB oder Bluetooth verbinden](#macos-drucker-per-usb-oder-bluetooth-verbinden):
+> `PRINTER_MODE=device PRINTER_DEVICE=auto ./start.sh`
+
+Schnelltest (Token als erstes Pfadsegment):
 
 ```bash
-curl -X POST http://localhost:8787/test
-curl http://localhost:8787/health
+TOKEN=$(cat .print-token)
+curl -X POST "http://localhost:8787/$TOKEN/test"
+curl "http://localhost:8787/$TOKEN/health"
 ```
 
 ## Endpunkte
@@ -33,6 +50,8 @@ curl http://localhost:8787/health
 | Methode | Pfad            | Beschreibung                                        |
 | ------- | --------------- | --------------------------------------------------- |
 | `GET`   | `/health`       | Status / Konfiguration                               |
+| `GET`   | `/devices`      | Serielle Drucker-Geräte finden (`/dev/cu.*`, `/dev/ttyUSB*`) |
+| `GET`   | `/cert`         | Zertifikat für iPhone/iPad herunterladen (`HTTPS=1`) |
 | `GET`   | `/printers`     | CUPS-Drucker auflisten                               |
 | `GET`   | `/qr.png`       | QR-Code als PNG-Vorschau (`?data=…&size=4`, via `qrencode`) |
 | `GET`   | `/designer`     | Eigenständiger **Bon-Designer** (HTML)               |
@@ -136,9 +155,15 @@ und überschreiben die Server-Standardwerte.
 | ---------------- | --------------- | --------------------------------------------------------- |
 | `PORT`           | `8787`          | HTTP-Port                                                 |
 | `HOST`           | `0.0.0.0`       | Bind-Adresse                                              |
+| `HTTPS`          | aus             | `1` = TLS aktivieren (nötig für POS über `https://`)      |
+| `SSL_CERT`       | auto            | Zertifikat (PEM); sonst selbstsigniert in `printer/certs/` |
+| `SSL_KEY`        | auto            | Privater Schlüssel zum Zertifikat                         |
+| `PRINTER_TOKEN`  | leer            | Optionales Token; erlaubt als `X-Print-Token`-Header, `?token=` **oder** erstes Pfadsegment (`/<token>/print`) |
 | `PRINTER_NAME`   | `Bondrucker`    | CUPS-Queue-Name                                           |
 | `PRINTER_MODE`   | `cups`          | `cups` (lp -o raw) oder `device` (direkt schreiben)       |
-| `PRINTER_DEVICE` | `/dev/usb/lp0`  | Nur bei `PRINTER_MODE=device`                             |
+| `PRINTER_DEVICE` | `/dev/usb/lp0`  | Nur bei `PRINTER_MODE=device`; `auto` erkennt USB/Bluetooth automatisch |
+| `PRINTER_BAUD`   | `9600`          | Baudrate für serielle Geräte (`/dev/cu.*`, `/dev/ttyUSB*`) |
+| `PRINTER_FLOW`   | `none`          | Flusskontrolle: `none`, `rtscts` oder `xonxoff`           |
 | `PRINTER_WIDTH`  | `32`            | Zeichen pro Zeile (58 mm = 32, 80 mm = 48)                |
 | `CHARSET`        | `ascii`         | `ascii`, `cp437`, `cp858`, `auto` (CJK als Bitmap) oder `image` (immer Bitmap) |
 | `CUT_MODE`       | `partial`       | `partial` (GS V B 0), `full` (GS V 0) oder `none`         |
@@ -192,6 +217,140 @@ curl -s -X POST http://localhost:8787/print/blocks -H 'Content-Type: application
   "blocks":[{"type":"text","text":"你好，世界","align":"center","size":"double","bold":true},
             {"type":"cols","left":"珍珠奶茶","right":"5,90 €"}]}'
 ```
+
+### macOS: Drucker per USB oder Bluetooth verbinden
+
+Auf macOS taucht ein Thermodrucker meist als **serielles Gerät** auf:
+
+```bash
+ls /dev/cu.*                 # z. B. /dev/cu.usbmodem11101 (USB), /dev/cu.Printer001 (Bluetooth)
+python3 server.py            # in einem anderen Terminal: GET /devices listet die Kandidaten
+```
+
+Der Server wählt mit `PRINTER_DEVICE=auto` automatisch das erste passende Gerät
+(USB vor Bluetooth):
+
+```bash
+PRINTER_MODE=device PRINTER_DEVICE=auto python3 server.py
+```
+
+Oder fest verdrahtet – der Name hinter `cu.` ist der Geräte-/Bluetooth-Name:
+
+```bash
+# USB
+PRINTER_MODE=device PRINTER_DEVICE=/dev/cu.usbmodem11101 python3 server.py
+# Bluetooth (SPP)
+PRINTER_MODE=device PRINTER_DEVICE=/dev/cu.Printer001 PRINTER_BAUD=9600 python3 server.py
+```
+
+Danach testen:
+
+```bash
+curl -X POST http://localhost:8787/test
+curl http://localhost:8787/devices
+```
+
+Serielle Ports werden automatisch auf **8N1 / raw** gestellt. Kommt bei
+Bluetooth nichts an, andere Baudrate probieren (`PRINTER_BAUD=115200`) oder
+`PRINTER_FLOW=rtscts`. Alternativ lässt sich der Drucker als CUPS-Queue
+einrichten; `-o raw` beim Drucken umgeht dann jeden Filter:
+
+```bash
+lpinfo -v                                    # usb://Printer/... anzeigen
+# macOS erlaubt keine reinen Raw-Queues mehr -> generisches PPD verwenden:
+lpadmin -p Bondrucker -E -v 'usb://Printer/USB%20Printer%20P?serial=565357953100' \
+        -m drv:///sample.drv/generic.ppd
+```
+
+### Cloudflare Tunnel + Token (empfohlen für iPhone/iPad)
+
+Statt lokalem Zertifikat kann `cloudflared` den Druckserver mit gültigem HTTPS
+veröffentlichen. Der Server bleibt auf HTTP – TLS macht Cloudflare:
+
+```bash
+brew install cloudflared
+cloudflared tunnel login                       # einmalig, Zone auswählen
+cloudflared tunnel create fyndo-print
+cloudflared tunnel route dns fyndo-print print.sdtoll.de
+TUNNEL_NAME=fyndo-print ./start-tunnel.sh
+```
+
+`start-tunnel.sh` erzeugt beim ersten Start ein Token in `.print-token` (nicht
+im Git) und startet Server + Tunnel. Das Token wird als **erstes Pfadsegment**
+akzeptiert, damit das POS nur eine Basis-URL braucht:
+
+```
+POS-Druckserver:  https://print.sdtoll.de/<TOKEN>
+Health-Check:     https://print.sdtoll.de/<TOKEN>/health
+```
+
+Im POS-Debug-Menü genau diese URL eintragen (ohne `/health`). Aufrufe ohne
+Token antworten mit `401`.
+
+Ohne eigene Domain geht auch ein Quick Tunnel (URL ändert sich bei jedem Start):
+
+```bash
+./start-tunnel.sh          # gibt https://<random>.trycloudflare.com/<TOKEN> aus
+```
+
+> Cloudflare **Access** ist für den POS-Aufruf ungeeignet: der `OPTIONS`-
+> Preflight bekommt von Access ein 403, und `fetch` sendet keine
+> `CF_Authorization`-Cookies. Das Token übernimmt hier die Absicherung.
+> Access lässt sich höchstens zusätzlich auf `/designer` legen.
+
+### Druck vom iPhone/iPad (Fyndo POS) – „Load failed"
+
+Das POS läuft normalerweise über **HTTPS** (z. B. `https://fyndo.sdtoll.de`).
+Safari blockiert dann `fetch()`-Aufrufe an `http://192.168.x.x:8787` als
+**Mixed Content**. Genau deshalb funktioniert die Adresse in einem **neuen Tab**
+(normale Navigation ist erlaubt), im POS erscheint aber
+„Nicht erreichbar: Load failed".
+
+Lösung: den Druckserver über HTTPS starten:
+
+```bash
+HTTPS=1 python3 server.py
+```
+
+Beim ersten Start entsteht eine kleine CA (`printer/certs/ca.crt`, 10 Jahre) und
+ein Server-Zertifikat (`server.crt`, 397 Tage, wird automatisch erneuert, wenn
+es abläuft oder sich die IP ändert). Grund für die kurze Laufzeit: **iOS/macOS
+akzeptieren TLS-Server-Zertifikate nur mit maximal 825 Tagen Laufzeit** – ein
+10-Jahres-Zertifikat wird trotz Trust-Einstellung verworfen (`Load failed`).
+
+Auf dem iPhone/iPad einmalig die **CA** vertrauen:
+
+1. `https://<IP-des-Macs>:8787/cert` in Safari öffnen (Zertifikatswarnung bestätigen)
+2. Profil herunterladen → **Einstellungen → Allgemein → VPN & Device Management** → installieren
+3. **Einstellungen → Allgemein → Info → Zertifikatsvertrauen** → „fyndo-print CA" aktivieren
+
+> Falls vorher schon ein altes selbstsigniertes Zertifikat installiert wurde:
+> dieses Profil entfernen und das neue CA-Profil installieren. Die CA bleibt
+> 10 Jahre gültig, spätere Server-Zertifikate brauchen keine neue Installation.
+
+**Wenn weiterhin „Load failed" kommt:**
+
+1. In Safari `https://<IP>:8787/health` öffnen – erscheint noch eine
+   Zertifikatswarnung, ist das Vertrauen nicht aktiv (Schritt 3 oben).
+2. Im POS-Debug-Menü muss die Adresse mit **`https://`** beginnen.
+3. IP geändert? Der Server erneuert das Server-Zertifikat beim nächsten Start
+   automatisch (SAN wird verglichen), die CA bleibt gleich.
+4. Exakte Fehlermeldung: iPhone per Kabel verbinden → Safari am Mac →
+   **Entwickler → iPhone → Seite** → Konsole. Dort steht z. B.
+   „TLS-Fehler" (Zertifikat) oder „Mixed Content" (noch `http://` eingetragen).
+
+Danach im POS-Debug-Menü `https://<IP-des-Macs>:8787` eintragen (z. B.
+`https://192.168.188.186:8787`). Der Bon-Designer übernimmt die Adresse
+automatisch, wenn er über den Server geöffnet wird.
+
+Eigenes (z. B. Let's-Encrypt-)Zertifikat:
+
+```bash
+HTTPS=1 SSL_CERT=/pfad/fullchain.pem SSL_KEY=/pfad/privkey.pem python3 server.py
+```
+
+> Ohne Zertifikatsinstallation auf dem Gerät: siehe
+> [Cloudflare Tunnel + Token](#cloudflare-tunnel--token-empfohlen-für-iphoneipad).
 
 ### Direkt am USB-Gerät drucken (ohne CUPS)
 

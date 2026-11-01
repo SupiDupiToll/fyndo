@@ -11,3 +11,10 @@ __pycache__
 .dev.vars.local
 !.dev.vars.example
 cloudflare-env.d.ts
+
+# Drucker-Zertifikate (selbstsigniert, privat)
+printer/certs/
+
+# Druckserver-Token (lokal, geheim)
+printer/.print-token
+printer/.print-host

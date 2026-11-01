@@ -5,6 +5,10 @@ import { motion } from "motion/react";
 import type { PosLockMedia } from "@/lib/pos-settings";
 import { AttractButton } from "@/components/kokonutui/attract-button";
 import { ShimmerText } from "@/components/kokonutui/shimmer-text";
+import {
+  PosLanguageSwitch,
+  usePosLang,
+} from "@/components/pos/pos-language";
 
 type LockScreenProps = {
   vendorName: string;
@@ -15,6 +19,7 @@ type LockScreenProps = {
 const SLIDE_INTERVAL_MS = 6000;
 
 export function LockScreen({ vendorName, media, onStart }: LockScreenProps) {
+  const { t } = usePosLang();
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -88,6 +93,10 @@ export function LockScreen({ vendorName, media, onStart }: LockScreenProps) {
         </div>
       )}
 
+      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+        <PosLanguageSwitch tone="dark" />
+      </div>
+
       <div className="relative z-10 flex h-full flex-col items-center justify-between px-6 py-10 sm:py-14 text-center text-white">
         <motion.div
           className="mt-6 sm:mt-10 flex flex-col items-center"
@@ -103,7 +112,7 @@ export function LockScreen({ vendorName, media, onStart }: LockScreenProps) {
             <i className="fa-solid fa-basket-shopping text-2xl" />
           </motion.div>
           <p className="mt-4 text-xs font-bold uppercase tracking-[0.3em] text-white/70">
-            Tippen &amp; Bestellen
+            {t("tagline")}
           </p>
           <ShimmerText
             text={`${vendorName}.`}
@@ -119,9 +128,9 @@ export function LockScreen({ vendorName, media, onStart }: LockScreenProps) {
         >
           <AttractButton
             onClick={onStart}
-            label="Jetzt bestellen"
+            label={t("startOrder")}
             className="w-full"
-            aria-label="Jetzt bestellen"
+            aria-label={t("startOrder")}
           />
           <motion.p
             className="mt-4 text-sm text-white/70"
@@ -129,7 +138,7 @@ export function LockScreen({ vendorName, media, onStart }: LockScreenProps) {
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           >
             <i className="fa-solid fa-hand-pointer mr-1.5" />
-            Tippen Sie auf den Bildschirm, um zu starten
+            {t("tapToStart")}
           </motion.p>
         </motion.div>
       </div>

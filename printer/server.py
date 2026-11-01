@@ -7,8 +7,11 @@ Kleiner, dependency-freier HTTP-Server, der Kassenbons für den fyndo POS als
 rohe ESC/POS-Bytes an einen Thermodrucker schickt.
 
 Der Drucker wird standardmäßig über die CUPS-Queue "Bondrucker" angesprochen
-(``lp -d Bondrucker -o raw``). Alternativ kann direkt auf ein USB-Gerät
-geschrieben werden (z. B. ``/dev/usb/lp0``).
+(``lp -d Bondrucker -o raw``). Alternativ kann direkt auf ein Gerät geschrieben
+werden (z. B. ``/dev/usb/lp0``, oder auf macOS ein serielles Gerät wie
+``/dev/cu.usbmodem11101`` bzw. ``/dev/cu.Printer001`` für Bluetooth). Serielle
+Geräte werden automatisch mit ``PRINTER_BAUD`` (Standard 9600, 8N1, raw)
+konfiguriert.
 
 Endpunkte
 ---------
@@ -26,16 +29,26 @@ Start
   python3 server.py
   PRINTER_WIDTH=32 CHARSET=ascii python3 server.py
 
+  # macOS: Drucker direkt am seriellen Gerät (USB oder Bluetooth)
+  PRINTER_MODE=device PRINTER_DEVICE=/dev/cu.usbmodem11101 python3 server.py
+  PRINTER_MODE=device PRINTER_DEVICE=/dev/cu.Printer001 PRINTER_BAUD=9600 python3 server.py
+
 Siehe README.md für alle Optionen.
 """
 
 from __future__ import annotations
 
 import base64
+import fcntl
+import hmac
 import json
 import os
+import socket
+import ssl
 import subprocess
 import sys
+import termios
+import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -49,6 +62,11 @@ HOST = os.environ.get("HOST", "0.0.0.0")
 PRINTER_NAME = os.environ.get("PRINTER_NAME", "Bondrucker")
 PRINTER_MODE = os.environ.get("PRINTER_MODE", "cups").lower()  # cups | device
 PRINTER_DEVICE = os.environ.get("PRINTER_DEVICE", "/dev/usb/lp0")
+# Nur für PRINTER_MODE=device: Baudrate/Raw-Modus für serielle Geräte
+# (/dev/cu.* auf macOS, /dev/ttyUSB* auf Linux). Bei USB-CDC-Geräten wird die
+# Baudrate oft ignoriert, bei Bluetooth (SPP) muss sie zum Drucker passen.
+PRINTER_BAUD = int(os.environ.get("PRINTER_BAUD", "9600"))
+PRINTER_FLOW = os.environ.get("PRINTER_FLOW", "none").lower()  # none | rtscts | xonxoff
 LP_BIN = os.environ.get("LP_BIN", "lp")
 LPSTAT_BIN = os.environ.get("LPSTAT_BIN", "lpstat")
 QRENCODE_BIN = os.environ.get("QRENCODE_BIN", "qrencode")
@@ -70,6 +88,27 @@ CHARSET = os.environ.get("CHARSET", "ascii").lower()
 CUT_MODE = os.environ.get("CUT_MODE", "partial").lower()  # partial | full | none
 FEED_LINES = int(os.environ.get("FEED_LINES", "4"))
 MAX_BODY_BYTES = 1024 * 1024  # 1 MB
+
+# HTTPS (nötig, wenn das POS über https:// läuft: Safari blockiert sonst fetch()
+# von HTTPS nach HTTP als "Load failed" / Mixed Content).
+HTTPS = os.environ.get("HTTPS", "").lower() in ("1", "true", "yes", "on")
+SSL_CERT = os.environ.get("SSL_CERT", "")
+SSL_KEY = os.environ.get("SSL_KEY", "")
+# Ohne SSL_CERT/SSL_KEY wird bei HTTPS=1 ein selbstsigniertes Zertifikat
+# erzeugt (printer/certs/) – auf dem iPhone einmal installieren + vertrauen.
+SSL_DIR = os.environ.get("SSL_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "certs"))
+# Optionales Token: wenn gesetzt, muss jeder Aufruf ?token=… oder den Header
+# X-Print-Token mitschicken (sinnvoll, wenn der Server öffentlich erreichbar ist).
+PRINTER_TOKEN = os.environ.get("PRINTER_TOKEN", "")
+if not PRINTER_TOKEN:
+    # Komfort: Token aus printer/.print-token lesen (von start.sh erzeugt),
+    # damit `python3 server.py` ohne Umgebungsvariable geschützt startet.
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".print-token"),
+                  "r", encoding="utf-8") as _fh:
+            PRINTER_TOKEN = _fh.read().strip()
+    except OSError:
+        pass
 
 # Rasterdruck (CJK/Unicode über ESC/POS GS v 0)
 # DOTS_PER_CHAR: Punktbreite einer Zeichenzelle (Font A) bei 203 dpi:
@@ -798,6 +837,142 @@ def render_blocks(payload: dict | None = None) -> bytes:
 
 
 # ---------------------------------------------------------------------------
+# HTTPS / Zertifikat
+# ---------------------------------------------------------------------------
+
+def _local_ip_addresses() -> list[str]:
+    """IPv4-Adressen dieses Rechners (für das SAN des Zertifikats)."""
+    ips: set[str] = set()
+    for dev in ("en0", "en1", "en2"):
+        try:
+            out = subprocess.run(
+                ["ipconfig", "getifaddr", dev], capture_output=True, timeout=3
+            ).stdout.decode("utf-8", "replace").strip()
+            if out:
+                ips.add(out)
+        except Exception:  # noqa: BLE001 – nicht auf macOS / kein Interface
+            pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ips.add(info[4][0])
+    except OSError:
+        pass
+    try:
+        ips.add(socket.gethostbyname(socket.gethostname()))
+    except OSError:
+        pass
+    return sorted(ip for ip in ips if not ip.startswith("127."))
+
+
+def _run_openssl(args: list[str]) -> None:
+    try:
+        subprocess.run(["openssl", *args], check=True, capture_output=True, timeout=60)
+    except (OSError, subprocess.CalledProcessError) as err:
+        msg = (getattr(err, "stderr", b"") or b"").decode("utf-8", "replace").strip()
+        raise SystemExit(
+            "HTTPS=1, aber kein Zertifikat erzeugbar. Bitte SSL_CERT/SSL_KEY "
+            f"setzen oder openssl installieren. ({msg or err})"
+        )
+
+
+def _write(path: str, text: str) -> None:
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
+def _cert_valid_days(path: str) -> int:
+    """Restlaufzeit in Tagen (0, wenn nicht lesbar/abgelaufen)."""
+    try:
+        proc = subprocess.run(
+            ["openssl", "x509", "-checkend", "0", "-noout", "-in", path],
+            capture_output=True, timeout=10,
+        )
+        if proc.returncode != 0:
+            return 0
+        out = subprocess.run(
+            ["openssl", "x509", "-noout", "-enddate", "-in", path],
+            capture_output=True, timeout=10,
+        ).stdout.decode("utf-8", "replace").strip()
+        end = datetime.strptime(out.split("=", 1)[1].strip(), "%b %d %H:%M:%S %Y %Z")
+        return max(0, (end - datetime.utcnow()).days)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def _sans() -> list[str]:
+    host = socket.gethostname() or "fyndo-print"
+    return ([f"DNS:{host}", "DNS:localhost", "IP:127.0.0.1"]
+            + [f"IP:{ip}" for ip in _local_ip_addresses()])
+
+
+def _ensure_certificate() -> tuple[str, str]:
+    """Server-Zertifikat+Key liefern (CA-signiert, iOS-kompatibel).
+
+    iOS akzeptiert TLS-Server-Zertifikate nur mit maximal 825 Tagen Laufzeit.
+    Deshalb: langlebige CA (10 Jahre, einmalig auf dem iPhone installieren) und
+    ein kurzlebiges Server-Zertifikat (397 Tage), das automatisch erneuert wird.
+    """
+    cert = SSL_CERT or os.path.join(SSL_DIR, "server.crt")
+    key = SSL_KEY or os.path.join(SSL_DIR, "server.key")
+    if SSL_CERT and SSL_KEY:
+        return cert, key
+
+    os.makedirs(SSL_DIR, exist_ok=True)
+    ca_cert = os.path.join(SSL_DIR, "ca.crt")
+    ca_key = os.path.join(SSL_DIR, "ca.key")
+    ca_cnf = os.path.join(SSL_DIR, "ca.cnf")
+    leaf_cnf = os.path.join(SSL_DIR, "leaf.cnf")
+    leaf_ext = os.path.join(SSL_DIR, "leaf.ext")
+    sans_file = os.path.join(SSL_DIR, "leaf-sans.txt")
+    csr = os.path.join(SSL_DIR, "server.csr")
+    sans = ",".join(_sans())
+
+    # 1) CA (nur einmal)
+    if not (os.path.exists(ca_cert) and os.path.exists(ca_key)):
+        _write(ca_cnf,
+               "[req]\nprompt = no\ndistinguished_name = dn\n"
+               "[dn]\nCN = fyndo-print CA\n"
+               "[v3_ca]\nbasicConstraints = critical, CA:TRUE, pathlen:0\n"
+               "keyUsage = critical, keyCertSign, cRLSign\n"
+               "subjectKeyIdentifier = hash\n")
+        _run_openssl(["req", "-x509", "-newkey", "rsa:2048", "-sha256",
+                      "-days", "3650", "-nodes", "-keyout", ca_key,
+                      "-out", ca_cert, "-config", ca_cnf, "-extensions", "v3_ca"])
+        print(f"[fyndo-print] CA erzeugt: {ca_cert}")
+
+    # 2) Server-Zertifikat (kurzlebig, automatisch erneuert)
+    current_sans = ""
+    try:
+        with open(sans_file, encoding="utf-8") as fh:
+            current_sans = fh.read().strip()
+    except OSError:
+        pass
+    needs_new = (
+        not (os.path.exists(cert) and os.path.exists(key))
+        or _cert_valid_days(cert) < 30
+        or current_sans != sans
+    )
+    if needs_new:
+        _write(leaf_cnf,
+               "[req]\nprompt = no\ndistinguished_name = dn\n"
+               "[dn]\nCN = fyndo-print\n")
+        _write(leaf_ext,
+               "basicConstraints = critical, CA:FALSE\n"
+               "keyUsage = critical, digitalSignature, keyEncipherment\n"
+               "extendedKeyUsage = serverAuth\n"
+               f"subjectAltName = {sans}\n")
+        _run_openssl(["req", "-new", "-newkey", "rsa:2048", "-sha256", "-nodes",
+                      "-keyout", key, "-out", csr, "-config", leaf_cnf])
+        _run_openssl(["x509", "-req", "-in", csr, "-CA", ca_cert, "-CAkey", ca_key,
+                      "-CAcreateserial", "-days", "397", "-sha256",
+                      "-extfile", leaf_ext, "-out", cert])
+        _write(sans_file, sans)
+        print(f"[fyndo-print] Server-Zertifikat erzeugt (397 Tage): {cert}")
+
+    return cert, key
+
+
+# ---------------------------------------------------------------------------
 # An den Drucker senden
 # ---------------------------------------------------------------------------
 
@@ -805,13 +980,141 @@ class PrinterError(RuntimeError):
     pass
 
 
+_BAUD_RATES = (1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400)
+
+
+def _serial_speed(baud: int) -> int:
+    """Baudrate -> termios-Konstante (nächstliegender unterstützter Wert)."""
+    value = getattr(termios, f"B{baud}", None)
+    if value is not None:
+        return value
+    nearest = min(_BAUD_RATES, key=lambda b: abs(b - baud))
+    return getattr(termios, f"B{nearest}", termios.B9600)
+
+
+def _is_serial(path: str) -> bool:
+    """Heuristik: serielles Gerät (macOS /dev/cu.*, Linux /dev/ttyUSB* …)."""
+    return path.startswith((
+        "/dev/cu.", "/dev/tty.", "/dev/ttyUSB", "/dev/ttyACM",
+        "/dev/ttyS", "/dev/serial",
+    ))
+
+
+# Reihenfolge = Priorität: USB vor Bluetooth, echte Drucker-Ports vor Debug-Ports.
+_SERIAL_PATTERNS = (
+    "/dev/cu.usbmodem*",
+    "/dev/cu.usbserial*",
+    "/dev/cu.Printer*",
+    "/dev/cu.Brother*",
+    "/dev/cu.Xprinter*",
+    "/dev/ttyUSB*",
+    "/dev/ttyACM*",
+    "/dev/serial/by-id/*",
+)
+
+
+def serial_candidates() -> list[str]:
+    """Wahrscheinliche Drucker-Geräte (ohne Debug-/Modem-Ports)."""
+    import glob
+
+    found: list[str] = []
+    for pattern in _SERIAL_PATTERNS:
+        for path in sorted(glob.glob(pattern)):
+            if path not in found:
+                found.append(path)
+    return found
+
+
+def resolve_device() -> str:
+    """PRINTER_DEVICE auflösen; 'auto' wählt das erste passende Gerät."""
+    if PRINTER_DEVICE != "auto":
+        return PRINTER_DEVICE
+    candidates = serial_candidates()
+    return candidates[0] if candidates else ""
+
+
+def _configure_serial(fd: int) -> bool:
+    """Seriellen Port auf 8N1/raw stellen. False, wenn kein TTY."""
+    try:
+        attrs = termios.tcgetattr(fd)
+    except termios.error:
+        return False
+
+    attrs[0] = 0  # iflag: keine Übersetzung/Flow-Control
+    attrs[1] = 0  # oflag: keine NL-Umwandlung
+    attrs[2] = termios.CS8 | termios.CREAD | termios.CLOCAL  # 8N1
+    attrs[3] = 0  # lflag: raw, kein Echo
+    speed = _serial_speed(PRINTER_BAUD)
+    attrs[4] = speed
+    attrs[5] = speed
+    if PRINTER_FLOW == "rtscts":
+        attrs[2] |= termios.CRTSCTS
+    elif PRINTER_FLOW == "xonxoff":
+        attrs[0] |= termios.IXON | termios.IXOFF
+    attrs[6][termios.VMIN] = 0
+    attrs[6][termios.VTIME] = 0
+    try:
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+        termios.tcflush(fd, termios.TCIOFLUSH)
+    except termios.error:
+        return False
+    return True
+
+
+def _write_device(path: str, data: bytes) -> None:
+    """Roh auf ein Gerät schreiben; serielle Ports vorher konfigurieren."""
+    if path == "auto":
+        path = resolve_device()
+    if not path:
+        raise PrinterError(
+            "Kein Druckergerät gefunden. Stecker/Bluetooth prüfen oder "
+            "PRINTER_DEVICE=/dev/cu.<name> setzen (Liste: GET /devices)."
+        )
+    try:
+        # O_NONBLOCK: nicht auf Carrier/DTR warten; danach wieder blockierend.
+        fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    except OSError as err:
+        raise PrinterError(
+            f"{path} konnte nicht geöffnet werden: {err}. "
+            "Ist der Drucker eingeschaltet/verbunden und heißt das Gerät richtig?"
+        ) from err
+    try:
+        serial = _is_serial(path) and _configure_serial(fd)
+        try:
+            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
+        except OSError:
+            pass
+
+        written = 0
+        stall = 0.0
+        while written < len(data):
+            try:
+                written += os.write(fd, data[written:])
+                stall = 0.0
+            except BlockingIOError:
+                if stall > 30:
+                    raise PrinterError(
+                        f"{path} nimmt keine Daten mehr an (Puffer voll). "
+                        "Drucker aus/eingeschaltet oder Kabel prüfen."
+                    )
+                time.sleep(0.05)
+                stall += 0.05
+        if serial:
+            # warten, bis der Puffer wirklich raus ist (sonst bricht der Bon ab)
+            try:
+                termios.tcdrain(fd)
+            except termios.error:
+                pass
+    except OSError as err:
+        raise PrinterError(f"Schreiben auf {path} fehlgeschlagen: {err}") from err
+    finally:
+        os.close(fd)
+
+
 def send_to_printer(data: bytes) -> None:
     if PRINTER_MODE == "device":
-        try:
-            with open(PRINTER_DEVICE, "wb") as fh:
-                fh.write(data)
-        except OSError as err:
-            raise PrinterError(f"Schreiben auf {PRINTER_DEVICE} fehlgeschlagen: {err}") from err
+        _write_device(PRINTER_DEVICE, data)
         return
 
     # CUPS: roh senden, damit keine Filter die ESC/POS-Bytes verändern.
@@ -829,7 +1132,11 @@ def send_to_printer(data: bytes) -> None:
 
     if proc.returncode != 0:
         msg = (proc.stderr or proc.stdout or b"").decode("utf-8", "replace").strip()
-        raise PrinterError(f"{LP_BIN} beendet mit Code {proc.returncode}: {msg}")
+        hint = ""
+        if "does not exist" in msg or "nicht vorhanden" in msg or "No such file" in msg:
+            hint = (f" Lege die Queue an (lpadmin -p {PRINTER_NAME} -E -v <gerät> -m raw) "
+                    f"oder starte mit PRINTER_MODE=device PRINTER_DEVICE=/dev/cu.<gerät>.")
+        raise PrinterError(f"{LP_BIN} beendet mit Code {proc.returncode}: {msg}{hint}")
 
 
 # ---------------------------------------------------------------------------
@@ -839,9 +1146,25 @@ def send_to_printer(data: bytes) -> None:
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Print-Token",
     "Access-Control-Max-Age": "86400",
 }
+
+
+def _token_ok(handler) -> bool:
+    """Optionales Token prüfen (Header, ?token= oder erstes Pfadsegment)."""
+    if not PRINTER_TOKEN:
+        return True
+    supplied = handler.headers.get("X-Print-Token") or ""
+    if not supplied:
+        qs = parse_qs(urlparse(handler.path).query)
+        supplied = (qs.get("token") or [""])[0]
+    if not supplied:
+        # /<token>/print – praktisch für Clients, die nur eine Basis-URL
+        # konfigurieren können (z. B. das POS).
+        parts = [p for p in urlparse(handler.path).path.split("/") if p]
+        supplied = parts[0] if parts else ""
+    return hmac.compare_digest(supplied, PRINTER_TOKEN)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -857,11 +1180,14 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _send_bytes(self, status: int, data: bytes, content_type: str) -> None:
+    def _send_bytes(self, status: int, data: bytes, content_type: str,
+                    headers: dict | None = None) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         for k, v in CORS_HEADERS.items():
             self.send_header(k, v)
         self.end_headers()
@@ -879,7 +1205,21 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(raw.decode("utf-8"))
 
     def log_message(self, fmt, *args):
-        sys.stderr.write("[fyndo-print] " + (fmt % args) + "\n")
+        origin = self.headers.get("Origin") or self.headers.get("Referer") or "-"
+        message = fmt % args
+        if PRINTER_TOKEN:
+            message = message.replace(PRINTER_TOKEN, "***")
+        sys.stderr.write(
+            f"[fyndo-print] {self.client_address[0]} {message} origin={origin}\n"
+        )
+
+    def _path(self) -> str:
+        """Pfad – ein optionales Token-Präfix (/<token>/print) wird entfernt."""
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        parts = [p for p in path.split("/") if p]
+        if PRINTER_TOKEN and parts and hmac.compare_digest(parts[0], PRINTER_TOKEN):
+            parts = parts[1:]
+        return "/" + "/".join(parts) if parts else "/"
 
     def do_OPTIONS(self):  # noqa: N802
         self.send_response(204)
@@ -888,22 +1228,49 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):  # noqa: N802
-        path = self.path.split("?", 1)[0].rstrip("/") or "/"
+        path = self._path()
+        if path == "/cert":
+            candidates = (
+                [SSL_CERT] if SSL_CERT else
+                [os.path.join(SSL_DIR, "ca.crt"), os.path.join(SSL_DIR, "server.crt")]
+            )
+            data = None
+            for cand in candidates:
+                try:
+                    with open(cand, "rb") as fh:
+                        data = fh.read()
+                    break
+                except OSError:
+                    continue
+            if data is None:
+                self._send(404, {"ok": False, "error": "Kein Zertifikat vorhanden (HTTPS=1 beim Start setzen)."})
+                return
+            self._send_bytes(200, data, "application/x-x509-ca-cert",
+                             {"Content-Disposition": 'attachment; filename="fyndo-print-ca.crt"'})
+            return
+        if not _token_ok(self):
+            self._send(401, {"ok": False, "error": "Ungültiges oder fehlendes Token."})
+            return
         if path in ("/", "/health"):
             self._send(200, {
                 "ok": True,
                 "service": "fyndo-print",
                 "printer": PRINTER_NAME,
+                "https": HTTPS,
+                "tokenRequired": bool(PRINTER_TOKEN),
                 "mode": PRINTER_MODE,
-                "device": PRINTER_DEVICE if PRINTER_MODE == "device" else None,
+                "device": (resolve_device() or None) if PRINTER_MODE == "device" else None,
+                "deviceConfig": PRINTER_DEVICE if PRINTER_MODE == "device" else None,
+                "baud": PRINTER_BAUD if PRINTER_MODE == "device" else None,
+                "flow": PRINTER_FLOW if PRINTER_MODE == "device" else None,
                 "width": WIDTH,
                 "charset": CHARSET,
                 "charsets": list(VALID_CHARSETS),
                 "cjk": raster_available(),
                 "cjkFont": _CJK_FONT,
                 "cut": CUT_MODE,
-                "endpoints": ["/health", "/printers", "/qr.png", "/designer", "/print", "/print/text",
-                              "/print/raw", "/print/blocks", "/test"],
+                "endpoints": ["/health", "/devices", "/printers", "/qr.png", "/designer", "/print",
+                              "/print/text", "/print/raw", "/print/blocks", "/test"],
             })
             return
         if path == "/qr.png":
@@ -940,6 +1307,16 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._send_bytes(200, html, "text/html; charset=utf-8")
             return
+        if path == "/devices":
+            self._send(200, {
+                "ok": True,
+                "mode": PRINTER_MODE,
+                "configured": PRINTER_DEVICE,
+                "resolved": resolve_device() if PRINTER_MODE == "device" else None,
+                "candidates": serial_candidates(),
+                "hint": "PRINTER_MODE=device PRINTER_DEVICE=<pfad> python3 server.py",
+            })
+            return
         if path == "/printers":
             try:
                 proc = subprocess.run([LPSTAT_BIN, "-p", "-d"], capture_output=True, timeout=10)
@@ -950,7 +1327,10 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"ok": False, "error": "Unbekannter Endpunkt."})
 
     def do_POST(self):  # noqa: N802
-        path = self.path.split("?", 1)[0].rstrip("/") or "/"
+        path = self._path()
+        if not _token_ok(self):
+            self._send(401, {"ok": False, "error": "Ungültiges oder fehlendes Token."})
+            return
         try:
             if path == "/print":
                 payload = self._read_json()
@@ -1030,11 +1410,30 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"[fyndo-print] Druckserver läuft auf http://{HOST}:{PORT}")
+    scheme = "http"
+    if HTTPS:
+        cert, key = _ensure_certificate()
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(cert, key)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+        scheme = "https"
+
+    print(f"[fyndo-print] Druckserver läuft auf {scheme}://{HOST}:{PORT}")
+    for ip in _local_ip_addresses():
+        print(f"[fyndo-print]   im WLAN erreichbar: {scheme}://{ip}:{PORT}")
     print(f"[fyndo-print] Drucker: {PRINTER_NAME} (Modus: {PRINTER_MODE}), "
           f"Breite: {WIDTH}, Charset: {CHARSET}, Schnitt: {CUT_MODE}")
-    print(f"[fyndo-print] Bon-Designer: printer/bon-designer.html im Browser öffnen")
-    print(f"[fyndo-print] Test: curl -X POST http://localhost:{PORT}/test")
+    if PRINTER_MODE == "device":
+        print(f"[fyndo-print] Gerät: {resolve_device() or PRINTER_DEVICE} "
+              f"({PRINTER_BAUD} Baud, Flow: {PRINTER_FLOW})")
+    if HTTPS:
+        print(f"[fyndo-print] Zertifikat: {cert} (CA: {os.path.join(SSL_DIR, 'ca.crt')})")
+        ip = (_local_ip_addresses() or ["<IP>"])[0]
+        print(f"[fyndo-print] iPhone/iPad: {scheme}://{ip}:{PORT}/cert öffnen → CA-Profil "
+              "installieren → Einstellungen → Allgemein → Info → "
+              "Zertifikatsvertrauen aktivieren.")
+    print(f"[fyndo-print] Bon-Designer: {scheme}://localhost:{PORT}/designer")
+    print(f"[fyndo-print] Test: curl -X POST {scheme}://localhost:{PORT}/test")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
