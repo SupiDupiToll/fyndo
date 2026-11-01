@@ -76,13 +76,19 @@ curl -X POST http://localhost:8787/print \
     ],
     "totalCents": 650,
     "paymentMethod": "CASH",
-    "footer": "Vielen Dank!"
+    "lang": "de"
   }'
 ```
 
-Der Bon enthält oben die **Bestellnummer** groß, darunter Datum, Positionen,
-**Zusammenfassung** (Summe, ggf. Gutschein), Zahlungsart und am Ende den
-**Autocut**.
+`lang` steuert die Bon-Sprache (`de` oder `zh`). Bei `zh` werden
+Beschriftungen, Zahlungsarten und die Standard-Fußzeile auf Chinesisch
+gedruckt; der Zeichensatz wird automatisch auf `auto` gesetzt, damit CJK über
+den Raster-Fallback gedruckt wird. Ohne `footer` gilt die Standard-Fußzeile
+der jeweiligen Sprache.
+
+Der Bon enthält **ganz oben die Bestellnummer** groß, darunter Händler/Datum,
+Positionen, **Zusammenfassung** (Summe, ggf. Gutschein), Zahlungsart und am
+Ende den **Autocut**.
 
 ## Bon-Designer (eigenständige HTML-Datei)
 

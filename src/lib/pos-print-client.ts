@@ -31,6 +31,10 @@ export type ReceiptPayload = {
   paymentMethod?: string;
   header?: string;
   footer?: string;
+  /** Sprache des Bons (steuert Beschriftungen und Fußzeile). */
+  lang?: "de" | "zh";
+  /** Zeichensatz; bei Chinesisch empfiehlt sich "auto" (Raster-Fallback). */
+  charset?: string;
   copies?: number;
   test?: boolean;
 };

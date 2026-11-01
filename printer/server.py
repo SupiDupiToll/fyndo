@@ -599,9 +599,37 @@ def format_datetime(value=None) -> str:
     return dt.strftime("%d.%m.%Y %H:%M")
 
 
-def payment_label(method) -> str:
-    m = str(method or "").upper()
-    return {
+RECEIPT_LABELS = {
+    "de": {
+        "order": "BESTELLUNG",
+        "date": "Datum:",
+        "branch": "Filiale:",
+        "no_items": "(keine Positionen)",
+        "subtotal": "Zwischensumme:",
+        "gift": "Gutschein:",
+        "sum": "SUMME:",
+        "payment": "Zahlung:",
+        "note": "Hinweis: ",
+        "article": "Artikel",
+        "footer": "Vielen Dank für Ihren Einkauf!",
+    },
+    "zh": {
+        "order": "订单",
+        "date": "日期：",
+        "branch": "门店：",
+        "no_items": "(无商品)",
+        "subtotal": "小计：",
+        "gift": "代金券：",
+        "sum": "合计：",
+        "payment": "支付方式：",
+        "note": "备注：",
+        "article": "商品",
+        "footer": "感谢您的光临！",
+    },
+}
+
+PAYMENT_LABELS = {
+    "de": {
         "CASH": "Bar",
         "BAR": "Bar",
         "RBANK": "RBank",
@@ -609,7 +637,28 @@ def payment_label(method) -> str:
         "TERMINAL": "Kartenterminal",
         "GUTSCHEIN": "Fyndo-Gutschein",
         "CARD": "Karte",
-    }.get(m, str(method) if method else "")
+    },
+    "zh": {
+        "CASH": "现金",
+        "BAR": "现金",
+        "RBANK": "RBank",
+        "TIPPIE": "PayPal / Apple Pay",
+        "TERMINAL": "刷卡终端",
+        "GUTSCHEIN": "Fyndo 代金券",
+        "CARD": "银行卡",
+    },
+}
+
+
+def receipt_lang(payload: dict) -> str:
+    lang = str(payload.get("lang") or "de").strip().lower()
+    return "zh" if lang.startswith("zh") else "de"
+
+
+def payment_label(method, lang: str = "de") -> str:
+    m = str(method or "").upper()
+    table = PAYMENT_LABELS.get(lang, PAYMENT_LABELS["de"])
+    return table.get(m, str(method) if method else "")
 
 
 def render_receipt(payload: dict | None = None) -> bytes:
@@ -618,11 +667,21 @@ def render_receipt(payload: dict | None = None) -> bytes:
     payload:
       vendorName, orderNumber, date, items[{qty,name,amountCents,unitCents}],
       subtotalCents, totalCents, giftCardCents, paymentMethod, header, footer,
-      note, width, charset, copies
+      note, width, charset, lang ("de" | "zh"), copies
     """
     payload = payload or {}
     width = int(payload.get("width") or WIDTH) or WIDTH
+    lang = receipt_lang(payload)
+    labels = RECEIPT_LABELS[lang]
     cs = _pick_charset(payload)
+    # Chinesisch braucht den Raster-Fallback (CJK); ASCII/CP437 können es nicht.
+    if lang == "zh" and cs not in ("auto", "image"):
+        cs = "auto"
+    if lang == "zh" and not raster_available():
+        # Ohne Pillow/CJK-Font kämen nur "?" heraus – dann lieber Deutsch drucken.
+        lang = "de"
+        labels = RECEIPT_LABELS["de"]
+        cs = _pick_charset(payload)
     p = EscPos(width, cs)
 
     def D(t) -> str:
@@ -643,6 +702,18 @@ def render_receipt(payload: dict | None = None) -> bytes:
 
     p.init().codepage().align("center")
 
+    # Bestellnummer ganz oben und groß
+    if payload.get("orderNumber") is not None:
+        num = f"#{payload['orderNumber']}"
+        p.bold(True)
+        if vis_len(num) <= width // 2:
+            p.size(0x11).line(num).size(0x00)
+        else:
+            p.size(0x10).line(num).size(0x00)
+        p.bold(False)
+        p.line(labels["order"])
+        p.line()
+
     # Kopf
     vendor = D(payload.get("vendorName") or "fyndo")
     p.bold(True)
@@ -655,27 +726,16 @@ def render_receipt(payload: dict | None = None) -> bytes:
         p.line(D(payload["header"]))
     p.line()
 
-    # Bestellnummer groß und weit oben
-    if payload.get("orderNumber") is not None:
-        num = f"#{payload['orderNumber']}"
-        p.bold(True)
-        if vis_len(num) <= width // 2:
-            p.size(0x11).line(num).size(0x00)
-        else:
-            p.size(0x10).line(num).size(0x00)
-        p.bold(False)
-        p.line("BESTELLUNG")
-
     p.align("left")
     p.hr("=")
-    p.cols("Datum:", format_datetime(payload.get("date")))
+    p.cols(labels["date"], format_datetime(payload.get("date")))
     if payload.get("vendorName"):
-        p.cols("Filiale:", D(payload["vendorName"]))
+        p.cols(labels["branch"], D(payload["vendorName"]))
     p.hr("-")
 
     # Positionen
     if not items:
-        p.line("(keine Positionen)")
+        p.line(labels["no_items"])
     else:
         for item in items:
             qty = int(item.get("qty") or 1)
@@ -684,7 +744,10 @@ def render_receipt(payload: dict | None = None) -> bytes:
             else:
                 amount = int(item.get("unitCents") or 0) * qty
             prefix = f"{qty}x " if qty > 1 else ""
-            name = D(prefix + str(item.get("name") or item.get("title") or "Artikel"))
+            name = D(
+                prefix
+                + str(item.get("name") or item.get("title") or labels["article"])
+            )
             price = D(format_euro(amount))
             max_left = max(8, width - vis_len(price) - 1)
             chunks = split_vis(name, max_left)
@@ -698,22 +761,22 @@ def render_receipt(payload: dict | None = None) -> bytes:
 
     # Zusammenfassung
     if gift_cents > 0:
-        p.cols("Zwischensumme:", format_euro(subtotal_cents))
-        p.cols("Gutschein:", f"-{format_euro(gift_cents)}")
-    p.bold(True).cols("SUMME:", format_euro(total_cents)).bold(False)
+        p.cols(labels["subtotal"], format_euro(subtotal_cents))
+        p.cols(labels["gift"], f"-{format_euro(gift_cents)}")
+    p.bold(True).cols(labels["sum"], format_euro(total_cents)).bold(False)
 
-    pay = payment_label(payload.get("paymentMethod"))
+    pay = payment_label(payload.get("paymentMethod"), lang)
     if pay:
-        p.cols("Zahlung:", pay)
+        p.cols(labels["payment"], pay)
 
     if payload.get("note"):
         p.hr("-")
-        p.text("Hinweis: ").line(D(payload["note"]))
+        p.line(labels["note"] + str(payload["note"]))
 
     # Fuß
     p.align("center")
     p.hr("=")
-    p.line(payload.get("footer") or "Vielen Dank für Ihren Einkauf!")
+    p.line(payload.get("footer") or labels["footer"])
     p.line(format_datetime(payload.get("date")))
     p.line()
     p.feed(FEED_LINES)
@@ -1380,22 +1443,36 @@ class Handler(BaseHTTPRequestHandler):
                     payload = self._read_json()
                 except Exception:  # noqa: BLE001
                     payload = {}
+                test_lang = receipt_lang(payload)
+                if test_lang == "zh":
+                    test_header = "测试打印"
+                    test_items = [
+                        {"qty": 1, "name": "测试商品 A", "amountCents": 250},
+                        {"qty": 2, "name": "名称很长的测试商品 B", "amountCents": 500},
+                        {"qty": 1, "name": "中文测试 你好", "amountCents": 100},
+                    ]
+                    test_footer = "打印机工作正常，谢谢！"
+                else:
+                    test_header = "TESTBON"
+                    test_items = [
+                        {"qty": 1, "name": "Testartikel A", "amountCents": 250},
+                        {"qty": 2, "name": "Testartikel mit sehr langem Namen B", "amountCents": 500},
+                        {"qty": 1, "name": "Grüße äöüß ÄÖÜ", "amountCents": 100},
+                    ]
+                    test_footer = "Drucker funktioniert. Vielen Dank!"
                 data = render_receipt({
                     "vendorName": payload.get("vendorName") or "TESTDRUCK",
-                    "header": "TESTBON",
+                    "header": test_header,
                     "orderNumber": payload.get("orderNumber") or 42,
                     "date": datetime.now().isoformat(),
                     "charset": payload.get("charset"),
                     "width": payload.get("width"),
-                    "items": [
-                        {"qty": 1, "name": "Testartikel A", "amountCents": 250},
-                        {"qty": 2, "name": "Testartikel mit sehr langem Namen B", "amountCents": 500},
-                        {"qty": 1, "name": "Grüße äöüß ÄÖÜ", "amountCents": 100},
-                    ],
+                    "lang": test_lang,
+                    "items": test_items,
                     "subtotalCents": 850,
                     "totalCents": 850,
                     "paymentMethod": "CASH",
-                    "footer": "Drucker funktioniert. Vielen Dank!",
+                    "footer": test_footer,
                 })
                 send_to_printer(data)
                 self._send(200, {"ok": True, "bytes": len(data)})

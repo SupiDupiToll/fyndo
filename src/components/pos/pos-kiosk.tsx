@@ -985,7 +985,9 @@ function PosKioskInner({
       totalCents,
       giftCardCents: Math.max(0, cartTotal - totalCents),
       paymentMethod: method ?? undefined,
-      footer: "Vielen Dank für Ihren Einkauf!",
+      // Beschriftungen und Fußzeile rendert der Druckserver passend zur Sprache.
+      lang,
+      charset: lang === "zh" ? "auto" : undefined,
     }).catch(() => {});
   }
 
