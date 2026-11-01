@@ -47,14 +47,9 @@ function playAudioOrSpeech(
 ) {
   if (typeof window === "undefined") return done();
 
-  // Die vorproduzierten Ansagen gibt es nur auf Deutsch.
-  if (lang !== "de") {
-    speak(text, lang);
-    const duration = Math.min(Math.max(text.length * 140, 1500), 7000);
-    window.setTimeout(done, duration);
-    return;
-  }
-
+  // Die vorproduzierten Ansagen gibt es nur auf Deutsch. Sie werden daher in
+  // allen Sprachen abgespielt; die Browser-TTS dient nur noch als Fallback,
+  // falls die MP3 nicht geladen werden kann.
   const audio = new Audio(`${AUDIO_BASE}/${key}`);
 
   let settled = false;
