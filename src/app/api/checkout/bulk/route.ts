@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { requireUser } from "@/lib/auth";
 import { getAppUrl } from "@/lib/env";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { createRbankPayment } from "@/lib/rbank";
 import { isDemoUser } from "@/lib/demo";
 
@@ -40,21 +42,32 @@ export async function POST(request: NextRequest) {
 
     const description = products.map((p) => p.title).join(", ");
 
-    const orders = await prisma.$transaction(
-      items.map((item) => {
-        const product = products.find((p) => p.id === item.productId)!;
-        return prisma.order.create({
-          data: {
-            userId: user.id,
-            productId: item.productId,
-            amountCents: item.amountCents,
-            buyerName: user.displayName,
-            buyerEmail: user.email,
-            status: "PENDING",
-          },
-        });
-      }),
-    );
+    // Alle Bestellungen in einem einzigen INSERT anlegen: Der Neon-HTTP-Treiber
+    // auf Cloudflare Workers kann keine mehrstufigen Transaktionen ausführen,
+    // ein einzelnes Statement ist aber von sich aus atomar.
+    const now = new Date();
+    const orders = await prisma.$queryRaw<{ id: string; amountCents: number }[]>`
+      INSERT INTO "Order" (
+        "id", "userId", "productId", "amountCents", "buyerName", "buyerEmail",
+        "status", "createdAt", "updatedAt"
+      )
+      VALUES ${Prisma.join(
+        items.map(
+          (item) => Prisma.sql`(
+            ${randomUUID()},
+            ${user.id},
+            ${item.productId},
+            ${item.amountCents},
+            ${user.displayName},
+            ${user.email},
+            'PENDING',
+            ${now},
+            ${now}
+          )`,
+        ),
+      )}
+      RETURNING "id", "amountCents"
+    `;
 
     const totalCents = orders.reduce((sum, o) => sum + o.amountCents, 0);
 

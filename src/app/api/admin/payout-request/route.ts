@@ -41,27 +41,40 @@ export async function POST(request: NextRequest) {
     const sellerName = user.sellerName?.trim() || user.displayName;
     const description = `Fyndo Auszahlung ${sellerName}${note ? ` – ${note}` : ""}`.slice(0, 120);
 
-    // Offene Auszahlung finden oder anlegen. Der Row-Lock in der Transaktion stellt
-    // sicher, dass parallele Anfragen nicht zwei Auszahlungen für denselben Verkäufer starten.
-    const payout = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT 1 FROM "User" WHERE id = ${user.id} FOR UPDATE`;
+    // Offene Auszahlung finden oder anlegen. Der partielle Unique-Index
+    // "Payout_sellerId_pending_key" garantiert, dass parallele Anfragen keine
+    // zweite offene Auszahlung für denselben Verkäufer starten – ein
+    // mehrstufiges SELECT ... FOR UPDATE ist mit dem Neon-HTTP-Treiber auf
+    // Cloudflare Workers nicht möglich (keine Transaktionen/Sessions).
+    const idempotencyKey = `fyndo-payout-${user.id}-${crypto.randomUUID()}`;
+    const created = await prisma.$queryRaw<
+      { id: string; amountCents: number; feeCents: number; idempotencyKey: string }[]
+    >`
+      INSERT INTO "Payout" (
+        "id", "sellerId", "amountCents", "feeCents", "note",
+        "idempotencyKey", "status", "createdAt"
+      )
+      VALUES (
+        ${crypto.randomUUID()}, ${user.id}, ${netCents}, ${feeCents}, ${note || null},
+        ${idempotencyKey}, 'PENDING', ${new Date()}
+      )
+      ON CONFLICT ("sellerId") WHERE "status" = 'PENDING' DO NOTHING
+      RETURNING "id", "amountCents", "feeCents", "idempotencyKey"
+    `;
 
-      const existing = await tx.payout.findFirst({
+    const payout =
+      created[0] ??
+      (await prisma.payout.findFirst({
         where: { sellerId: user.id, status: "PENDING" },
         orderBy: { createdAt: "desc" },
-      });
-      if (existing) return existing;
+      }));
 
-      return tx.payout.create({
-        data: {
-          sellerId: user.id,
-          amountCents: netCents,
-          feeCents,
-          note: note || null,
-          idempotencyKey: `fyndo-payout-${user.id}-${crypto.randomUUID()}`,
-        },
-      });
-    });
+    if (!payout) {
+      return NextResponse.json(
+        { error: "Offene Auszahlung konnte nicht ermittelt werden." },
+        { status: 500 },
+      );
+    }
 
     try {
       // Bei einem erneuten Versuch (z. B. nach Timeout) wird derselbe idempotencyKey an
@@ -79,16 +92,26 @@ export async function POST(request: NextRequest) {
         idempotencyKey: payout.idempotencyKey,
       });
 
-      await prisma.$transaction([
-        prisma.payout.update({
-          where: { id: payout.id },
-          data: { status: "COMPLETED", rbankPayoutId: result.id, error: null, completedAt: new Date() },
-        }),
-        prisma.user.update({
-          where: { id: user.id },
-          data: { sellerBalanceCents: { decrement: payout.amountCents + payout.feeCents } },
-        }),
-      ]);
+      // Statuswechsel und Saldo-Abzug in einem einzigen Statement (CTE), damit
+      // beides atomar passiert – mehrstufige Transaktionen gehen auf Workers nicht.
+      const settled = await prisma.$executeRaw`
+        WITH payout AS (
+          UPDATE "Payout"
+          SET "status" = 'COMPLETED',
+              "rbankPayoutId" = ${result.id},
+              "error" = NULL,
+              "completedAt" = ${new Date()}
+          WHERE "id" = ${payout.id}
+          RETURNING "amountCents", "feeCents"
+        )
+        UPDATE "User"
+        SET "sellerBalanceCents" = "sellerBalanceCents" - (SELECT "amountCents" + "feeCents" FROM payout)
+        WHERE "id" = ${user.id} AND EXISTS (SELECT 1 FROM payout)
+      `;
+
+      if (settled === 0) {
+        throw new Error("Auszahlung konnte nicht verbucht werden.");
+      }
 
       return NextResponse.json({
         message: `Auszahlung von ${formatEuro(payout.amountCents)} wurde auf dein RBank-Konto überwiesen.`,
